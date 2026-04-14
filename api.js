@@ -54,19 +54,29 @@ app.post('/api/auth', async (req, res) => {
         
         if (error) return res.status(401).json({ success: false, error: error.message });
 
-        // Get partner profile
-        const { data: partner } = await supabase
-            .from('partners')
+        // Add Role validation here
+        const { data: isStaff, error: rpcError } = await supabase.rpc('is_fufu_staff', { user_id: data.user.id });
+        
+        if (rpcError) {
+             return res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์: ' + rpcError.message });
+        }
+        
+        if (!isStaff) {
+             return res.status(403).json({ success: false, error: 'คุณไม่มีสิทธิ์เข้าถึงระบบหลังบ้าน' });
+        }
+
+        // Get stores owned by user
+        const { data: stores } = await supabase
+            .from('stores')
             .select('*')
-            .eq('user_id', data.user.id)
-            .single();
+            .eq('owner_email', data.user.email);
 
         res.json({
             success: true,
             token: data.session.access_token,
             refresh_token: data.session.refresh_token,
             user: data.user,
-            partner: partner
+            stores: stores || []
         });
     }
 });
@@ -128,28 +138,28 @@ app.get('/api/partners/:id?', requireAuth, async (req, res) => {
 
 // 3. APPOINTMENTS (ตัวอย่าง GET & POST)
 app.get('/api/appointments', requireAuth, async (req, res) => {
-    const { partner_id, status, date } = req.query;
+    const { store_id, status, date } = req.query;
     let query = supabase
         .from('appointments')
         .select('*, pets(name, species, avatar_url), profiles(name, phone)');
 
-    if (partner_id) query = query.eq('partner_id', partner_id);
+    if (store_id) query = query.eq('store_id', store_id);
     if (status) query = query.eq('status', status);
     
-    const { data } = await query.order('date_time', { ascending: true });
+    const { data } = await query.order('appt_date', { ascending: true });
     res.json(data);
 });
 
 // 4. TRANSACTIONS (พร้อมคำนวณ GP 5% อัตโนมัติ)
 app.post('/api/transactions', requireAuth, async (req, res) => {
-    const { user_id, partner_id, amount, type } = req.body;
+    const { user_id, store_id, amount, type } = req.body;
     
     const commission = Math.round(amount * 0.05 * 100) / 100;
     const net_amount = amount - commission;
 
     const { data, error } = await supabase
         .from('transactions')
-        .insert([{ user_id, partner_id, amount, commission, net_amount, type }])
+        .insert([{ user_id, store_id, amount, commission, net_amount, type }])
         .select();
 
     if (error) return res.status(400).json({ error: error.message });
@@ -158,13 +168,13 @@ app.post('/api/transactions', requireAuth, async (req, res) => {
 
 // 5. DASHBOARD STATS
 app.get('/api/dashboard', requireAuth, async (req, res) => {
-    const { partner_id } = req.query;
+    const { store_id } = req.query;
     const today = new Date().toISOString().split('T')[0];
 
     // ดึงข้อมูลหลายอย่างพร้อมกัน (Parallel)
     const [apptRes, transRes] = await Promise.all([
-        supabase.from('appointments').select('id, status').eq('partner_id', partner_id).gte('date_time', today),
-        supabase.from('transactions').select('amount, net_amount').eq('partner_id', partner_id).gte('created_at', today)
+        supabase.from('appointments').select('id, status').eq('store_id', store_id).gte('appt_date', today),
+        supabase.from('transactions').select('amount, net_amount').eq('store_id', store_id).gte('created_at', today)
     ]);
 
     const appointments = apptRes.data || [];
@@ -178,6 +188,17 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
             pending_queue: appointments.filter(a => a.status === 'pending').length
         }
     });
+});
+
+// 6. MY STORES
+app.get('/api/my-stores', requireAuth, async (req, res) => {
+    const { data: stores, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('owner_email', req.user.email);
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(stores);
 });
 
 // Start Server

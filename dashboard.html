@@ -1087,9 +1087,11 @@
       </div>
     </div>
 
-    <div class="partner-badge">
-      <div class="p-name" id="sb-partner-name">Loading...</div>
-      <div class="p-type" id="sb-partner-type">–</div>
+    <div class="partner-badge" style="padding: 12px 16px;">
+      <select id="store-switcher" onchange="switchStore(this.value)" style="width: 100%; background: transparent; border: none; font-family: 'Prompt', sans-serif; font-weight: 600; color: var(--primary-dark); outline: none; cursor: pointer; font-size: 14px;">
+        <option value="">Loading Stores...</option>
+      </select>
+      <div class="p-type" id="sb-partner-type" style="margin-top: 8px;">–</div>
     </div>
 
     <nav class="sidebar-nav" id="sidebar-nav">
@@ -1131,7 +1133,7 @@
           <!-- Queue Today -->
           <div class="card">
             <div class="card-header">
-              <div class="card-title">🗓 คิววันนี้</div>
+              <div class="card-title" id="db-queue-title">🗓 คิววันนี้</div>
               <span class="card-action" onclick="navigate('queue')">ดูทั้งหมด →</span>
             </div>
             <div id="queue-list"></div>
@@ -1401,22 +1403,26 @@
         <div class="two-col">
           <div class="card">
             <div class="card-header">
-              <div class="card-title">⚙️ ตั้งค่าร้าน</div>
+              <div class="card-title">⚙️ ตั้งค่าร้าน (Settings)</div>
             </div>
-            <div class="field-group"><label class="field-label">ชื่อร้าน</label><input class="field-input"
-                value="Happy Paws Clinic"></div>
-            <div class="field-group"><label class="field-label">เบอร์โทร</label><input class="field-input"
-                value="02-xxx-xxxx"></div>
-            <div class="field-group"><label class="field-label">ที่อยู่</label><input class="field-input"
-                value="123 ถนนสุขุมวิท กรุงเทพฯ"></div>
-            <div class="field-group"><label class="field-label">เวลาทำการ</label>
-              <div class="form-row">
-                <input class="field-input" value="08:00">
-                <input class="field-input" value="20:00">
+            <div class="field-group"><label class="field-label">ชื่อร้าน (Name)</label><input class="field-input" id="set-name" placeholder="ชื่อร้านค้า"></div>
+            <div class="field-group"><label class="field-label">เบอร์โทร (Phone)</label><input class="field-input" id="set-phone" placeholder="02-xxx-xxxx"></div>
+            <div class="field-group">
+               <label class="field-label">หมวดหมู่ (Category)</label>
+               <select class="field-input" id="set-category" style="cursor:pointer;">
+                 <option value="vet_clinic">คลินิกสัตว์แพทย์</option>
+                 <option value="pet_shop">ร้านค้า Pet Shop</option>
+                 <option value="pet_hotel">Pet Hotel</option>
+                 <option value="pet_grooming">Pet Grooming</option>
+               </select>
+            </div>
+            <div class="field-group"><label class="field-label">พิกัด (Lat, Lng) สำหรับค้นหา</label>
+              <div style="display:flex; gap:8px;">
+                <input class="field-input" id="set-latlng" placeholder="13.7563, 100.5018">
+                <button type="button" class="btn-sm btn-primary" onclick="getCurrentLocation()" style="white-space: nowrap;"><i class="fas fa-location-dot"></i> ระบุพิกัด</button>
               </div>
             </div>
-            <button class="btn-sm btn-primary"
-              style="width:100%;padding:12px;font-size:14px">บันทึกการเปลี่ยนแปลง</button>
+            <button class="btn-sm btn-primary" onclick="saveStoreSettings()" style="width:100%;padding:12px;font-size:14px">บันทึกการเปลี่ยนแปลง</button>
           </div>
           <div class="card">
             <div class="card-header">
@@ -1466,7 +1472,7 @@
     const SUPABASE_URL = localStorage.getItem('fufu_supa_url') || 'https://YOUR_PROJECT.supabase.co';
     const SUPABASE_KEY = localStorage.getItem('fufu_supa_key') || 'YOUR_ANON_KEY';
 
-    const role = localStorage.getItem('fufu_role') || 'vet';
+    let role = localStorage.getItem('fufu_role') || 'vet';
     const user = JSON.parse(localStorage.getItem('fufu_user') || '{}');
 
     // ===== NAV CONFIG =====
@@ -1552,7 +1558,7 @@
       }
     };
 
-    const cfg = navConfig[role] || navConfig.vet;
+    let cfg = navConfig[role] || navConfig.vet;
 
     // ===== DEMO DATA =====
     const demoData = {
@@ -1661,9 +1667,84 @@
       }
     };
 
+    // ===== LOAD STORES FOR SWITCHER =====
+    async function loadStoresDropdown() {
+      const token = localStorage.getItem('fufu_token');
+      const switcher = document.getElementById('store-switcher');
+      let stores = [];
+
+      if (!token || token === 'demo_token') {
+        stores = [
+          { id: 'store-vet-001', name: 'Happy Pet Clinic (Demo)', category: 'vet_clinic' },
+          { id: 'store-shop-002', name: 'FUFU Pet Paradise (Demo)', category: 'pet_shop' }
+        ];
+      } else {
+        try {
+          const res = await fetch('http://localhost:3000/api/my-stores', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          stores = await res.json();
+        } catch(e) {
+          console.error("Failed to fetch stores", e);
+        }
+      }
+
+      switcher.innerHTML = stores.map(s => `<option value="${s.id}">${s.name || 'ไม่ได้ตั้งชื่อร้าน'}</option>`).join('');
+      
+      const currentId = localStorage.getItem('selected_store_id');
+      if (currentId && stores.some(s => s.id === currentId)) {
+        switcher.value = currentId;
+      }
+    }
+
+    function changeStore(newId, category) {
+      if (!newId) return;
+      const switcher = document.getElementById('store-switcher');
+      const selectedText = switcher.options[switcher.selectedIndex].text;
+      
+      localStorage.setItem('selected_store_id', newId);
+      localStorage.setItem('selected_store_category', category);
+
+      let fufuRole = 'shop';
+      if (category === 'vet_clinic') fufuRole = 'vet';
+      if (category === 'pet_grooming' || category === 'pet_hotel') fufuRole = 'service';
+      
+      localStorage.setItem('fufu_role', fufuRole); 
+      role = fufuRole;
+      cfg = navConfig[role] || navConfig.vet;
+
+      renderSidebar();
+      navigate('dashboard');
+      renderDashboard(); // Re-render the dashboard specific to that category
+      
+      showToast(`เปลี่ยนเป็นร้าน ${selectedText} แล้ว`);
+    }
+
+    function saveStoreSettings() {
+      showToast('บันทึกการตั้งค่าร้านค้าสำเร็จ (Demo)');
+    }
+
+    function getCurrentLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude.toFixed(6);
+            const lng = position.coords.longitude.toFixed(6);
+            document.getElementById('set-latlng').value = `${lat}, ${lng}`;
+            showToast('ดึงตำแหน่งปัจจุบันสำเร็จ');
+          },
+          (error) => {
+            showToast('ไม่สามารถดึงตำแหน่งได้ กรุณาตรวจสอบสิทธิ์ Location');
+          }
+        );
+      } else {
+        showToast('เบราว์เซอร์ไม่รองรับ Geolocation');
+      }
+    }
+
     // ===== RENDER SIDEBAR =====
     function renderSidebar() {
-      document.getElementById('sb-partner-name').textContent = cfg.name;
+      loadStoresDropdown();
       const typeEl = document.getElementById('sb-partner-type');
       typeEl.textContent = cfg.type;
       typeEl.className = 'p-type ' + cfg.typeClass;
@@ -1708,6 +1789,20 @@
     // ===== RENDER DASHBOARD =====
     function renderDashboard() {
       const d = demoData[role] || demoData.vet;
+
+      // Update Dashboard Titles based on Category
+      const qCardTitle = document.getElementById('db-queue-title');
+      if (qCardTitle) {
+         if (role === 'vet') qCardTitle.textContent = '🗓 คิวแพทย์ / ผู้ป่วยวันนี้ (Today\'s Patients)';
+         else if (role === 'shop') qCardTitle.textContent = '📦 ออเดอร์สินค้า (Product Orders)';
+         else if (role === 'service') qCardTitle.textContent = '✂️ ตารางงาน (Grooming Schedule)';
+      }
+      const rCardTitle = document.getElementById('recent-title');
+      if (rCardTitle) {
+         if (role === 'vet') rCardTitle.textContent = '📋 รายการรักษาล่าสุด';
+         else if (role === 'shop') rCardTitle.textContent = '📋 สถานะสต็อก (Stock Status)';
+         else if (role === 'service') rCardTitle.textContent = '🛍 แพ็กเกจ / บริการ (Service Packages)';
+      }
 
       // Quick actions
       const qa = document.getElementById('quick-actions');
@@ -1929,18 +2024,37 @@
     }
 
     // ===== INIT =====
-    renderSidebar();
-    renderDashboard();
-    setDate();
+    function init() {
+      const token = localStorage.getItem('fufu_token');
+      // Kick out unauthorized or demo users
+      if (!token || token === 'demo_token') {
+        logout();
+        return;
+      }
+      
+      const sessionRole = localStorage.getItem('fufu_role');
+      if (!sessionRole) {
+        logout();
+        return;
+      }
+      
+      renderSidebar();
+      renderDashboard();
+      setDate();
+    }
+    
+    init();
 
     // Override navigate to track current page
     const _nav = navigate;
     navigate = function (pageId) {
       currentPage = pageId;
       _nav(pageId);
-      // Try to fetch real data
-      if (pageId === 'queue') fetchFromSupabase('appointments', { partner_id: localStorage.getItem('fufu_partner_id') });
-      if (pageId === 'income') fetchFromSupabase('transactions', { partner_id: localStorage.getItem('fufu_partner_id') });
+      
+      const storeId = localStorage.getItem('selected_store_id');
+      // Try to fetch real data using store_id
+      if (pageId === 'queue') fetchFromSupabase('appointments', { store_id: storeId });
+      if (pageId === 'income') fetchFromSupabase('transactions', { store_id: storeId });
     };
   </script>
 </body>

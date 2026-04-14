@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FUFU Partner – เข้าสู่ระบบ</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #0D9488;
+      --primary-dark: #0F766E;
+      --primary-light: #CCFBF1;
+      --accent: #D4AF37;
+      --teal: #0F766E;
+      --dark: #F8FAFC;
+      --dark2: #FFFFFF;
+      --dark3: #FFFFFF;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --card: #FFFFFF;
+      --border: rgba(13, 148, 136, 0.15);
+      --border-soft: rgba(203, 213, 225, 0.5);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Prompt', 'Plus Jakarta Sans', sans-serif;
+      background: var(--dark);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bg-orbs {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      animation: float 8s ease-in-out infinite;
+    }
+
+    .orb1 {
+      width: 500px;
+      height: 500px;
+      background: var(--primary);
+      top: -150px;
+      right: -100px;
+      animation-delay: 0s;
+    }
+
+    .orb2 {
+      width: 400px;
+      height: 400px;
+      background: #6EE7B7;
+      bottom: -100px;
+      left: -100px;
+      animation-delay: 3s;
+    }
+
+    .orb3 {
+      width: 300px;
+      height: 300px;
+      background: var(--accent);
+      top: 50%;
+      left: 40%;
+      animation-delay: 6s;
+      opacity: 0.2;
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0) scale(1);
+      }
+
+      50% {
+        transform: translateY(-30px) scale(1.05);
+      }
+    }
+
+    /* Grid pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(rgba(13, 148, 136, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(13, 148, 136, 0.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: 0;
+    }
+
+    .login-wrapper {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 80px;
+      padding: 40px;
+      max-width: 1100px;
+      width: 100%;
+    }
+
+    .brand-side {
+      flex: 1;
+      color: var(--text);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 40px;
+    }
+
+    .logo-icon {
+      width: 56px;
+      height: 56px;
+      background: var(--primary);
+      color: white;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+    }
+
+    .logo-text {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .brand-title {
+      font-size: 42px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .brand-title span {
+      color: var(--primary);
+    }
+
+    .brand-desc {
+      font-size: 16px;
+      color: var(--text-muted);
+      line-height: 1.8;
+      margin-bottom: 40px;
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    .features {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: var(--card);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+      transition: all 0.3s;
+    }
+
+    .feature-item:hover {
+      border-color: var(--primary);
+      transform: translateX(6px);
+      box-shadow: 0 8px 25px rgba(13, 148, 136, 0.1);
+    }
+
+    .feature-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .fi-vet {
+      background: rgba(13, 148, 136, 0.15);
+      color: var(--teal);
+    }
+
+    .fi-shop {
+      background: rgba(212, 175, 55, 0.15);
+      color: var(--accent);
+    }
+
+    .fi-hotel {
+      background: rgba(59, 130, 246, 0.15);
+      color: #3B82F6;
+    }
+
+    .fi-groom {
+      background: rgba(139, 92, 246, 0.15);
+      color: #8B5CF6;
+    }
+
+    .feature-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .feature-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    /* Login Card */
+    .login-card {
+      width: 420px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--border-soft);
+      border-radius: 24px;
+      padding: 44px 40px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(13, 148, 136, 0.05);
+    }
+
+    .card-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .card-sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    .form-group {
+      margin-bottom: 22px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap i {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 15px;
+      transition: color 0.3s;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px 14px 46px;
+      background: #F8FAFC;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Prompt', sans-serif;
+      font-size: 14px;
+      transition: all 0.3s;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: var(--primary);
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .form-input:focus~i,
+    .input-wrap:focus-within i {
+      color: var(--primary);
+    }
+
+    .role-select {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .role-btn {
+      padding: 12px 10px;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 12px;
+      background: #F8FAFC;
+      color: var(--text-muted);
+      font-family: 'Prompt', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .role-btn:hover {
+      border-color: var(--primary);
+      color: var(--text);
+      background: #FFFFFF;
+    }
+
+    .role-btn.active {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      font-weight: 600;
+    }
+
+    .role-label-text {
+      font-size: 12px;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 15px;
+      background: var(--primary);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-family: 'Prompt', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      letter-spacing: 0.5px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--primary-light), var(--primary));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .login-btn:hover::before {
+      opacity: 0.1;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(13, 148, 136, 0.4);
+    }
+
+    .login-btn span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    .forgot-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+      text-decoration: none;
+      transition: color 0.3s;
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    .forgot-link:hover {
+      color: var(--primary);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 24px 0;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #E2E8F0;
+    }
+
+    .divider span {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    .version-badge {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'Sarabun', sans-serif;
+      letter-spacing: 1px;
+      z-index: 10;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media(max-width:900px) {
+      .brand-side {
+        display: none;
+      }
+
+      .login-wrapper {
+        justify-content: center;
+      }
+
+      .login-card, .store-card {
+        width: 100%;
+        max-width: 420px;
+      }
+    }
+
+    /* Store Selection Card */
+    .store-card {
+      width: 420px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--border-soft);
+      border-radius: 24px;
+      padding: 44px 40px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(13, 148, 136, 0.05);
+      display: none; /* Hidden by default */
+    }
+
+    .store-list-container {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 350px;
+      overflow-y: auto;
+    }
+
+    .store-item {
+      padding: 16px;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 12px;
+      background: #F8FAFC;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .store-item:hover {
+      border-color: var(--primary);
+      background: #FFFFFF;
+      box-shadow: 0 4px 15px rgba(13, 148, 136, 0.1);
+    }
+    
+    .store-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .store-details {
+      flex: 1;
+    }
+
+    .store-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .store-category {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Sarabun', sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-orbs">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+  </div>
+
+  <div class="login-wrapper">
+    <div class="brand-side">
+      <div class="logo">
+        <div class="logo-icon">🐾</div>
+        <div>
+          <div class="logo-text">FUFU</div>
+          <div class="logo-sub">Partner Portal</div>
+        </div>
+      </div>
+      <div class="brand-title">ระบบจัดการ<br><span>พันธมิตรธุรกิจ</span><br>สำหรับสัตว์เลี้ยง</div>
+      <div class="brand-desc">จัดการคิว รายรับ บริการ และสินค้าของคุณ<br>ผ่านแดชบอร์ดที่ครบครันในที่เดียว</div>
+      <div class="features">
+        <div class="feature-item">
+          <div class="feature-icon fi-vet"><i class="fas fa-stethoscope"></i></div>
+          <div>
+            <div class="feature-label">คลินิกสัตว์แพทย์</div>
+            <div class="feature-desc">จัดการคิวนัด ประวัติการรักษา รายรับประจำวัน</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon fi-shop"><i class="fas fa-store"></i></div>
+          <div>
+            <div class="feature-label">ร้านค้า Pet Shop</div>
+            <div class="feature-desc">จัดการสินค้า คำสั่งซื้อ สต็อก ยอดขาย</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon fi-hotel"><i class="fas fa-bed"></i></div>
+          <div>
+            <div class="feature-label">Pet Hotel</div>
+            <div class="feature-desc">จองห้อง Check-in/out ดูแลสัตว์เลี้ยง</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon fi-groom"><i class="fas fa-cut"></i></div>
+          <div>
+            <div class="feature-label">Pet Grooming</div>
+            <div class="feature-desc">นัดหมายตัดขน สปา บริการเสริมสวย</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="login-card" id="loginCard">
+      <div class="card-title">ยินดีต้อนรับ 👋</div>
+      <div class="card-sub">เข้าสู่ระบบเพื่อจัดการธุรกิจของคุณ</div>
+
+      <form id="loginForm" onsubmit="event.preventDefault(); doLogin();">
+        <div class="form-group">
+          <label class="form-label">อีเมล</label>
+          <div class="input-wrap">
+            <i class="fas fa-envelope"></i>
+            <input type="email" class="form-input" id="email" placeholder="partner@fufu.app" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน</label>
+          <div class="input-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" class="form-input" id="password" placeholder="••••••••" required>
+          </div>
+        </div>
+
+        <button type="submit" class="login-btn">
+          <span id="btn-text">เข้าสู่ระบบ</span>
+          <div class="spinner" id="spinner"></div>
+        </button>
+      </form>
+
+      <a href="#" class="forgot-link">ลืมรหัสผ่าน? ติดต่อทีมงาน FUFU</a>
+    </div>
+
+    <div class="store-card" id="storeCard">
+      <div class="card-title">เลือกร้านค้าของคุณ</div>
+      <div class="card-sub">โปรดเลือกร้านค้าเพื่อเข้าสู่หน้าการจัดการ</div>
+      
+      <div class="store-list-container" id="storeList">
+        <!-- Stores will be populated here -->
+      </div>
+    </div>
+  </div>
+
+  <div class="version-badge">FUFU Partner v0.1 • Powered by Kitten Code</div>
+
+  <script>
+    async function doLogin() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      document.getElementById('btn-text').style.display = 'none';
+      document.getElementById('spinner').style.display = 'block';
+
+      try {
+        // ---- Backend API Auth ----
+        const res = await fetch('http://localhost:3000/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'login', email, password })
+        });
+        const data = await res.json();
+
+        if (data.success && data.token) {
+          showStoreSelection(data.stores, data.token, data.user);
+        } else {
+          alert('เข้าสู่ระบบไม่สำเร็จ: ' + (data.error || ''));
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      }
+
+      document.getElementById('btn-text').style.display = 'block';
+      document.getElementById('spinner').style.display = 'none';
+    }
+
+    function showStoreSelection(stores, token, user) {
+      if (!stores || stores.length === 0) {
+        alert("คุณยังไม่ได้ลงทะเบียนร้านค้าใดๆ");
+        return;
+      }
+      
+      document.getElementById('loginCard').style.display = 'none';
+      document.getElementById('storeCard').style.display = 'block';
+      
+      const storeListHtml = stores.map(store => {
+        let iconHtml = '';
+        if (store.category === 'vet_clinic') iconHtml = '<div class="store-icon fi-vet"><i class="fas fa-stethoscope"></i></div>';
+        else if (store.category === 'pet_shop') iconHtml = '<div class="store-icon fi-shop"><i class="fas fa-store"></i></div>';
+        else if (store.category === 'pet_hotel') iconHtml = '<div class="store-icon fi-hotel"><i class="fas fa-bed"></i></div>';
+        else if (store.category === 'pet_grooming') iconHtml = '<div class="store-icon fi-groom"><i class="fas fa-cut"></i></div>';
+        else iconHtml = '<div class="store-icon fi-shop"><i class="fas fa-paw"></i></div>';
+
+        let catDisplay = 'ร้านค้าสัตว์เลี้ยง';
+        if (store.category === 'vet_clinic') catDisplay = 'คลินิกสัตว์แพทย์';
+        if (store.category === 'pet_hotel') catDisplay = 'โรงแรมสัตว์เลี้ยง';
+        if (store.category === 'pet_grooming') catDisplay = 'บริการอาบน้ำตัดขน';
+
+        return `
+          <div class="store-item" onclick="selectStore('${store.id}', '${store.category}', '${token}', '${user.email}')">
+            ${iconHtml}
+            <div class="store-details">
+              <div class="store-name">${store.name || 'ไม่ได้ตั้งชื่อร้าน'}</div>
+              <div class="store-category">${catDisplay}</div>
+            </div>
+            <i class="fas fa-chevron-right" style="color:var(--text-muted);font-size:12px;"></i>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('storeList').innerHTML = storeListHtml;
+    }
+
+    function selectStore(storeId, category, token, userEmail) {
+      // Map legacy types for backwards compatibility in dashboard if needed
+      let fufuRole = 'shop';
+      if (category === 'vet_clinic') fufuRole = 'vet';
+      if (category === 'pet_grooming' || category === 'pet_hotel') fufuRole = 'service';
+
+      localStorage.setItem('fufu_token', token);
+      localStorage.setItem('fufu_role', fufuRole); 
+      localStorage.setItem('fufu_user', JSON.stringify({ email: userEmail, id: 'login' }));
+      localStorage.setItem('selected_store_id', storeId);
+      localStorage.setItem('selected_store_category', category);
+      
+      window.location.href = 'dashboard.html';
+    }
+  </script>
+</body>
+
+</html>
