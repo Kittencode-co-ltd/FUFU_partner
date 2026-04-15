@@ -257,3 +257,5 @@ class PartnerService {
 ---
 
 **FUFU Partner v2.0** • Built with ❤️ for FUFU Pet Care Platform
+#   F U F U _ p a r t n e r  
+ 
