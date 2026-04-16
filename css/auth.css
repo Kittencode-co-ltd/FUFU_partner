@@ -1,0 +1,418 @@
+/* =============================================
+   FUFU Partner – Auth Page Styles
+   Login / Store Selection / Background effects
+   ============================================= */
+
+/* ----- Auth Body Override ----- */
+body.auth-page {
+  font-family: 'Prompt', 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg-input);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ----- Background Orbs ----- */
+.bg-orbs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  animation: float 8s ease-in-out infinite;
+}
+
+.orb1 {
+  width: 500px; height: 500px;
+  background: var(--primary);
+  top: -150px; right: -100px;
+  animation-delay: 0s;
+}
+
+.orb2 {
+  width: 400px; height: 400px;
+  background: #6EE7B7;
+  bottom: -100px; left: -100px;
+  animation-delay: 3s;
+}
+
+.orb3 {
+  width: 300px; height: 300px;
+  background: var(--accent);
+  top: 50%; left: 40%;
+  animation-delay: 6s;
+  opacity: 0.2;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-30px) scale(1.05); }
+}
+
+/* Grid pattern overlay */
+body.auth-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: linear-gradient(rgba(13, 148, 136, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13, 148, 136, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+  z-index: 0;
+}
+
+/* ----- Login Wrapper ----- */
+.login-wrapper {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 80px;
+  padding: 40px;
+  max-width: 1100px;
+  width: 100%;
+}
+
+/* ----- Brand Side (Left) ----- */
+.brand-side {
+  flex: 1;
+  color: var(--text-main);
+}
+
+.brand-side .logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+
+.brand-side .logo-icon {
+  width: 56px; height: 56px;
+  background: var(--primary);
+  color: white;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+}
+
+.brand-side .logo-text {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-side .logo-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.brand-title {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 20px;
+}
+
+.brand-title span { color: var(--primary); }
+
+.brand-desc {
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.8;
+  margin-bottom: 40px;
+  font-family: 'Sarabun', sans-serif;
+}
+
+/* Feature items on brand side */
+.auth-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-features .feature-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid rgba(203, 213, 225, 0.5);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s;
+}
+
+.auth-features .feature-item:hover {
+  border-color: var(--primary);
+  transform: translateX(6px);
+  box-shadow: 0 8px 25px rgba(13, 148, 136, 0.1);
+}
+
+.auth-features .feature-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.fi-vet   { background: rgba(13, 148, 136, 0.15); color: var(--primary-dark); }
+.fi-shop  { background: rgba(212, 175, 55, 0.15);  color: var(--accent); }
+.fi-hotel { background: rgba(59, 130, 246, 0.15);  color: #3B82F6; }
+.fi-groom { background: rgba(139, 92, 246, 0.15);  color: #8B5CF6; }
+
+.feature-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.feature-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'Sarabun', sans-serif;
+}
+
+/* ----- Login Card ----- */
+.login-card {
+  width: 420px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(203, 213, 225, 0.5);
+  border-radius: 24px;
+  padding: 44px 40px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(13, 148, 136, 0.05);
+}
+
+.card-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.card-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 36px;
+  font-family: 'Sarabun', sans-serif;
+}
+
+/* ----- Form Elements ----- */
+.form-group { margin-bottom: 22px; }
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+.input-wrap { position: relative; }
+
+.input-wrap i {
+  position: absolute;
+  left: 16px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 15px;
+  transition: color 0.3s;
+}
+
+.form-input {
+  width: 100%;
+  padding: 14px 16px 14px 46px;
+  background: var(--bg-input);
+  border: 1.5px solid #CBD5E1;
+  border-radius: 12px;
+  color: var(--text-main);
+  font-family: 'Prompt', sans-serif;
+  font-size: 14px;
+  transition: all 0.3s;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--primary-light-bg);
+}
+
+.form-input:focus ~ i,
+.input-wrap:focus-within i {
+  color: var(--primary);
+}
+
+/* ----- Login Button ----- */
+.login-btn {
+  width: 100%;
+  padding: 15px;
+  background: var(--primary);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-family: 'Prompt', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--primary-light-bg), var(--primary));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.login-btn:hover::before { opacity: 0.1; }
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(13, 148, 136, 0.4);
+}
+
+.login-btn span { position: relative; z-index: 1; }
+.login-btn:active { transform: translateY(0); }
+
+.forgot-link {
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.3s;
+  font-family: 'Sarabun', sans-serif;
+}
+
+.forgot-link:hover { color: var(--primary); }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 24px 0;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: #E2E8F0;
+}
+
+.divider span {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'Sarabun', sans-serif;
+}
+
+/* ----- Store Selection Card ----- */
+.store-card {
+  width: 420px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(203, 213, 225, 0.5);
+  border-radius: 24px;
+  padding: 44px 40px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(13, 148, 136, 0.05);
+  display: none;
+}
+
+.store-list-container {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.store-item {
+  padding: 16px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 12px;
+  background: var(--bg-input);
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.store-item:hover {
+  border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.1);
+}
+
+.store-icon {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.store-details { flex: 1; }
+
+.store-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.store-category {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'Sarabun', sans-serif;
+}
+
+/* ----- Version Badge ----- */
+.version-badge {
+  position: fixed;
+  bottom: 20px; right: 24px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Sarabun', sans-serif;
+  letter-spacing: 1px;
+  z-index: 10;
+}
+
+/* ----- Responsive ----- */
+@media (max-width: 900px) {
+  .brand-side { display: none; }
+  .login-wrapper { justify-content: center; }
+  .login-card, .store-card { width: 100%; max-width: 420px; }
+}
