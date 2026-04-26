@@ -11,7 +11,7 @@
  */
 
 import { showToast } from '../utils/notifications.js';
-import { formatCurrency, formatThaiDate } from '../utils/formatters.js';
+import { formatBaht, formatThaiDate } from '../utils/formatters.js';
 import { FEATURE_FLAGS } from '../utils/config.js';
 
 // ===== STOCK ALERT THRESHOLDS =====
@@ -113,7 +113,7 @@ export function renderProducts(products) {
         ${expiry?.isNearExpiry ? `<div style="position:absolute;top:8px;right:8px;padding:2px 8px;border-radius:6px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:600">ใกล้หมดอายุ (${expiry.daysLeft}d)</div>` : ''}
         <div class="product-img">${p.icon}</div>
         <div class="product-name">${p.name}</div>
-        <div class="product-price">${isExtended ? formatCurrency(p.sellPrice) : p.price}</div>
+        <div class="product-price">${isExtended ? formatBaht(p.sellPrice) : p.price}</div>
         ${isExtended ? `
           <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0">
             <div class="product-stock">
@@ -122,7 +122,7 @@ export function renderProducts(products) {
             <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:${stockStatus.bg};color:${stockStatus.color};font-weight:600">${stockStatus.label}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:8px;font-family:'Sarabun',sans-serif">
-            <span>ทุน: ${formatCurrency(p.costPrice)}</span>
+            <span>ทุน: ${formatBaht(p.costPrice)}</span>
             <span style="color:${margin > 30 ? '#10B981' : '#F59E0B'};font-weight:600">กำไร: ${margin}%</span>
           </div>
         ` : `

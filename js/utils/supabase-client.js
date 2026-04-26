@@ -17,7 +17,7 @@ import { getSupabaseConfig, STORAGE_KEYS } from './config.js';
  */
 export async function fetchFromSupabase(table, filters = {}) {
   const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
-  if (!token || token === 'demo_token') return null;
+  if (!token) return null;
 
   const { url, key } = getSupabaseConfig();
   if (!url || url.includes('YOUR_PROJECT')) return null;
@@ -72,5 +72,132 @@ export async function apiRequest(path, options = {}) {
   } catch (e) {
     console.error(`[API] Error calling ${path}:`, e);
     return null;
+  }
+}
+
+/**
+ * Insert data to Supabase REST API directly.
+ * @param {string} table - Table name
+ * @param {Object} data - Data to insert
+ * @returns {Promise<Object|null>}
+ */
+export async function insertToSupabase(table, data) {
+  const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+  if (!token) return null;
+
+  const { url, key } = getSupabaseConfig();
+  if (!url || url.includes('YOUR_PROJECT')) return null;
+
+  try {
+    const res = await fetch(`${url}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: {
+        'apikey': key,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!res.ok) {
+      console.warn(`[Supabase] Failed to insert to ${table}:`, res.status, await res.text());
+      return null;
+    }
+
+    return await res.json();
+  } catch (e) {
+    console.error(`[Supabase] Error inserting to ${table}:`, e);
+    return null;
+  }
+}
+
+/**
+ * Update data in Supabase REST API directly.
+ * @param {string} table - Table name
+ * @param {Object} data - Data to update
+ * @param {Object} filters - Key-value filter pairs (e.g. { id: 123 })
+ * @returns {Promise<Object|null>}
+ */
+export async function updateInSupabase(table, data, filters = {}) {
+  const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+  if (!token) return null;
+
+  const { url, key } = getSupabaseConfig();
+  if (!url || url.includes('YOUR_PROJECT')) return null;
+
+  try {
+    let endpoint = `${url}/rest/v1/${table}`;
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      queryParams.append(k, `eq.${v}`);
+    });
+    if (queryParams.toString()) {
+      endpoint += `?${queryParams.toString()}`;
+    }
+
+    const res = await fetch(endpoint, {
+      method: 'PATCH',
+      headers: {
+        'apikey': key,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!res.ok) {
+      console.warn(`[Supabase] Failed to update ${table}:`, res.status, await res.text());
+      return null;
+    }
+
+    return await res.json();
+  } catch (e) {
+    console.error(`[Supabase] Error updating ${table}:`, e);
+    return null;
+  }
+}
+
+/**
+ * Delete data from Supabase REST API directly.
+ * @param {string} table - Table name
+ * @param {Object} filters - Key-value filter pairs (e.g. { id: 123 })
+ * @returns {Promise<boolean>}
+ */
+export async function deleteFromSupabase(table, filters = {}) {
+  const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+  if (!token) return false;
+
+  const { url, key } = getSupabaseConfig();
+  if (!url || url.includes('YOUR_PROJECT')) return false;
+
+  try {
+    let endpoint = `${url}/rest/v1/${table}`;
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      queryParams.append(k, `eq.${v}`);
+    });
+    if (queryParams.toString()) {
+      endpoint += `?${queryParams.toString()}`;
+    }
+
+    const res = await fetch(endpoint, {
+      method: 'DELETE',
+      headers: {
+        'apikey': key,
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      console.warn(`[Supabase] Failed to delete from ${table}:`, res.status, await res.text());
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    console.error(`[Supabase] Error deleting from ${table}:`, e);
+    return false;
   }
 }

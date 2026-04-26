@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/dashboard.css">
   <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/partner-modules.css">
 </head>
 
 <body class="dashboard-page">
@@ -50,7 +51,9 @@
         <div>
           <div class="user-name" id="sb-user-name">Partner</div>
           <div class="user-email" id="sb-user-email">partner@fufu.app</div>
-          <div id="sb-staff-role" style="font-size:10px;margin-top:2px;padding:2px 8px;border-radius:6px;background:rgba(13,148,136,0.1);color:var(--primary);display:inline-block;font-weight:600">เจ้าของ</div>
+          <div id="sb-staff-role"
+            style="font-size:10px;margin-top:2px;padding:2px 8px;border-radius:6px;background:rgba(13,148,136,0.1);color:var(--primary);display:inline-block;font-weight:600">
+            เจ้าของ</div>
         </div>
       </div>
       <button class="logout-btn"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
@@ -62,6 +65,11 @@
     <div class="topbar">
       <div class="topbar-title" id="page-title">แดชบอร์ด</div>
       <div class="topbar-right">
+        <!-- Quick Scaling -->
+        <div class="quick-scale-controls" id="quick-scale">
+          <button class="quick-scale-btn" id="scale-down" title="ลดขนาดตัวอักษร">A-</button>
+          <button class="quick-scale-btn" id="scale-up" title="เพิ่มขนาดตัวอักษร">A+</button>
+        </div>
         <div class="topbar-date" id="topbar-date"></div>
         <div class="notif-btn">
           <i class="fas fa-bell"></i>
@@ -117,7 +125,8 @@
           <div class="card-header">
             <div class="card-title">🗓 คิวทั้งหมด</div>
             <div style="display:flex;gap:8px">
-              <button class="btn-sm btn-outline" id="tv-mode-btn" title="TV Display Mode"><i class="fas fa-tv" style="margin-right:4px"></i>TV Mode</button>
+              <button class="btn-sm btn-outline" id="tv-mode-btn" title="TV Display Mode"><i class="fas fa-tv"
+                  style="margin-right:4px"></i>TV Mode</button>
               <button class="btn-sm btn-primary" data-action="open-modal">+ เพิ่มคิว</button>
             </div>
           </div>
@@ -256,6 +265,11 @@
         </div>
       </div>
 
+      <!-- GROOMING PAGE (Grooming only) -->
+      <div class="page-section" id="page-grooming">
+        <!-- Rendered by grooming.js -->
+      </div>
+
       <!-- ADMIN OVERVIEW -->
       <div class="page-section" id="page-overview">
         <div class="stats-grid">
@@ -351,6 +365,31 @@
         </div>
       </div>
 
+      <!-- OPD CARD PAGE -->
+      <div class="page-section" id="page-opd">
+        <!-- Rendered by opd-card.js -->
+      </div>
+
+      <!-- IPD WARD PAGE -->
+      <div class="page-section" id="page-ipd">
+        <!-- Rendered by ipd.js -->
+      </div>
+
+      <!-- DOCUMENTS PAGE -->
+      <div class="page-section" id="page-documents">
+        <!-- Rendered by documents.js -->
+      </div>
+
+      <!-- KANBAN PAGE -->
+      <div class="page-section" id="page-kanban">
+        <!-- Rendered by kanban.js -->
+      </div>
+
+      <!-- AUDIT TRAIL PAGE -->
+      <div class="page-section" id="page-audit">
+        <!-- Rendered by audit.js -->
+      </div>
+
       <!-- USERS PAGE (Owner only) -->
       <div class="page-section" id="page-users">
         <!-- Rendered by rbac.js -->
@@ -363,24 +402,28 @@
             <div class="card-header">
               <div class="card-title">⚙️ ตั้งค่าร้าน (Settings)</div>
             </div>
-            <div class="field-group"><label class="field-label">ชื่อร้าน (Name)</label><input class="field-input" id="set-name" placeholder="ชื่อร้านค้า"></div>
-            <div class="field-group"><label class="field-label">เบอร์โทร (Phone)</label><input class="field-input" id="set-phone" placeholder="02-xxx-xxxx"></div>
+            <div class="field-group"><label class="field-label">ชื่อร้าน (Name)</label><input class="field-input"
+                id="set-name" placeholder="ชื่อร้านค้า"></div>
+            <div class="field-group"><label class="field-label">เบอร์โทร (Phone)</label><input class="field-input"
+                id="set-phone" placeholder="02-xxx-xxxx"></div>
             <div class="field-group">
-               <label class="field-label">หมวดหมู่ (Category)</label>
-               <select class="field-input" id="set-category" style="cursor:pointer;">
-                 <option value="vet_clinic">คลินิกสัตว์แพทย์</option>
-                 <option value="pet_shop">ร้านค้า Pet Shop</option>
-                 <option value="pet_hotel">Pet Hotel</option>
-                 <option value="pet_grooming">Pet Grooming</option>
-               </select>
+              <label class="field-label">หมวดหมู่ (Category)</label>
+              <select class="field-input" id="set-category" style="cursor:pointer;">
+                <option value="vet_clinic">คลินิกสัตว์แพทย์</option>
+                <option value="pet_shop">ร้านค้า Pet Shop</option>
+                <option value="pet_hotel">Pet Hotel</option>
+                <option value="pet_grooming">Pet Grooming</option>
+              </select>
             </div>
             <div class="field-group"><label class="field-label">พิกัด (Lat, Lng) สำหรับค้นหา</label>
               <div style="display:flex; gap:8px;">
                 <input class="field-input" id="set-latlng" placeholder="13.7563, 100.5018">
-                <button type="button" class="btn-sm btn-primary" data-action="get-location" style="white-space: nowrap;"><i class="fas fa-location-dot"></i> ระบุพิกัด</button>
+                <button type="button" class="btn-sm btn-primary" data-action="get-location"
+                  style="white-space: nowrap;"><i class="fas fa-location-dot"></i> ระบุพิกัด</button>
               </div>
             </div>
-            <button class="btn-sm btn-primary" data-action="save-store-settings" style="width:100%;padding:12px;font-size:14px">บันทึกการเปลี่ยนแปลง</button>
+            <button class="btn-sm btn-primary" data-action="save-store-settings"
+              style="width:100%;padding:12px;font-size:14px">บันทึกการเปลี่ยนแปลง</button>
           </div>
           <div class="card">
             <div class="card-header">
@@ -392,7 +435,8 @@
                 placeholder="eyJhb..."></div>
             <div class="field-group"><label class="field-label">Partner ID</label><input class="field-input"
                 id="cfg-pid" placeholder="uuid"></div>
-            <button class="btn-sm btn-primary" data-action="save-config" style="width:100%;padding:12px;font-size:14px">บันทึก Config</button>
+            <button class="btn-sm btn-primary" data-action="save-config"
+              style="width:100%;padding:12px;font-size:14px">บันทึก Config</button>
             <div
               style="margin-top:16px;padding:14px;background:var(--bg-subtle);border-radius:10px;font-size:12px;font-family:'Sarabun',sans-serif;color:var(--text-muted);line-height:1.8">
               <i class="fas fa-info-circle" style="color:var(--primary)"></i>

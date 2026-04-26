@@ -13,7 +13,8 @@
 
 import { showToast } from '../utils/notifications.js';
 import { formatThaiDate, formatThaiDateShort } from '../utils/formatters.js';
-import { FEATURE_FLAGS } from '../utils/config.js';
+import { FEATURE_FLAGS, STORAGE_KEYS } from '../utils/config.js';
+import { apiRequest } from '../utils/supabase-client.js';
 
 // ===== CONSTANTS =====
 const PRIORITY = {
@@ -23,11 +24,12 @@ const PRIORITY = {
 };
 
 const STATUS = {
-  waiting: { label: 'รอ', class: 'qs-waiting', color: '#F59E0B' },
-  active:  { label: 'กำลังดำเนินการ', class: 'qs-active', color: '#3B82F6' },
-  done:    { label: 'เสร็จสิ้น', class: 'qs-done', color: '#10B981' },
-  cancelled: { label: 'ยกเลิก', class: 'qs-cancelled', color: '#EF4444' },
-  noshow:  { label: 'ไม่มา', class: 'qs-noshow', color: '#64748B' },
+  waiting:     { label: 'รอ', class: 'qs-waiting', color: '#F59E0B' },
+  called:      { label: 'เรียกแล้ว', class: 'qs-active', color: '#8B5CF6' },
+  in_progress: { label: 'กำลังรักษา', class: 'qs-active', color: '#3B82F6' },
+  completed:   { label: 'เสร็จสิ้น', class: 'qs-done', color: '#10B981' },
+  cancelled:   { label: 'ยกเลิก', class: 'qs-cancelled', color: '#EF4444' },
+  no_show:     { label: 'ไม่มา', class: 'qs-noshow', color: '#64748B' },
 };
 
 // ===== QUEUE COUNTER =====
@@ -95,60 +97,99 @@ export function renderQueue(queue) {
  * Render the full queue table on the queue page (enhanced).
  * @param {Object} demoData - Full demo data object for current role
  */
-export function renderFullQueue(demoData) {
+export async function renderFullQueue(demoData) {
   const container = document.getElementById('page-queue');
-  if (!container || !demoData?.queue) return;
+  if (!container) return;
 
-  // Don't replace the whole container - find/create the queue table body
   const fq = document.getElementById('full-queue-tbody');
   if (!fq) return;
 
-  // Render enhanced queue rows
-  fq.innerHTML = demoData.queue.map((q, i) => {
+  const storeId = localStorage.getItem(STORAGE_KEYS.STORE_ID);
+  const today = new Date().toISOString().split('T')[0];
+
+  let queueItems = [];
+
+  // Try fetching real data from API
+  if (storeId) {
+    try {
+      const apiData = await apiRequest(`/api/queue?store_id=${storeId}&date=${today}`);
+      if (Array.isArray(apiData) && apiData.length > 0) {
+        queueItems = apiData;
+      }
+    } catch (err) {
+      console.error('[Queue] API error:', err);
+    }
+  }
+
+  // Fallback to demo data if API returns nothing
+  if (queueItems.length === 0 && demoData?.queue) {
+    fq.innerHTML = demoData.queue.map((q, i) => {
+      const priority = PRIORITY[q.priority] || PRIORITY.normal;
+      const status = STATUS[q.status] || STATUS.waiting;
+      const waitTime = estimateWaitTime(i);
+      return `
+        <tr data-queue-id="${q.num}" data-status="${q.status}">
+          <td><strong>${q.num}</strong></td>
+          <td><div style="font-weight:500">${q.pet}</div><div style="font-size:12px;color:var(--text-muted)">${q.owner}</div></td>
+          <td>${q.time || '-'}</td>
+          <td>${waitTime}</td>
+          <td><span class="queue-status ${status.class}">${status.label}</span></td>
+          <td>-</td>
+        </tr>`;
+    }).join('');
+    return;
+  }
+
+  // Render real data from API
+  fq.innerHTML = queueItems.map((q, i) => {
     const priority = PRIORITY[q.priority] || PRIORITY.normal;
     const status = STATUS[q.status] || STATUS.waiting;
-    const waitTime = estimateWaitTime(i);
-    const serviceName = demoData.products[i % demoData.products.length]?.name || 'บริการ';
+    const waitTime = q.status === 'waiting' ? estimateWaitTime(i, q.estimated_time || 20) : '';
+    const petName = (q.notes || '').split(' - ')[0] || `คิว ${q.queue_number}`;
+    const ownerName = (q.notes || '').split(' - ')[1] || '';
+    const num = `A${String(q.queue_number).padStart(3, '0')}`;
+    const time = q.called_at ? new Date(q.called_at).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) 
+               : q.created_at ? new Date(q.created_at).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) : '-';
 
     return `
-      <tr data-queue-id="${q.num}" data-status="${q.status}" data-priority="${q.priority || 'normal'}">
+      <tr data-queue-id="${q.id}" data-status="${q.status}" data-priority="${q.priority || 'normal'}">
         <td>
           <div style="display:flex;align-items:center;gap:8px">
-            <strong>${q.num}</strong>
+            <strong>${num}</strong>
             ${q.priority && q.priority !== 'normal'
               ? `<span style="font-size:10px;padding:2px 8px;border-radius:6px;background:${priority.color}15;color:${priority.color};font-weight:600">${priority.label}</span>`
               : ''}
           </div>
         </td>
         <td>
-          <div style="font-weight:500">${q.pet}</div>
-          <div style="font-size:12px;color:var(--text-muted)">${q.owner}</div>
+          <div style="font-weight:500">${petName}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${ownerName}</div>
         </td>
-        <td>${serviceName}</td>
+        <td>${q.service_type || '-'}</td>
         <td style="font-family:'Sarabun',sans-serif;color:var(--text-muted)">
-          ${q.time}
-          <div style="font-size:11px;color:${status.color}">${q.status === 'waiting' ? waitTime : ''}</div>
+          ${time}
+          <div style="font-size:11px;color:${status.color}">${waitTime}</div>
         </td>
         <td><span class="queue-status ${status.class}">${status.label}</span></td>
         <td>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
             ${q.status === 'waiting' ? `
-              <button class="btn-sm btn-primary" data-queue-action="start" data-queue-id="${q.num}" title="เริ่มให้บริการ">
+              <button class="btn-sm btn-primary" data-queue-action="start" data-queue-id="${q.id}" title="เริ่มให้บริการ">
                 <i class="fas fa-play" style="margin-right:4px"></i>เริ่ม
               </button>
             ` : ''}
-            ${q.status === 'active' ? `
-              <button class="btn-sm btn-primary" data-queue-action="complete" data-queue-id="${q.num}" style="background:#10B981" title="เสร็จสิ้น">
+            ${q.status === 'in_progress' || q.status === 'called' ? `
+              <button class="btn-sm btn-primary" data-queue-action="complete" data-queue-id="${q.id}" style="background:#10B981" title="เสร็จสิ้น">
                 <i class="fas fa-check" style="margin-right:4px"></i>เสร็จ
               </button>
             ` : ''}
-            ${q.status !== 'done' && q.status !== 'cancelled' ? `
-              <button class="btn-sm btn-outline" data-queue-action="cancel" data-queue-id="${q.num}" style="color:#EF4444;border-color:#EF4444" title="ยกเลิก">
+            ${q.status !== 'completed' && q.status !== 'cancelled' && q.status !== 'no_show' ? `
+              <button class="btn-sm btn-outline" data-queue-action="cancel" data-queue-id="${q.id}" style="color:#EF4444;border-color:#EF4444" title="ยกเลิก">
                 <i class="fas fa-times"></i>
               </button>
             ` : ''}
-            ${q.status === 'done' ? `
-              <button class="btn-sm btn-outline" data-queue-action="receipt" data-queue-id="${q.num}" title="ออกใบเสร็จ">
+            ${q.status === 'completed' ? `
+              <button class="btn-sm btn-outline" data-queue-action="receipt" data-queue-id="${q.id}" title="ออกใบเสร็จ">
                 <i class="fas fa-receipt" style="margin-right:4px"></i>ใบเสร็จ
               </button>
             ` : ''}
@@ -157,27 +198,102 @@ export function renderFullQueue(demoData) {
       </tr>`;
   }).join('');
 
-  // Action handlers via delegation
-  fq.addEventListener('click', (e) => {
+  // Action handlers via delegation — real API calls
+  fq.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-queue-action]');
     if (!btn) return;
 
     const action = btn.dataset.queueAction;
     const queueId = btn.dataset.queueId;
 
-    switch (action) {
-      case 'start':
-        showToast(`เริ่มให้บริการคิว ${queueId}`);
-        break;
-      case 'complete':
-        showToast(`คิว ${queueId} เสร็จสิ้น`);
-        break;
-      case 'cancel':
-        showToast(`ยกเลิกคิว ${queueId}`, 'error');
-        break;
-      case 'receipt':
-        showToast(`กำลังสร้างใบเสร็จสำหรับคิว ${queueId}`, 'info');
-        break;
+    try {
+      switch (action) {
+        case 'start': {
+          const res = await apiRequest(`/api/queue/${queueId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'in_progress' }),
+          });
+          if (res?.success) {
+            showToast(`✅ เริ่มให้บริการคิวแล้ว`);
+            renderFullQueue(demoData); // Re-render
+          } else {
+            showToast(`❌ ${res?.error || 'เกิดข้อผิดพลาด'}`, 'error');
+          }
+          break;
+        }
+        case 'complete': {
+          const res = await apiRequest(`/api/queue/${queueId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'completed' }),
+          });
+          if (res?.success) {
+            showToast(`✅ คิวเสร็จสิ้น`);
+            renderFullQueue(demoData);
+          } else {
+            showToast(`❌ ${res?.error || 'เกิดข้อผิดพลาด'}`, 'error');
+          }
+          break;
+        }
+        case 'cancel': {
+          if (!confirm('ยืนยันยกเลิกคิวนี้?')) return;
+          const res = await apiRequest(`/api/queue/${queueId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'cancelled' }),
+          });
+          if (res?.success) {
+            showToast(`⚠️ ยกเลิกคิวแล้ว`);
+            renderFullQueue(demoData);
+          } else {
+            showToast(`❌ ${res?.error || 'เกิดข้อผิดพลาด'}`, 'error');
+          }
+          break;
+        }
+        case 'receipt':
+          showToast(`🧾 กำลังสร้างใบเสร็จ...`, 'info');
+          break;
+      }
+    } catch (err) {
+      console.error('[Queue Action]', err);
+      showToast('เกิดข้อผิดพลาด', 'error');
+    }
+  });
+
+  // Wire up "Add Queue" form if exists
+  wireAddQueueForm();
+}
+
+/** Wire up the Add Queue form */
+function wireAddQueueForm() {
+  const form = document.getElementById('add-queue-form');
+  if (!form || form.dataset.wired) return;
+  form.dataset.wired = 'true';
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const storeId = localStorage.getItem(STORAGE_KEYS.STORE_ID);
+    if (!storeId) { showToast('กรุณาเลือกร้านค้าก่อน', 'error'); return; }
+
+    const petName = form.querySelector('[name="pet_name"]')?.value || '';
+    const ownerName = form.querySelector('[name="owner_name"]')?.value || '';
+    const serviceType = form.querySelector('[name="service_type"]')?.value || 'ตรวจทั่วไป';
+    const priority = form.querySelector('[name="priority"]')?.value || 'normal';
+
+    try {
+      const res = await apiRequest('/api/queue', {
+        method: 'POST',
+        body: JSON.stringify({ store_id: storeId, pet_name: petName, owner_name: ownerName, service_type: serviceType, priority }),
+      });
+
+      if (res?.success) {
+        showToast(`✅ เพิ่มคิวสำเร็จ (${res.data?.queue_number || ''})`);
+        form.reset();
+        renderFullQueue(null); // Re-render queue
+      } else {
+        showToast(`❌ ${res?.error || 'เพิ่มคิวไม่สำเร็จ'}`, 'error');
+      }
+    } catch (err) {
+      console.error('[Add Queue]', err);
+      showToast('เกิดข้อผิดพลาดในการเพิ่มคิว', 'error');
     }
   });
 }

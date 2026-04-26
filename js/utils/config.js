@@ -5,9 +5,9 @@
  */
 
 /** Base URL for the backend API (Express.js proxy to Supabase) */
-export const API_BASE = window.location.hostname === 'localhost'
+export const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? `http://localhost:${window.location.port || 3000}`
-  : window.location.origin;
+  : 'https://your-production-url.onrender.com'; // TODO: เปลี่ยนเป็น URL ของ backend จริงเมื่อเอาขึ้น production
 
 /** Supabase direct REST config (from localStorage or defaults) */
 export function getSupabaseConfig() {
@@ -34,6 +34,10 @@ export const STORAGE_KEYS = {
   SUPA_URL: 'fufu_supa_url',
   SUPA_KEY: 'fufu_supa_key',
   PARTNER_ID: 'fufu_partner_id',
+  STAFF_ID: 'fufu_staff_id',
+  STAFF_ROLE: 'fufu_staff_role',
+  MASKING_LEVEL: 'fufu_masking_level',
+  FONT_SCALE: 'fufu_font_scale',
   // Pet Owner specific keys
   PET_OWNER_ID: 'fufu_public_owner_id',
   PET_OWNER_DATA: 'fufu_public_owner_data',
@@ -54,7 +58,7 @@ export const FEATURE_FLAGS = {
   ENABLE_PET_OWNER_PORTAL: true,
   // Phase 2: Partner Core
   ENABLE_RBAC: true,
-  ENABLE_CALENDAR_VIEW: false, // Turn off until fully implemented
+  ENABLE_CALENDAR_VIEW: false,
   ENABLE_TV_MODE: true,
   // Phase 3: Advanced Modules
   ENABLE_MEDICAL_MODULE: true,
@@ -62,4 +66,20 @@ export const FEATURE_FLAGS = {
   ENABLE_INVENTORY_ALERTS: true,
   ENABLE_FINANCE_EXPORT: true,
   ENABLE_PROMPTPAY: false,
+  // Phase 1 New: Clinical & Security
+  ENABLE_OPD_CARD: true,
+  ENABLE_IPD_WARD: true,
+  ENABLE_DATA_MASKING: true,
+  ENABLE_AUDIT_TRAIL: true,
+  ENABLE_DOCUMENTS: true,
+  ENABLE_KANBAN: true,
+  ENABLE_QUICK_SCALING: true,
+  // Phase 2 New: Business Ops
+  ENABLE_BATCH_TRACKING: true,
+  ENABLE_BARGAIN_DASHBOARD: true,
+  ENABLE_POS: true,
+  // Phase 3 New: CRM
+  ENABLE_CRM: true,
+  ENABLE_KPI: true,
+  ENABLE_GROOMING_REPORT: true,
 };

@@ -14,14 +14,21 @@ import { STORAGE_KEYS, API_BASE, FEATURE_FLAGS } from '../utils/config.js';
 import { showToast } from '../utils/notifications.js';
 import { formatThaiDate } from '../utils/formatters.js';
 import { getCurrentUser, getCurrentRole, logout } from '../auth.js';
-import { fetchFromSupabase } from '../utils/supabase-client.js';
+import { fetchFromSupabase, apiRequest } from '../utils/supabase-client.js';
 import { renderQueue, renderFullQueue, renderCalendar, toggleTVMode } from './queue.js';
 import { renderFinancePage } from './finance.js';
 import { renderProducts, renderInventoryExtras } from './inventory.js';
 import { renderMedicalRecords } from './medical.js';
 import { renderRooms } from './hotel.js';
+import { renderGrooming } from './grooming.js';
 import { initSettings } from './settings.js';
 import { filterNavByRole, injectRBACNav, getStaffRole, hasPermission, renderUserManagement } from './rbac.js';
+// Phase 1 New Modules
+import { renderOPDCard } from './opd-card.js';
+import { renderIPDWard } from './ipd.js';
+import { renderAuditViewer } from './audit.js';
+import { renderDocumentCenter } from './documents.js';
+import { renderKanban } from './kanban.js';
 
 // ===== NAV CONFIG per Role =====
 const navConfig = {
@@ -35,8 +42,15 @@ const navConfig = {
         { id: 'records', icon: 'fa-file-medical', label: 'ประวัติการรักษา' },
         { id: 'income', icon: 'fa-baht-sign', label: 'รายรับ' },
       ]},
+      { section: 'คลินิก', items: [
+        { id: 'opd', icon: 'fa-stethoscope', label: 'OPD Card' },
+        { id: 'ipd', icon: 'fa-hospital', label: 'IPD Ward' },
+        { id: 'documents', icon: 'fa-file-signature', label: 'เอกสาร' },
+      ]},
       { section: 'จัดการ', items: [
         { id: 'products', icon: 'fa-syringe', label: 'บริการ / ยา' },
+        { id: 'kanban', icon: 'fa-clipboard-list', label: 'Task Board' },
+        { id: 'audit', icon: 'fa-shield-halved', label: 'Audit Trail' },
         { id: 'settings', icon: 'fa-gear', label: 'ตั้งค่า' },
       ]},
     ],
@@ -56,15 +70,29 @@ const navConfig = {
       ]},
     ],
   },
-  service: {
-    name: 'Furry Dreams',
-    type: 'Pet Hotel & Grooming', typeClass: 'type-service',
+  hotel: {
+    name: 'Furry Dreams Hotel',
+    type: 'Pet Hotel', typeClass: 'type-service',
     nav: [
       { section: 'หลัก', items: [
         { id: 'dashboard', icon: 'fa-gauge', label: 'แดชบอร์ด' },
         { id: 'queue', icon: 'fa-calendar-check', label: 'การจอง', badge: 2 },
         { id: 'rooms', icon: 'fa-bed', label: 'ห้องพัก' },
-        { id: 'products', icon: 'fa-scissors', label: 'บริการ Grooming' },
+        { id: 'income', icon: 'fa-baht-sign', label: 'รายรับ' },
+      ]},
+      { section: 'จัดการ', items: [
+        { id: 'settings', icon: 'fa-gear', label: 'ตั้งค่า' },
+      ]},
+    ],
+  },
+  grooming: {
+    name: 'Glamour Groom',
+    type: 'Pet Grooming', typeClass: 'type-service',
+    nav: [
+      { section: 'หลัก', items: [
+        { id: 'dashboard', icon: 'fa-gauge', label: 'แดชบอร์ด' },
+        { id: 'queue', icon: 'fa-calendar-check', label: 'การจอง', badge: 2 },
+        { id: 'grooming', icon: 'fa-scissors', label: 'คิว Grooming' },
         { id: 'income', icon: 'fa-baht-sign', label: 'รายรับ' },
       ]},
       { section: 'จัดการ', items: [
@@ -161,35 +189,55 @@ const demoData = {
       { icon: '🧸', name: 'ของเล่นตุ๊กตา', price: '฿150', stock: '28 ชิ้น' },
     ],
   },
-  service: {
+  hotel: {
     stats: [
-      { icon: 'fa-bed', cl: 'si-orange sc-orange', val: '8', label: 'ห้องที่มีผู้เข้าพัก', change: '', up: true },
+      { icon: 'fa-bed', cl: 'si-orange sc-orange', val: '8', label: 'ห้องเช่า/เข้าพัก', change: '', up: true },
       { icon: 'fa-baht-sign', cl: 'si-teal sc-teal', val: '฿9,800', label: 'รายรับวันนี้', change: '+5%', up: true },
-      { icon: 'fa-scissors', cl: 'si-yellow sc-yellow', val: '5', label: 'คิว Grooming วันนี้', change: '', up: true },
+      { icon: 'fa-door-open', cl: 'si-yellow sc-yellow', val: '12', label: 'ห้องว่าง', change: '', up: true },
       { icon: 'fa-calendar-check', cl: 'si-purple sc-purple', val: '22', label: 'การจองเดือนนี้', change: '+3', up: true },
     ],
     quickActions: [
       { icon: '🏠', label: 'จองห้องพัก', page: 'rooms' },
-      { icon: '✂️', label: 'นัด Grooming', page: 'queue' },
       { icon: '📊', label: 'ดูรายรับ', page: 'income' },
       { icon: '⚙️', label: 'ตั้งค่า', page: 'settings' },
     ],
     queue: [
       { num: 'H-01', pet: 'ลูน่า (สุนัข)', owner: 'คุณปวีณา', time: 'Check-in', status: 'active', statusLabel: 'Check-in' },
-      { num: 'G-05', pet: 'มะม่วง (แมว)', owner: 'คุณอรนุช', time: '13:00', status: 'waiting', statusLabel: 'รอ Groom' },
       { num: 'H-02', pet: 'มักซ์ (สุนัข)', owner: 'คุณธนา', time: 'Check-out', status: 'done', statusLabel: 'Check-out' },
     ],
     chart: { vals: ['50%','65%','80%','60%','75%','88%','70%'], labels: ['จ','อ','พ','พฤ','ศ','ส','อา'] },
     recentHead: ['วันที่','สัตว์เลี้ยง','บริการ','ราคา','สถานะ'],
     recentRows: [
       ['1 เม.ย.','ลูน่า','ห้องพัก Suite 3 คืน','฿2,400','<span class="badge badge-success">Check-in</span>'],
-      ['1 เม.ย.','มะม่วง','Grooming Full Set','฿800','<span class="badge badge-warning">รอดำเนินการ</span>'],
       ['31 มี.ค.','มักซ์','ห้องพักทั่วไป 2 คืน','฿1,200','<span class="badge badge-neutral">Check-out</span>'],
     ],
     products: [
       { icon: '🛏', name: 'ห้อง Standard', price: '฿400/คืน', stock: '5 ห้อง' },
       { icon: '⭐', name: 'ห้อง Deluxe', price: '฿650/คืน', stock: '3 ห้อง' },
       { icon: '👑', name: 'ห้อง Suite', price: '฿900/คืน', stock: '2 ห้อง' },
+    ],
+  },
+  grooming: {
+    stats: [
+      { icon: 'fa-scissors', cl: 'si-orange sc-orange', val: '5', label: 'คิว Grooming วันนี้', change: '', up: true },
+      { icon: 'fa-baht-sign', cl: 'si-teal sc-teal', val: '฿3,200', label: 'รายรับวันนี้', change: '+2%', up: true },
+      { icon: 'fa-clock', cl: 'si-yellow sc-yellow', val: '3', label: 'รอดำเนินการ', change: '', up: true },
+      { icon: 'fa-calendar-check', cl: 'si-purple sc-purple', val: '18', label: 'การจองเดือนนี้', change: '+5', up: true },
+    ],
+    quickActions: [
+      { icon: '✂️', label: 'นัด Grooming', page: 'queue' },
+      { icon: '📊', label: 'ดูรายรับ', page: 'income' },
+      { icon: '⚙️', label: 'ตั้งค่า', page: 'settings' },
+    ],
+    queue: [
+      { num: 'G-05', pet: 'มะม่วง (แมว)', owner: 'คุณอรนุช', time: '13:00', status: 'waiting', statusLabel: 'รอ Groom' },
+    ],
+    chart: { vals: ['40%','55%','70%','50%','65%','80%','60%'], labels: ['จ','อ','พ','พฤ','ศ','ส','อา'] },
+    recentHead: ['วันที่','สัตว์เลี้ยง','บริการ','ราคา','สถานะ'],
+    recentRows: [
+      ['1 เม.ย.','มะม่วง','Grooming Full Set','฿800','<span class="badge badge-warning">รอดำเนินการ</span>'],
+    ],
+    products: [
       { icon: '✂️', name: 'Grooming Basic', price: '฿400', stock: 'ไม่จำกัด' },
       { icon: '💆', name: 'Spa + Grooming', price: '฿700', stock: 'ไม่จำกัด' },
       { icon: '🛁', name: 'อาบน้ำ + แต่งเล็บ', price: '฿250', stock: 'ไม่จำกัด' },
@@ -216,20 +264,25 @@ async function loadStoresDropdown() {
 
   let stores = [];
 
-  if (!token || token === 'demo_token') {
-    stores = [
-      { id: 'store-vet-001', name: 'Happy Pet Clinic (Demo)', category: 'vet_clinic' },
-      { id: 'store-shop-002', name: 'FUFU Pet Paradise (Demo)', category: 'pet_shop' },
-    ];
-  } else {
-    try {
-      const res = await fetch(`${API_BASE}/api/my-stores`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      stores = await res.json();
-    } catch (e) {
-      console.error('Failed to fetch stores', e);
-    }
+  if (!token) {
+    switcher.innerHTML = '<option>กรุณาเข้าสู่ระบบ</option>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/my-stores`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    stores = await res.json();
+    if (!Array.isArray(stores)) stores = [];
+  } catch (e) {
+    console.error('Failed to fetch stores', e);
+    stores = [];
+  }
+
+  if (stores.length === 0) {
+    switcher.innerHTML = '<option>ไม่พบร้านค้า</option>';
+    return;
   }
 
   switcher.innerHTML = stores.map(s =>
@@ -239,6 +292,10 @@ async function loadStoresDropdown() {
   const currentId = localStorage.getItem(STORAGE_KEYS.STORE_ID);
   if (currentId && stores.some(s => s.id === currentId)) {
     switcher.value = currentId;
+  } else if (stores.length > 0) {
+    // Auto-select first store if none selected
+    localStorage.setItem(STORAGE_KEYS.STORE_ID, stores[0].id);
+    switcher.value = stores[0].id;
   }
 }
 
@@ -313,8 +370,10 @@ export function navigate(pageId) {
   // Update topbar title
   const titles = {
     dashboard: 'แดชบอร์ด', queue: 'คิว / การนัดหมาย', income: 'รายรับ',
-    products: 'สินค้า / บริการ', records: 'ประวัติการรักษา', rooms: 'ห้องพัก',
+    products: 'สินค้า / บริการ', records: 'ประวัติการรักษา', rooms: 'ห้องพัก', grooming: 'คิว Grooming',
     overview: 'ภาพรวมทุก Partner', settings: 'ตั้งค่า', users: 'จัดการพนักงาน',
+    opd: 'OPD Card — SOAP Note', ipd: 'IPD Ward — กรงพักผู้ป่วย',
+    documents: 'ศูนย์เอกสาร', kanban: 'Task Board', audit: 'Audit Trail',
   };
   const titleEl = document.getElementById('page-title');
   if (titleEl) titleEl.textContent = titles[pageId] || pageId;
@@ -335,7 +394,7 @@ export function navigate(pageId) {
     renderInventoryExtras();
   }
   if (pageId === 'queue') {
-    renderFullQueue();
+    renderFullQueue(getDemoData(role));
     if (FEATURE_FLAGS.ENABLE_CALENDAR_VIEW) {
       const calContainer = document.getElementById('queue-calendar');
       if (calContainer) renderCalendar(calContainer);
@@ -344,10 +403,35 @@ export function navigate(pageId) {
   if (pageId === 'rooms' && FEATURE_FLAGS.ENABLE_HOTEL_MODULE) {
     renderRooms(role);
   }
+  if (pageId === 'grooming' && FEATURE_FLAGS.ENABLE_HOTEL_MODULE) {
+    renderGrooming(role);
+  }
+  // Phase 1 New Pages
+  if (pageId === 'opd' && FEATURE_FLAGS.ENABLE_OPD_CARD) {
+    const container = document.getElementById('page-opd');
+    if (container) renderOPDCard(container);
+  }
+  if (pageId === 'ipd' && FEATURE_FLAGS.ENABLE_IPD_WARD) {
+    const container = document.getElementById('page-ipd');
+    if (container) renderIPDWard(container);
+  }
+  if (pageId === 'documents' && FEATURE_FLAGS.ENABLE_DOCUMENTS) {
+    const container = document.getElementById('page-documents');
+    if (container) renderDocumentCenter(container);
+  }
+  if (pageId === 'kanban' && FEATURE_FLAGS.ENABLE_KANBAN) {
+    const container = document.getElementById('page-kanban');
+    if (container) renderKanban(container);
+  }
+  if (pageId === 'audit' && FEATURE_FLAGS.ENABLE_AUDIT_TRAIL) {
+    const container = document.getElementById('page-audit');
+    if (container) renderAuditViewer(container);
+  }
 }
 
 // ===== RENDER DASHBOARD =====
-function renderDashboard() {
+async function renderDashboard() {
+  const storeId = localStorage.getItem(STORAGE_KEYS.STORE_ID);
   const d = getDemoData(role);
 
   // Update section titles based on role
@@ -355,14 +439,16 @@ function renderDashboard() {
   if (qTitle) {
     if (role === 'vet') qTitle.textContent = '🗓 คิวแพทย์ / ผู้ป่วยวันนี้ (Today\'s Patients)';
     else if (role === 'shop') qTitle.textContent = '📦 ออเดอร์สินค้า (Product Orders)';
-    else if (role === 'service') qTitle.textContent = '✂️ ตารางงาน (Grooming Schedule)';
+    else if (role === 'hotel') qTitle.textContent = '🏠 นัดเข้าพักวันนี้ (Today\'s Bookings)';
+    else if (role === 'grooming') qTitle.textContent = '✂️ ตารางงาน (Grooming Schedule)';
   }
 
   const rTitle = document.getElementById('recent-title');
   if (rTitle) {
     if (role === 'vet') rTitle.textContent = '📋 รายการรักษาล่าสุด';
     else if (role === 'shop') rTitle.textContent = '📋 สถานะสต็อก (Stock Status)';
-    else if (role === 'service') rTitle.textContent = '🛍 แพ็กเกจ / บริการ (Service Packages)';
+    else if (role === 'hotel') rTitle.textContent = '🏠 สถานะห้องพัก (Room Status)';
+    else if (role === 'grooming') rTitle.textContent = '🛍 แพ็กเกจ / บริการ (Service Packages)';
   }
 
   // Quick actions
@@ -380,7 +466,123 @@ function renderDashboard() {
     });
   }
 
-  // Stats
+  // ===== FETCH REAL DATA FOR VET ROLE =====
+  if (role === 'vet' && storeId) {
+    try {
+      // Fetch stats from API
+      const stats = await apiRequest(`/api/dashboard?store_id=${storeId}`);
+      if (stats && !stats.error) {
+        const sg = document.getElementById('stats-grid');
+        if (sg) {
+          sg.innerHTML = [
+            { icon: 'fa-calendar-check', cl: 'si-orange sc-orange', val: stats.today_queue || 0, label: 'คิววันนี้' },
+            { icon: 'fa-user-nurse', cl: 'si-teal sc-teal', val: stats.active || 0, label: 'กำลังรักษา' },
+            { icon: 'fa-paw', cl: 'si-yellow sc-yellow', val: stats.month_patients || 0, label: 'ผู้ป่วยเดือนนี้' },
+            { icon: 'fa-check-circle', cl: 'si-purple sc-purple', val: stats.completed_today || 0, label: 'เสร็จสิ้นวันนี้' },
+          ].map(s =>
+            `<div class="stat-card ${s.cl.split(' ')[1]}">
+              <div class="stat-icon ${s.cl.split(' ')[0]}"><i class="fas ${s.icon}"></i></div>
+              <div class="stat-value">${s.val}</div>
+              <div class="stat-label">${s.label}</div>
+            </div>`
+          ).join('');
+        }
+      } else {
+        renderFallbackStats(d);
+      }
+
+      // Fetch queue from API
+      const today = new Date().toISOString().split('T')[0];
+      const queueData = await apiRequest(`/api/queue?store_id=${storeId}&date=${today}`);
+      if (Array.isArray(queueData) && queueData.length > 0) {
+        const DB_STATUS_MAP = {
+          waiting: 'รอ', called: 'เรียกแล้ว', in_progress: 'กำลังรักษา',
+          completed: 'เสร็จ', no_show: 'ไม่มา', cancelled: 'ยกเลิก'
+        };
+        const queueForPreview = queueData.map(q => ({
+          num: `A${String(q.queue_number).padStart(3, '0')}`,
+          pet: (q.notes || '').split(' - ')[0] || `คิว ${q.queue_number}`,
+          owner: (q.notes || '').split(' - ')[1]?.split(' ')[0] || '',
+          time: q.called_at ? new Date(q.called_at).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) : (q.created_at ? new Date(q.created_at).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) : ''),
+          status: q.status,
+          statusLabel: DB_STATUS_MAP[q.status] || q.status,
+          priority: q.priority || 'normal',
+        }));
+        renderQueue(queueForPreview);
+      } else {
+        renderQueue(d.queue);
+      }
+
+      // Fetch products from API
+      const productsData = await apiRequest(`/api/products?store_id=${storeId}`);
+      if (Array.isArray(productsData) && productsData.length > 0) {
+        const ICON_MAP = { vaccine: '💉', medicine: '💊', service: '🩺', product: '📦', grooming: '✂️', food: '🍖', accessory: '🧸', hotel: '🏠' };
+        const productsForUI = productsData.map(p => ({
+          icon: ICON_MAP[p.category] || '📦',
+          name: p.name,
+          price: `฿${Number(p.sell_price || 0).toLocaleString()}`,
+          stock: p.stock_qty >= 999 ? 'ไม่จำกัด' : `${p.stock_qty} ${p.unit || 'ชิ้น'}`,
+        }));
+        renderProducts(productsForUI);
+      } else {
+        renderProducts(d.products);
+      }
+
+      // Fetch medical records for recent table
+      const medRecords = await apiRequest(`/api/medical-records?store_id=${storeId}`);
+      if (Array.isArray(medRecords) && medRecords.length > 0) {
+        const rh = document.getElementById('recent-thead');
+        const rb = document.getElementById('recent-tbody');
+        if (rh) rh.innerHTML = '<tr><th>วันที่</th><th>ผู้ป่วย</th><th>การวินิจฉัย</th><th>การรักษา</th><th>สถานะ</th></tr>';
+        if (rb) {
+          const MED_STATUS = { completed: '<span class="badge badge-success">เสร็จสิ้น</span>', in_progress: '<span class="badge badge-warning">กำลังรักษา</span>', open: '<span class="badge badge-info">เปิด</span>' };
+          rb.innerHTML = medRecords.slice(0, 5).map(r => {
+            const date = r.visit_date ? new Date(r.visit_date).toLocaleDateString('th-TH', {day:'numeric',month:'short'}) : '-';
+            const pet = (r.notes || '').split(' เจ้าของ')[0] || '-';
+            return `<tr><td>${date}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${pet}</td><td>${r.diagnosis || '-'}</td><td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis">${r.treatment || '-'}</td><td>${MED_STATUS[r.status] || r.status}</td></tr>`;
+          }).join('');
+        }
+      } else {
+        renderFallbackRecentTable(d);
+      }
+    } catch (err) {
+      console.error('[Dashboard] Error fetching real data, falling back to demo:', err);
+      renderFallbackStats(d);
+      renderQueue(d.queue);
+      renderProducts(d.products);
+      renderFallbackRecentTable(d);
+    }
+  } else {
+    // Non-vet roles: use demoData as before
+    renderFallbackStats(d);
+    renderQueue(d.queue);
+    renderProducts(d.products);
+    renderFallbackRecentTable(d);
+  }
+
+  // Chart (keep demo for now)
+  const ca = document.getElementById('chart-area');
+  const cl = document.getElementById('chart-labels');
+  if (ca) {
+    ca.innerHTML = d.chart.vals.map(v =>
+      `<div class="chart-bar" style="height:${v}" data-val="฿${Math.round(parseInt(v) * 1.2)}K"></div>`
+    ).join('');
+  }
+  if (cl) cl.innerHTML = d.chart.labels.map(l => `<span>${l}</span>`).join('');
+
+  // Delegate to sub-modules
+  renderFullQueue(getDemoData(role));
+  renderFinancePage(role);
+  renderRooms(role);
+  if (role === 'grooming') renderGrooming(role);
+
+  // Render calendar on queue page
+  const calContainer = document.getElementById('queue-calendar');
+  if (calContainer) renderCalendar(calContainer);
+}
+
+/** Render stats from demoData (fallback) */
+function renderFallbackStats(d) {
   const sg = document.getElementById('stats-grid');
   if (sg) {
     sg.innerHTML = d.stats.map(s =>
@@ -392,35 +594,14 @@ function renderDashboard() {
       </div>`
     ).join('');
   }
+}
 
-  // Queue preview
-  renderQueue(d.queue);
-
-  // Chart
-  const ca = document.getElementById('chart-area');
-  const cl = document.getElementById('chart-labels');
-  if (ca) {
-    ca.innerHTML = d.chart.vals.map(v =>
-      `<div class="chart-bar" style="height:${v}" data-val="฿${Math.round(parseInt(v) * 1.2)}K"></div>`
-    ).join('');
-  }
-  if (cl) cl.innerHTML = d.chart.labels.map(l => `<span>${l}</span>`).join('');
-
-  // Recent table
+/** Render recent table from demoData (fallback) */
+function renderFallbackRecentTable(d) {
   const rh = document.getElementById('recent-thead');
   const rb = document.getElementById('recent-tbody');
   if (rh) rh.innerHTML = '<tr>' + d.recentHead.map(h => `<th>${h}</th>`).join('') + '</tr>';
   if (rb) rb.innerHTML = d.recentRows.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
-
-  // Delegate to sub-modules
-  renderProducts(d.products);
-  renderFullQueue(d);
-  renderFinancePage(role);
-  renderRooms(role);
-
-  // Render calendar on queue page
-  const calContainer = document.getElementById('queue-calendar');
-  if (calContainer) renderCalendar(calContainer);
 }
 
 // ===== STORE SWITCH =====
@@ -549,4 +730,24 @@ export function initDashboard() {
   // TV Mode toggle
   const tvModeBtn = document.getElementById('tv-mode-btn');
   if (tvModeBtn) tvModeBtn.addEventListener('click', toggleTVMode);
+
+  // Quick Scaling (A-/A+)
+  if (FEATURE_FLAGS.ENABLE_QUICK_SCALING) {
+    let scale = parseFloat(localStorage.getItem(STORAGE_KEYS.FONT_SCALE) || '1');
+    document.documentElement.style.fontSize = (scale * 100) + '%';
+
+    document.getElementById('scale-up')?.addEventListener('click', () => {
+      scale = Math.min(scale + 0.1, 1.5);
+      document.documentElement.style.fontSize = (scale * 100) + '%';
+      localStorage.setItem(STORAGE_KEYS.FONT_SCALE, scale.toString());
+      showToast(`ขนาดตัวอักษร: ${Math.round(scale * 100)}%`);
+    });
+
+    document.getElementById('scale-down')?.addEventListener('click', () => {
+      scale = Math.max(scale - 0.1, 0.7);
+      document.documentElement.style.fontSize = (scale * 100) + '%';
+      localStorage.setItem(STORAGE_KEYS.FONT_SCALE, scale.toString());
+      showToast(`ขนาดตัวอักษร: ${Math.round(scale * 100)}%`);
+    });
+  }
 }

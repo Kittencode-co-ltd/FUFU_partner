@@ -111,7 +111,8 @@ export async function doLogin(email, password) {
  */
 export function categoryToRole(category) {
   if (category === 'vet_clinic') return 'vet';
-  if (category === 'pet_grooming' || category === 'pet_hotel') return 'service';
+  if (category === 'pet_hotel') return 'hotel';
+  if (category === 'pet_grooming') return 'grooming';
   return 'shop';
 }
 

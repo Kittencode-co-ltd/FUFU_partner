@@ -54,7 +54,7 @@ app.post('/api/auth', async (req, res) => {
         
         if (error) return res.status(401).json({ success: false, error: error.message });
 
-        // Add Role validation here
+        // Role validation
         const { data: isStaff, error: rpcError } = await supabase.rpc('is_fufu_staff', { user_id: data.user.id });
         
         if (rpcError) {
@@ -166,31 +166,169 @@ app.post('/api/transactions', requireAuth, async (req, res) => {
     res.json({ success: true, data });
 });
 
-// 5. DASHBOARD STATS
+// ===================================================
+// 5. QUEUE ENTRIES (CRUD)
+// ===================================================
+app.get('/api/queue', requireAuth, async (req, res) => {
+    const { store_id, date, status } = req.query;
+    if (!store_id) return res.status(400).json({ error: 'store_id is required' });
+
+    let query = supabase
+        .from('queue_entries')
+        .select('*')
+        .eq('store_id', store_id);
+
+    if (date) query = query.eq('queue_date', date);
+    if (status) query = query.eq('status', status);
+
+    const { data, error } = await query.order('queue_number', { ascending: true });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(data || []);
+});
+
+app.post('/api/queue', requireAuth, async (req, res) => {
+    const { store_id, pet_name, owner_name, service_type, priority, notes, estimated_time } = req.body;
+    if (!store_id) return res.status(400).json({ error: 'store_id is required' });
+
+    // Auto-increment queue number for today
+    const today = new Date().toISOString().split('T')[0];
+    const { data: lastQueue } = await supabase
+        .from('queue_entries')
+        .select('queue_number')
+        .eq('store_id', store_id)
+        .eq('queue_date', today)
+        .order('queue_number', { ascending: false })
+        .limit(1);
+
+    const nextNum = (lastQueue && lastQueue.length > 0) ? lastQueue[0].queue_number + 1 : 1;
+
+    const { data, error } = await supabase
+        .from('queue_entries')
+        .insert([{
+            store_id,
+            queue_number: nextNum,
+            queue_date: today,
+            service_type: service_type || 'ตรวจทั่วไป',
+            priority: priority || 'normal',
+            status: 'waiting',
+            notes: notes || `${pet_name || ''} - ${owner_name || ''}`,
+            estimated_time: estimated_time || 20,
+            source: 'walk_in'
+        }])
+        .select();
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true, data: data?.[0] });
+});
+
+app.patch('/api/queue/:id', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const updates = { ...req.body };
+
+    // Auto-set timestamps based on status changes
+    if (updates.status === 'in_progress') updates.started_at = new Date().toISOString();
+    if (updates.status === 'called' && !updates.called_at) updates.called_at = new Date().toISOString();
+    if (updates.status === 'in_progress' && !updates.called_at) updates.called_at = new Date().toISOString();
+    if (updates.status === 'completed') updates.completed_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+        .from('queue_entries')
+        .update(updates)
+        .eq('id', id)
+        .select();
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true, data: data?.[0] });
+});
+
+// ===================================================
+// 6. MEDICAL RECORDS (CRUD)
+// ===================================================
+app.get('/api/medical-records', requireAuth, async (req, res) => {
+    const { store_id, record_type, status } = req.query;
+    if (!store_id) return res.status(400).json({ error: 'store_id is required' });
+
+    let query = supabase
+        .from('medical_records')
+        .select('*')
+        .eq('store_id', store_id);
+
+    if (record_type) query = query.eq('record_type', record_type);
+    if (status) query = query.eq('status', status);
+
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(50);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(data || []);
+});
+
+app.post('/api/medical-records', requireAuth, async (req, res) => {
+    const record = req.body;
+    if (!record.store_id) return res.status(400).json({ error: 'store_id is required' });
+
+    record.visit_date = record.visit_date || new Date().toISOString();
+    record.status = record.status || 'completed';
+
+    const { data, error } = await supabase
+        .from('medical_records')
+        .insert([record])
+        .select();
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true, data: data?.[0] });
+});
+
+// ===================================================
+// 7. PRODUCTS (GET)
+// ===================================================
+app.get('/api/products', requireAuth, async (req, res) => {
+    const { store_id } = req.query;
+    if (!store_id) return res.status(400).json({ error: 'store_id is required' });
+
+    const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('store_id', store_id)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(data || []);
+});
+
+// ===================================================
+// 8. DASHBOARD STATS (Enhanced)
+// ===================================================
 app.get('/api/dashboard', requireAuth, async (req, res) => {
     const { store_id } = req.query;
-    const today = new Date().toISOString().split('T')[0];
+    if (!store_id) return res.status(400).json({ error: 'store_id is required' });
 
-    // ดึงข้อมูลหลายอย่างพร้อมกัน (Parallel)
-    const [apptRes, transRes] = await Promise.all([
-        supabase.from('appointments').select('id, status').eq('store_id', store_id).gte('appt_date', today),
-        supabase.from('transactions').select('amount, net_amount').eq('store_id', store_id).gte('created_at', today)
+    const today = new Date().toISOString().split('T')[0];
+    const monthStart = today.slice(0, 7) + '-01';
+
+    const [queueRes, medRes, prodRes] = await Promise.all([
+        supabase.from('queue_entries').select('id, status, priority').eq('store_id', store_id).eq('queue_date', today),
+        supabase.from('medical_records').select('id, status, created_at').eq('store_id', store_id).gte('created_at', monthStart + 'T00:00:00'),
+        supabase.from('products').select('id').eq('store_id', store_id).eq('is_active', true)
     ]);
 
-    const appointments = apptRes.data || [];
-    const transactions = transRes.data || [];
+    const queue = queueRes.data || [];
+    const records = medRes.data || [];
+    const products = prodRes.data || [];
 
     res.json({
-        today: {
-            revenue: transactions.reduce((sum, t) => sum + t.amount, 0),
-            net: transactions.reduce((sum, t) => sum + t.net_amount, 0),
-            appointments: appointments.length,
-            pending_queue: appointments.filter(a => a.status === 'pending').length
-        }
+        today_queue: queue.length,
+        waiting: queue.filter(q => q.status === 'waiting').length,
+        active: queue.filter(q => q.status === 'in_progress' || q.status === 'called').length,
+        completed_today: queue.filter(q => q.status === 'completed').length,
+        month_patients: records.length,
+        total_services: products.length,
+        emergency: queue.filter(q => q.priority === 'emergency').length
     });
 });
 
-// 6. MY STORES
+// ===================================================
+// 9. MY STORES
+// ===================================================
 app.get('/api/my-stores', requireAuth, async (req, res) => {
     const { data: stores, error } = await supabase
         .from('stores')
