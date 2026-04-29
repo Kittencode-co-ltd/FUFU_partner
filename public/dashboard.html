@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FUFU Partner — Dashboard</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="h-full bg-slate-50 font-sans">
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+<style>
+  #sidebar    { transition: transform 0.22s ease; }
+  #main-wrap  { transition: margin-left 0.22s ease; }
+  body.sb-collapsed #sidebar   { transform: translateX(-100%); }
+  body.sb-collapsed #main-wrap { margin-left: 0 !important; }
+</style>
+
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-20 w-64 bg-navy flex flex-col">
+
+  <!-- Logo -->
+  <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+    <div class="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-lg shadow-glow flex-shrink-0">🐾</div>
+    <div>
+      <div class="text-white font-bold text-base tracking-wider">FUFU</div>
+      <div class="text-slate-500 text-xs font-body">Partner Portal</div>
+    </div>
+  </div>
+
+  <!-- Store info -->
+  <div class="px-5 py-3 border-b border-white/10">
+    <div id="sb-store-name" class="text-white text-sm font-semibold truncate">—</div>
+    <div id="sb-store-type" class="text-slate-400 text-xs font-body mt-0.5"></div>
+  </div>
+
+  <!-- Nav -->
+  <nav id="sidebar-nav" class="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 space-y-0.5"></nav>
+
+  <!-- User / Logout -->
+  <div class="px-4 py-4 border-t border-white/10">
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0 flex-1">
+        <div id="sb-user-email" class="text-slate-300 text-xs font-body truncate"></div>
+        <div id="sb-user-role"  class="text-slate-500 text-xs font-body capitalize mt-0.5"></div>
+      </div>
+      <button id="logout-btn"
+        title="ออกจากระบบ"
+        class="flex-shrink-0 text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ──────────────────────────────────────────────────────────────── -->
+<div id="main-wrap" class="ml-64 flex flex-col min-h-screen">
+
+  <!-- Topbar -->
+  <header class="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 h-16 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <button id="sidebar-toggle" title="ซ่อน/แสดง Sidebar"
+        class="p-2 rounded-lg text-slate-400 hover:text-navy hover:bg-slate-100 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+      <div id="topbar-title" class="font-semibold text-navy text-lg"></div>
+    </div>
+
+    <!-- Mode switcher -->
+    <div id="mode-switcher" class="flex items-center gap-1.5 flex-wrap"></div>
+
+    <div class="flex items-center gap-4 flex-shrink-0">
+      <div id="save-indicator" class="text-xs text-slate-400 font-body hidden"></div>
+      <div id="topbar-date"    class="text-slate-400 text-sm font-body hidden lg:block"></div>
+    </div>
+  </header>
+
+  <!-- Pages -->
+  <main class="flex-1 p-6">
+    <section id="page-home"      class="hidden"></section>
+    <section id="page-queue"     class="hidden"></section>
+    <section id="page-opd"       class="hidden"></section>
+    <section id="page-pets"         class="hidden"></section>
+    <section id="page-pet-profile"  class="hidden"></section>
+    <section id="page-medical"      class="hidden"></section>
+    <section id="page-income"    class="hidden"></section>
+    <section id="page-inventory" class="hidden"></section>
+    <section id="page-pos"      class="hidden"></section>
+    <section id="page-hotel"    class="hidden"></section>
+    <section id="page-grooming" class="hidden"></section>
+    <section id="page-ipd"       class="hidden"></section>
+    <section id="page-documents" class="hidden"></section>
+    <section id="page-kanban"    class="hidden"></section>
+    <section id="page-staff"    class="hidden"></section>
+    <section id="page-settings" class="hidden"></section>
+  </main>
+</div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+export const API_BASE = window.location.hostname === 'localhost'
+  ? `http://localhost:${window.location.port || 3000}`
+  : '';  // same-origin in production
+
+export const STORAGE_KEYS = {
+  TOKEN:          'fufu_token',
+  REFRESH_TOKEN:  'fufu_refresh_token',
+  USER:           'fufu_user',
+  ROLE:           'fufu_role',
+  STORE_ID:       'fufu_store_id',
+  STORE_NAME:     'fufu_store_name',
+  STORE_CATEGORY: 'fufu_store_category',
+  MASKING_LEVEL:  'fufu_masking_level',
+  FONT_SCALE:     'fufu_font_scale',
+  STAFF_ID:       'fufu_staff_id',
+  STAFF_ROLE:     'fufu_staff_role',
+  PROMPTPAY_ID:   'fufu_promptpay_id',
+};
+
+export const FEATURE_FLAGS = {
+  ENABLE_RBAC:              true,
+  ENABLE_MEDICAL_MODULE:    true,
+  ENABLE_HOTEL_MODULE:      true,
+  ENABLE_OPD_CARD:          true,
+  ENABLE_IPD_WARD:          true,
+  ENABLE_INVENTORY_ALERTS:  true,
+  ENABLE_PROMPTPAY:         true,
+  ENABLE_POS:               true,
+  ENABLE_CRM:               false,
+  ENABLE_DOCUMENTS:         true,
+  ENABLE_KANBAN:            true,
+};
+
+export const CATEGORY_MAP = {
+  vet_clinic:   { label: 'คลินิกสัตว์แพทย์', role: 'vet',      icon: '🏥' },
+  pet_shop:     { label: 'ร้านค้าสัตว์เลี้ยง', role: 'shop',    icon: '🛍' },
+  pet_hotel:    { label: 'โรงแรมสัตว์เลี้ยง', role: 'hotel',   icon: '🏨' },
+  pet_grooming: { label: 'บริการอาบน้ำตัดขน', role: 'grooming', icon: '✂️' },
+};

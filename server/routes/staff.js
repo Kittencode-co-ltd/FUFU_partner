@@ -1,0 +1,194 @@
+import { Router }      from 'express';
+import { requireAuth } from '../middleware/auth.js';
+import { createClient } from '@supabase/supabase-js';
+
+const router = Router();
+router.use(requireAuth);
+
+// GET /api/staff?store_id=UUID
+router.get('/', async (req, res) => {
+  const { store_id } = req.query;
+  if (!store_id) return res.status(400).json({ error: 'store_id required' });
+
+  const { data, error } = await req.supabase
+    .from('store_staff')
+    .select('*')
+    .eq('store_id', store_id)
+    .order('created_at', { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data: data || [] });
+});
+
+// POST /api/staff — invite/add staff member
+router.post('/', async (req, res) => {
+  const { store_id, user_email, name, roles, pin } = req.body;
+  if (!store_id || !user_email || !name) {
+    return res.status(400).json({ error: 'store_id, user_email, name required' });
+  }
+
+  // Create Supabase Auth account for staff (invite)
+  const adminSb = createClient(
+    process.env.Project_URL,
+    process.env.SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+
+  // Check if user already exists in auth
+  const { data: existingUsers } = await adminSb.auth.admin.listUsers();
+  const existingUser = existingUsers?.users?.find(u => u.email === user_email);
+
+  let authUserId = existingUser?.id;
+
+  if (!existingUser) {
+    // Create auth account with temp password — user must change on first login
+    const tempPassword = `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const { data: newUser, error: createErr } = await adminSb.auth.admin.createUser({
+      email: user_email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { name, is_staff: true },
+    });
+    if (createErr) return res.status(500).json({ error: createErr.message });
+    authUserId = newUser.user.id;
+
+    // Store temp password to return to owner (so they can share with staff)
+    req._tempPassword = tempPassword;
+  }
+
+  // Add to store_staff
+  const { data, error } = await req.supabase
+    .from('store_staff')
+    .upsert([{
+      store_id,
+      user_email: user_email.toLowerCase(),
+      name,
+      roles: roles || ['counter'],
+      pin:   pin || null,
+      invited_by: req.user.email,
+      is_active: true,
+    }], { onConflict: 'store_id,user_email' })
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({
+    success: true,
+    data,
+    temp_password: req._tempPassword || null,
+    is_new_account: !!req._tempPassword,
+  });
+});
+
+// PATCH /api/staff/:id — update name, roles, status, extra fields
+router.patch('/:id', async (req, res) => {
+  const extraCols  = ['phone', 'position', 'start_date', 'notes'];
+  const baseCols   = ['name', 'roles', 'is_active', 'pin'];
+
+  const pick = (keys) => {
+    const obj = {};
+    for (const k of keys) if (req.body[k] !== undefined) obj[k] = req.body[k];
+    return obj;
+  };
+
+  const fullUpdates = { ...pick(baseCols), ...pick(extraCols) };
+
+  const { data, error } = await req.supabase
+    .from('store_staff').update(fullUpdates).eq('id', req.params.id).select().single();
+
+  // If extra columns don't exist yet, retry with base columns only
+  if (error && error.message.includes('schema cache')) {
+    const { data: d2, error: e2 } = await req.supabase
+      .from('store_staff').update(pick(baseCols)).eq('id', req.params.id).select().single();
+    if (e2) return res.status(500).json({ error: e2.message });
+    return res.json({ success: true, data: d2, migration_needed: true });
+  }
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data });
+});
+
+// PATCH /api/staff/:id/reset-password — generate new temp password
+router.patch('/:id/reset-password', async (req, res) => {
+  // 1. Get staff record
+  const { data: member, error: findErr } = await req.supabase
+    .from('store_staff')
+    .select('user_email, name')
+    .eq('id', req.params.id)
+    .single();
+
+  if (findErr || !member) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+
+  const adminSb = createClient(
+    process.env.Project_URL,
+    process.env.SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+
+  const tempPassword = `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+  // 2. Find auth user by email via auth schema
+  const authSb = createClient(
+    process.env.Project_URL,
+    process.env.SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false }, db: { schema: 'auth' } }
+  );
+
+  const { data: authUser } = await authSb
+    .from('users')
+    .select('id')
+    .eq('email', member.user_email)
+    .single();
+
+  if (authUser) {
+    // Account exists — update password
+    const { error: updateErr } = await adminSb.auth.admin.updateUserById(authUser.id, {
+      password: tempPassword,
+    });
+    if (updateErr) return res.status(500).json({ error: updateErr.message });
+  } else {
+    // No account yet — create one with temp password
+    const { error: createErr } = await adminSb.auth.admin.createUser({
+      email: member.user_email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { name: member.name, is_staff: true },
+    });
+    if (createErr) return res.status(500).json({ error: createErr.message });
+  }
+
+  res.json({ success: true, temp_password: tempPassword, email: member.user_email, name: member.name });
+});
+
+// DELETE /api/staff/:id — deactivate (not delete)
+router.delete('/:id', async (req, res) => {
+  const { data, error } = await req.supabase
+    .from('store_staff')
+    .update({ is_active: false })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data });
+});
+
+// GET /api/staff/me?store_id=UUID — get my staff profile + roles for this store
+router.get('/me', async (req, res) => {
+  const { store_id } = req.query;
+  if (!store_id) return res.status(400).json({ error: 'store_id required' });
+
+  const { data, error } = await req.supabase
+    .from('store_staff')
+    .select('*')
+    .eq('store_id', store_id)
+    .eq('user_email', req.user.email)
+    .eq('is_active', true)
+    .single();
+
+  if (error) return res.json({ success: true, data: null }); // not a staff member = owner
+  res.json({ success: true, data });
+});
+
+export default router;

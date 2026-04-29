@@ -1,0 +1,178 @@
+/* =============================================
+   FUFU Partner – Base Styles
+   Global resets, CSS variables, typography, 
+   shared buttons and utility classes.
+   ============================================= */
+
+/* ----- CSS Custom Properties ----- */
+:root {
+  /* Branding Colors */
+  --primary: #0D9488;
+  --primary-light: #14B8A6;
+  --primary-dark: #0F766E;
+  --primary-glow: rgba(13, 148, 136, 0.4);
+  --primary-light-bg: #CCFBF1;
+
+  /* Accent */
+  --accent: #D4AF37;
+
+  /* Semantic Colors */
+  --teal: #0D9488;
+  --purple: #8B5CF6;
+  --pink: #EC4899;
+  --blue: #3B82F6;
+  --red: #EF4444;
+  --rose: #F43F5E;
+
+  /* Backgrounds */
+  --bg-main: #FAFAFC;
+  --bg-card: #FFFFFF;
+  --dark-bg: #040914;
+  --dark-card: #0F172A;
+  --bg-subtle: #F1F5F9;
+  --bg-input: #F8FAFC;
+
+  /* Text */
+  --text-main: #1E293B;
+  --text-muted: #64748B;
+  --text-dim: #94A3B8;
+  --text-light: #F8FAFC;
+
+  /* UI Elements */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 20px 40px rgba(13, 148, 136, 0.12);
+  --border-soft: #E2E8F0;
+  --border-primary: rgba(13, 148, 136, 0.2);
+  --border-radius: 24px;
+  --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+/* ----- Global Reset ----- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Prompt', 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* ----- Typography ----- */
+h1, h2, h3, h4 {
+  font-family: 'Outfit', 'Prompt', sans-serif;
+  font-weight: 700;
+}
+
+/* ----- Shared Button Styles ----- */
+.btn {
+  padding: 0.8rem 2rem;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: var(--transition);
+  cursor: pointer;
+  border: 2px solid transparent;
+  font-family: 'Outfit', 'Prompt', sans-serif;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 8px 20px var(--primary-glow);
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 25px var(--primary-glow);
+  color: #fff;
+}
+
+.btn-outline {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: transparent;
+}
+
+.btn-outline:hover {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 8px 20px var(--primary-glow);
+}
+
+/* Small action buttons (dashboard context) */
+.btn-sm {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: 'Prompt', sans-serif;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+/* ----- Scrollbar ----- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* ----- Accessibility: Focus Visible ----- */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ----- Screen Reader Only ----- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ----- Loading Spinner ----- */
+.spinner {
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

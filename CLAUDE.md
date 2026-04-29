@@ -1,0 +1,146 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+# Start dev server (port 3000)
+npm run dev
+
+# Watch Tailwind during UI development (separate terminal)
+npm run watch:css
+
+# Build minified CSS for production
+npm run build:css
+```
+
+There is no test runner. Manual API testing uses `curl` against `http://localhost:3000`. See `agents/test/CLAUDE.md` for the full API test suite and test credentials.
+
+## Architecture
+
+**Stack:** Node.js 20+ / Express 4 (ES modules) · Supabase (Postgres + Auth) · Vanilla JS (ES modules) · Tailwind CSS 3 · PWA
+
+### Request flow
+
+```
+Browser → public/*.html → public/js/partner/dashboard.js
+                         ↓
+               apiFetch('/api/...') via public/js/utils/api-client.js
+                         ↓
+               server/index.js → server/routes/*.js
+                         ↓
+               req.supabase (user-scoped, RLS enforced)
+```
+
+- `server/middleware/auth.js` — `requireAuth` middleware verifies the Bearer JWT, attaches `req.user` and a **user-scoped** Supabase client (`req.supabase`) so Row Level Security is applied automatically.
+- `apiFetch` in `public/js/utils/api-client.js` — authenticated fetch wrapper; auto-attaches Bearer token from `localStorage` and redirects to `/login.html` on 401.
+- All non-`/api/*` paths fall back to `public/login.html` (SPA fallback in `server/index.js`).
+
+### Frontend module system
+
+`public/js/app.js` detects the current page and lazy-imports the relevant module. The main shell is `public/dashboard.html` driven by `public/js/partner/dashboard.js`, which handles sidebar nav, page switching, and RBAC gating.
+
+Every partner module (`queue.js`, `opd-card.js`, `finance.js`, etc.) is a single ES module that exports one primary `render*()` function. Modules communicate via `CustomEvent` dispatched on `document`:
+
+```js
+// queue.js fires → dashboard.js listens → calls renderOPDCard()
+document.dispatchEvent(new CustomEvent('fufu:openOPD', { detail: queueItem }));
+```
+
+### Auth / session state (localStorage)
+
+All keys are defined in `public/js/utils/config.js → STORAGE_KEYS`:
+
+| Key constant | localStorage key | Value |
+|---|---|---|
+| `TOKEN` | `fufu_token` | Supabase JWT |
+| `STORE_ID` | `fufu_store_id` | UUID of active store |
+| `STORE_CATEGORY` | `fufu_store_category` | `vet_clinic` \| `pet_shop` \| `pet_hotel` \| `pet_grooming` |
+| `ROLE` | `fufu_role` | `vet` \| `shop` \| `hotel` \| `grooming` \| `admin` |
+| `STAFF_ROLE` | `fufu_staff_role` | `owner` \| `vet` \| `reception` \| `staff` \| `accountant` |
+| `MASKING_LEVEL` | `fufu_masking_level` | `1` (full) \| `2` (partial) \| `3` (hidden) |
+
+### RBAC
+
+Two independent access layers:
+- **Partner type** (`STORE_CATEGORY`) — determines which nav items and modules are visible.
+- **Staff role** (`STAFF_ROLE`) — determines field-level permissions within a store. Logic lives in `public/js/partner/rbac.js`.
+
+### Environment variables (`.env`)
+
+| Variable | Purpose |
+|---|---|
+| `PORT` | Express port (default `3000`) |
+| `Project_URL` | Supabase project URL |
+| `publishable_key` | Supabase anon key |
+| `SERVICE_ROLE_KEY` | Supabase service role key (used only by auth change-password) |
+
+## Key patterns
+
+### Making API calls (frontend)
+
+```js
+import { apiFetch } from '../utils/api-client.js';
+const data = await apiFetch('/api/queue?store_id=' + storeId);
+```
+
+Never call Supabase directly from frontend modules — always go through the Express API layer.
+
+### Adding a new API route
+
+1. Create `server/routes/<feature>.js` exporting a Router.
+2. Mount it in `server/index.js`: `app.use('/api/<feature>', featureRoutes)`.
+3. Apply `requireAuth` middleware on protected endpoints: `import { requireAuth } from '../middleware/auth.js'`.
+4. Use `req.supabase` (not a fresh client) so RLS is respected.
+
+### Audit logging (required for all sensitive mutations)
+
+```js
+import { logAudit } from './audit.js';
+logAudit('UPDATE', 'medical_record', recordId, oldData, newData, 'reason');
+```
+
+`audit_logs` is **INSERT-only** — never UPDATE or DELETE rows in this table.
+
+### Data masking
+
+```js
+import { maskPhone, maskName } from './data-masking.js';
+maskPhone('0812345678', level); // 1=full, 2=partial, 3=hidden
+```
+
+### Feature flags
+
+Defined in `public/js/utils/config.js → FEATURE_FLAGS`. Toggle experimental features without a deploy. Check the flag before rendering a module.
+
+## Business rules (do not change)
+
+1. **Commission** — FUFU charges 5% on all transactions (`COMMISSION_RATE = 0.05`).
+2. **FEFO** — Inventory always dispenses the earliest-expiry batch first.
+3. **Queue numbering** — Format `A001`, `A002`, resets daily per store.
+4. **Multi-store** — One user can own multiple stores; active store context is `selected_store_id`.
+5. **Audit immutability** — `audit_logs` rows can never be updated or deleted.
+6. **Body map removed** — Not implemented in OPD card (decision 2026-04-26).
+
+## Sub-agent context files
+
+Each `agents/<module>/CLAUDE.md` contains module-specific DB schemas, API contracts, UI conventions, and inter-module event interfaces. Read the relevant agent file before working on a module:
+
+| Agent | Primary files |
+|---|---|
+| `agents/auth/` | `public/js/auth.js`, `server/routes/auth.js` |
+| `agents/queue/` | `public/js/partner/queue.js` |
+| `agents/clinic/` | `public/js/partner/opd-card.js`, `medical.js`, `ipd.js` |
+| `agents/inventory/` | `public/js/partner/inventory.js` |
+| `agents/pos/` | `public/js/partner/pos.js`, `invoice.js` |
+| `agents/finance/` | `public/js/partner/finance.js` |
+| `agents/grooming/` | `public/js/partner/grooming.js` |
+| `agents/hotel/` | `public/js/partner/hotel.js` |
+| `agents/document/` | `public/js/partner/documents.js` |
+| `agents/pm/` | Project status, phase plan, module dependency map |
+| `agents/test/` | API test suite, UI checklists, test credentials |
+
+## Completion status (as of 2026-04-26)
+
+Many modules render from **mock data** — real DB/API wiring is still in progress (~38% overall). Modules most in need of real data: Hotel, Grooming, Inventory, POS, Documents. See `agents/pm/CLAUDE.md` for the full phase plan and task board.

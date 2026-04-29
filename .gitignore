@@ -1,17 +1,6 @@
-# Dependencies
 node_modules/
-
-# Environment
 .env
-
-# OS
+public/css/main.css
+*.log
 .DS_Store
 Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-requirement.txt
