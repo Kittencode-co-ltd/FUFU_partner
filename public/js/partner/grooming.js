@@ -12,8 +12,9 @@ const SERVICES = [
   { id: 'haircut', name: 'ตัดขน',               icon: '✂️', price: 300 },
 ];
 
-let _storeId = '';
+let _storeId     = '';
 let _refreshTimer = null;
+let _selPet      = null; // { pet_id, pet_name, owner_name, species } | null
 
 export async function renderGrooming(container) {
   _storeId = storage.get(STORAGE_KEYS.STORE_ID);
@@ -35,12 +36,29 @@ async function _render(container) {
 
       <!-- Walk-in bar -->
       <div class="card p-4">
-        <form id="groom-add-form" class="flex flex-wrap gap-3 items-end">
-          <div class="flex-1 min-w-32"><label class="input-label">ชื่อสัตว์เลี้ยง</label><input id="ga-pet" class="input-field" placeholder="บัดดี้" required></div>
-          <div class="flex-1 min-w-32"><label class="input-label">ชื่อเจ้าของ</label><input id="ga-owner" class="input-field" placeholder="คุณสมชาย"></div>
-          <div class="flex-1 min-w-28"><label class="input-label">เวลาโดยประมาณ (นาที)</label><input id="ga-time" class="input-field" type="number" value="60" min="15"></div>
-          <button type="submit" class="btn-primary whitespace-nowrap">+ รับลูกค้า</button>
-        </form>
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="relative flex-1 min-w-52">
+            <label class="input-label">ค้นหาสัตว์เลี้ยง / เจ้าของ / เบอร์โทร</label>
+            <input id="ga-search" class="input-field" placeholder="บัดดี้ หรือ 0812345678..." autocomplete="off">
+            <div id="ga-dropdown"
+                 class="hidden absolute z-30 left-0 right-0 top-full mt-1 bg-white rounded-xl
+                        shadow-card-hover border border-slate-100 max-h-56 overflow-y-auto text-sm"></div>
+          </div>
+          <div class="flex-1 min-w-28">
+            <label class="input-label">เวลาโดยประมาณ (นาที)</label>
+            <input id="ga-time" class="input-field" type="number" value="60" min="15">
+          </div>
+          <button id="ga-submit" class="btn-primary whitespace-nowrap">+ รับลูกค้า</button>
+        </div>
+        <div class="flex items-center justify-between mt-2 min-h-6">
+          <div id="ga-selected" class="hidden items-center gap-2">
+            <span id="ga-chip" class="text-xs bg-primary-subtle text-primary-dark rounded-lg px-3 py-1.5 font-semibold"></span>
+            <button id="ga-deselect" class="text-xs text-slate-400 hover:text-red-500 transition-colors">× เปลี่ยน</button>
+          </div>
+          <button id="ga-register" class="text-xs text-primary hover:underline font-body ml-auto">
+            + ลูกค้าใหม่
+          </button>
+        </div>
       </div>
 
       <!-- Stats -->
@@ -57,20 +75,10 @@ async function _render(container) {
       </div>
     </div>`;
 
-  container.querySelector('#groom-add-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = e.target.querySelector('[type="submit"]');
-    btn.disabled = true;
-    const res = await apiFetch('/api/grooming', { method: 'POST', body: JSON.stringify({
-      store_id: _storeId,
-      pet_name: container.querySelector('#ga-pet').value.trim(),
-      owner_name: container.querySelector('#ga-owner').value.trim(),
-      estimated_minutes: parseInt(container.querySelector('#ga-time').value) || 60,
-    })});
-    btn.disabled = false;
-    if (res?.success) { e.target.reset(); await _render(container); showToast('รับลูกค้าแล้ว'); }
-    else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
-  });
+  _selPet = null;
+  _bindGroomSearch(container);
+  container.querySelector('#ga-submit')?.addEventListener('click', () => _handleGroomWalkin(container));
+  container.querySelector('#ga-register')?.addEventListener('click', () => _groomRegister(container));
 
   container.querySelector('#groom-sessions')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
@@ -249,4 +257,167 @@ function _elapsed(since) {
   const mins = Math.floor((Date.now() - since) / 60000);
   if (mins < 60) return `${mins} นาที`;
   return `${Math.floor(mins/60)} ชม. ${mins%60} นาที`;
+}
+
+// ─── Pet search (walk-in) ─────────────────────────────────────────────────────
+
+function _bindGroomSearch(container) {
+  const input    = container.querySelector('#ga-search');
+  const dropdown = container.querySelector('#ga-dropdown');
+  if (!input || !dropdown) return;
+  const EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+  let timer;
+
+  input.addEventListener('input', () => {
+    _selPet = null; _updateGroomChip(container);
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 2) { dropdown.classList.add('hidden'); return; }
+
+    timer = setTimeout(async () => {
+      const res    = await apiFetch(`/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`);
+      const owners = res?.data || [];
+      if (!owners.length) {
+        dropdown.innerHTML = `<div class="px-4 py-3 text-slate-400 font-body text-sm">ไม่พบ "${q}" — <button id="gg-reg" class="text-primary underline text-xs">ลงทะเบียนใหม่</button></div>`;
+        dropdown.classList.remove('hidden');
+        dropdown.querySelector('#gg-reg')?.addEventListener('click', () => { dropdown.classList.add('hidden'); _groomRegister(container); });
+        return;
+      }
+      const rows = [];
+      for (const o of owners) {
+        for (const p of (o.pets || [])) rows.push({ pet_id: p.id, pet_name: p.name, species: p.species, owner_name: o.name });
+        if (!(o.pets || []).length) rows.push({ _no_pet: true, owner_name: o.name });
+      }
+      dropdown.innerHTML = rows.map((r, i) => r._no_pet
+        ? `<div class="px-4 py-2 text-xs text-slate-400 font-body">${r.owner_name} — ยังไม่มีสัตว์เลี้ยง</div>`
+        : `<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors" data-ri="${i}">
+             <span>${EMOJI[r.species]||'🐾'}</span>
+             <div><div class="font-semibold text-navy text-sm">${r.pet_name}</div>
+             <div class="text-xs text-slate-400 font-body">เจ้าของ: ${r.owner_name}</div></div>
+           </div>`).join('')
+        + `<div class="border-t px-4 py-2"><button id="gg-reg2" class="text-xs text-primary hover:underline font-body">+ ลูกค้าใหม่</button></div>`;
+      dropdown.classList.remove('hidden');
+      dropdown.querySelectorAll('[data-ri]').forEach(el => {
+        el.addEventListener('click', () => {
+          const r = rows[parseInt(el.dataset.ri)];
+          _selPet = r; input.value = r.pet_name; _updateGroomChip(container); dropdown.classList.add('hidden');
+        });
+      });
+      dropdown.querySelector('#gg-reg2')?.addEventListener('click', () => { dropdown.classList.add('hidden'); _groomRegister(container); });
+    }, 300);
+  });
+  input.addEventListener('blur', () => setTimeout(() => dropdown.classList.add('hidden'), 200));
+  container.querySelector('#ga-deselect')?.addEventListener('click', () => {
+    _selPet = null; input.value = ''; _updateGroomChip(container); input.focus();
+  });
+}
+
+function _updateGroomChip(container) {
+  const el   = container.querySelector('#ga-selected');
+  const chip = container.querySelector('#ga-chip');
+  if (!el || !chip) return;
+  if (_selPet) {
+    chip.textContent = `🐾 ${_selPet.pet_name} · ${_selPet.owner_name}`;
+    el.classList.remove('hidden'); el.classList.add('flex');
+  } else {
+    el.classList.add('hidden'); el.classList.remove('flex');
+  }
+}
+
+async function _handleGroomWalkin(container) {
+  const search = container.querySelector('#ga-search');
+  const freeText = search?.value.trim() || '';
+  const pet_name   = _selPet?.pet_name   || freeText;
+  const owner_name = _selPet?.owner_name || '';
+  if (!pet_name) { showToast('กรุณาค้นหาหรือกรอกชื่อสัตว์เลี้ยง', 'error'); return; }
+
+  const btn = container.querySelector('#ga-submit');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+  const res = await apiFetch('/api/grooming', { method: 'POST', body: JSON.stringify({
+    store_id: _storeId,
+    pet_id:   _selPet?.pet_id   || null,
+    pet_name,
+    owner_name,
+    species:  _selPet?.species  || 'dog',
+    estimated_minutes: parseInt(container.querySelector('#ga-time')?.value) || 60,
+  })});
+
+  if (btn) { btn.disabled = false; btn.textContent = '+ รับลูกค้า'; }
+  if (res?.success) {
+    if (search) search.value = '';
+    _selPet = null; _updateGroomChip(container);
+    await _render(container); showToast(`รับ ${pet_name} แล้ว`);
+  } else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
+}
+
+function _groomRegister(container) {
+  // reuse same 2-step owner+pet registration pattern
+  const m = document.createElement('div');
+  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  m.innerHTML = `
+    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+      <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 1/2 เจ้าของ</h3>
+      <div><label class="input-label">ชื่อ *</label><input id="rg-name" class="input-field" placeholder="คุณสมชาย" autofocus></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="input-label">เบอร์โทร *</label><input id="rg-phone" class="input-field" type="tel" placeholder="0812345678"></div>
+        <div><label class="input-label">อีเมล</label><input id="rg-email" class="input-field" type="email"></div>
+      </div>
+      <div class="flex gap-3">
+        <button id="rg-cancel" class="btn-outline flex-1">ยกเลิก</button>
+        <button id="rg-next" class="btn-primary flex-1">ถัดไป →</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  m.querySelector('#rg-cancel').addEventListener('click', () => m.remove());
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+
+  m.querySelector('#rg-next').addEventListener('click', async () => {
+    const name = m.querySelector('#rg-name').value.trim();
+    const phone= m.querySelector('#rg-phone').value.trim();
+    if (!name || !phone) { showToast('กรุณากรอกชื่อและเบอร์', 'error'); return; }
+    const btn = m.querySelector('#rg-next');
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+    const res = await apiFetch('/api/pets/owners', { method: 'POST', body: JSON.stringify({ name, phone, email: m.querySelector('#rg-email').value.trim()||null }) });
+    if (!res?.success) { showToast(res?.error||'เกิดข้อผิดพลาด','error'); btn.disabled=false; btn.textContent='ถัดไป →'; return; }
+    m.remove();
+    const owner = res.data;
+    const m2 = document.createElement('div');
+    m2.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+    m2.innerHTML = `
+      <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+        <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 2/2 สัตว์เลี้ยง</h3>
+        <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">👤 ${owner.name} · ${owner.phone||''}</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="input-label">ชื่อสัตว์เลี้ยง *</label><input id="rp-name" class="input-field" placeholder="บัดดี้" autofocus></div>
+          <div><label class="input-label">ชนิด</label>
+            <select id="rp-species" class="input-field">
+              <option value="dog">🐕 สุนัข</option><option value="cat">🐈 แมว</option><option value="rabbit">🐰 กระต่าย</option><option value="bird">🐦 นก</option><option value="other">🐾 อื่นๆ</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <button id="rp-cancel" class="btn-outline flex-1">ยกเลิก</button>
+          <button id="rp-save" class="btn-primary flex-1">บันทึก + เลือก</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m2);
+    m2.querySelector('#rp-cancel').addEventListener('click', () => m2.remove());
+    m2.addEventListener('click', e => { if (e.target === m2) m2.remove(); });
+    m2.querySelector('#rp-save').addEventListener('click', async () => {
+      const petName = m2.querySelector('#rp-name').value.trim();
+      const species = m2.querySelector('#rp-species').value;
+      if (!petName) { showToast('กรุณากรอกชื่อสัตว์', 'error'); return; }
+      const b2 = m2.querySelector('#rp-save'); b2.disabled=true; b2.textContent='กำลังบันทึก...';
+      const pr = await apiFetch('/api/pets', { method:'POST', body: JSON.stringify({ owner_id: owner.id, store_id: _storeId, name: petName, species }) });
+      if (!pr?.success) { showToast(pr?.error||'เกิดข้อผิดพลาด','error'); b2.disabled=false; b2.textContent='บันทึก + เลือก'; return; }
+      const pet = pr.data;
+      _selPet = { pet_id: pet.id, pet_name: pet.name, species: pet.species, owner_name: owner.name };
+      const search = container.querySelector('#ga-search');
+      if (search) search.value = pet.name;
+      _updateGroomChip(container);
+      showToast(`ลงทะเบียน ${petName} แล้ว — กด "+ รับลูกค้า"`);
+      m2.remove();
+    });
+  });
 }

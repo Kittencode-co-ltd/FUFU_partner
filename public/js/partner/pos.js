@@ -341,9 +341,13 @@ async function _openAddItemModal(storeId, items, container) {
 }
 
 function _showReceipt(container, result, items, discount, method) {
-  const subtotal = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
-  const total    = Math.max(0, subtotal - discount);
-  const pm       = PAYMENT_METHODS[method];
+  const subtotal   = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
+  const total      = Math.max(0, subtotal - discount);
+  const pm         = PAYMENT_METHODS[method];
+  const petName    = result.invoice?.pet_name   || '';
+  const ownerName  = result.invoice?.owner_name || '';
+  const storeName  = storage.get(STORAGE_KEYS.STORE_NAME) || 'คลินิก';
+  const paidAt     = result.invoice?.created_at || new Date().toISOString();
 
   container.innerHTML = `
     <div class="max-w-md mx-auto space-y-4">
@@ -351,6 +355,7 @@ function _showReceipt(container, result, items, discount, method) {
         <div class="text-5xl">✅</div>
         <h2 class="font-bold text-navy text-xl">ชำระเงินสำเร็จ</h2>
         <p class="text-slate-400 font-body text-sm">${result.invoice_number}</p>
+        ${petName ? `<p class="text-sm font-semibold text-navy font-body">🐾 ${petName}${ownerName ? ' · ' + ownerName : ''}</p>` : ''}
         <div class="text-3xl font-bold text-primary">฿${total.toLocaleString('th-TH')}</div>
         <p class="text-sm text-slate-500 font-body">${pm.icon} ${pm.label}</p>
       </div>
@@ -359,7 +364,7 @@ function _showReceipt(container, result, items, discount, method) {
         ${items.map(i => `
           <div class="flex justify-between text-sm">
             <span class="text-slate-600 font-body">${i.name} × ${i.qty}</span>
-            <span class="font-semibold text-navy">฿${(i.qty*i.unit_price).toLocaleString()}</span>
+            <span class="font-semibold text-navy">฿${(i.qty * i.unit_price).toLocaleString()}</span>
           </div>`).join('')}
         ${discount ? `<div class="flex justify-between text-sm text-red-500 border-t border-slate-50 pt-2"><span class="font-body">ส่วนลด</span><span>-฿${discount.toLocaleString()}</span></div>` : ''}
         <div class="flex justify-between font-bold border-t border-slate-100 pt-2">
@@ -368,16 +373,141 @@ function _showReceipt(container, result, items, discount, method) {
         </div>
         <div class="flex justify-between text-xs text-slate-400 font-body">
           <span>ค่าคอม FUFU 5%</span>
-          <span>฿${result.commission?.toLocaleString()}</span>
+          <span>฿${(result.commission || 0).toLocaleString()}</span>
         </div>
       </div>
 
-      <button id="receipt-done" class="btn-primary w-full py-3">กลับหน้าคิว</button>
+      <div class="flex gap-3">
+        <button id="receipt-print" class="btn-outline flex-1 py-3">🖨 พิมพ์ / PDF</button>
+        <button id="receipt-done"  class="btn-primary flex-1 py-3">กลับหน้าคิว</button>
+      </div>
     </div>`;
 
   container.querySelector('#receipt-done')?.addEventListener('click', () => {
     import('../partner/dashboard.js').then(({ navigate }) => navigate('queue'));
   });
 
+  container.querySelector('#receipt-print')?.addEventListener('click', () => {
+    _printReceipt({
+      invoiceNumber: result.invoice_number,
+      storeName,
+      petName,
+      ownerName,
+      items,
+      subtotal,
+      discount,
+      total,
+      commission: result.commission || 0,
+      method:     pm.label,
+      paidAt,
+    });
+  });
+
   showToast(`ชำระเงินสำเร็จ ฿${total.toLocaleString()}`);
+}
+
+function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, subtotal, discount, total, commission, method, paidAt }) {
+  const dateStr = new Date(paidAt).toLocaleString('th-TH', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  const lineRows = items.map(i =>
+    `<tr>
+      <td>${_esc(i.name)}</td>
+      <td class="num">${i.qty}</td>
+      <td class="num">฿${(i.unit_price).toLocaleString('th-TH')}</td>
+      <td class="num">฿${(i.qty * i.unit_price).toLocaleString('th-TH')}</td>
+    </tr>`
+  ).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ใบเสร็จ ${_esc(invoiceNumber)}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Sarabun', 'Tahoma', sans-serif; font-size:13px; color:#111;
+         padding:24px; max-width:340px; margin:auto; }
+  h1   { font-size:18px; text-align:center; margin-bottom:2px; }
+  .sub { text-align:center; color:#555; font-size:11px; line-height:1.6; }
+  .dashed { border:none; border-top:1px dashed #bbb; margin:10px 0; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th    { text-align:left; padding:3px 0; color:#555; font-weight:normal; border-bottom:1px solid #ddd; }
+  td    { padding:3px 0; vertical-align:top; }
+  .num  { text-align:right; }
+  .total-row td { font-weight:bold; font-size:14px; padding-top:6px; }
+  .commission   { color:#888; font-size:11px; }
+  .method  { text-align:center; margin-top:8px; font-size:12px; color:#333; }
+  .footer  { text-align:center; color:#aaa; font-size:10px; margin-top:16px; line-height:1.8; }
+  .print-btn { display:block; width:100%; margin-top:20px; padding:10px;
+               background:#0D9488; color:#fff; border:none; border-radius:8px;
+               font-size:14px; cursor:pointer; font-family:inherit; }
+  @media print {
+    .print-btn { display:none !important; }
+    body { padding:0; }
+  }
+</style>
+</head>
+<body>
+  <h1>${_esc(storeName)}</h1>
+  <div class="sub">
+    ${dateStr}<br>
+    เลขที่: ${_esc(invoiceNumber)}
+    ${petName ? `<br>🐾 ${_esc(petName)}${ownerName ? ' · ' + _esc(ownerName) : ''}` : ''}
+  </div>
+
+  <hr class="dashed">
+
+  <table>
+    <thead>
+      <tr>
+        <th>รายการ</th>
+        <th class="num">จำนวน</th>
+        <th class="num">ราคา</th>
+        <th class="num">รวม</th>
+      </tr>
+    </thead>
+    <tbody>${lineRows}</tbody>
+  </table>
+
+  <hr class="dashed">
+
+  <table>
+    <tbody>
+      ${discount ? `<tr><td>ส่วนลด</td><td class="num" style="color:#c53030">-฿${discount.toLocaleString('th-TH')}</td></tr>` : ''}
+      <tr class="total-row">
+        <td>รวมทั้งสิ้น</td>
+        <td class="num" style="color:#0D9488">฿${total.toLocaleString('th-TH')}</td>
+      </tr>
+      <tr class="commission">
+        <td>ค่าคอม FUFU 5%</td>
+        <td class="num">฿${commission.toLocaleString('th-TH')}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="method">ชำระโดย: ${_esc(method)}</div>
+
+  <hr class="dashed">
+  <div class="footer">
+    ขอบคุณที่ใช้บริการ<br>
+    Powered by FUFU Partner
+  </div>
+
+  <button class="print-btn" onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const tab  = window.open(url, '_blank');
+  // Revoke blob URL after tab loads (60 s is more than enough)
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  if (!tab) showToast('กรุณาอนุญาต Pop-up เพื่อพิมพ์ใบเสร็จ', 'error');
+}
+
+function _esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

@@ -35,6 +35,12 @@
     <div id="sb-store-type" class="text-slate-400 text-xs font-body mt-0.5"></div>
   </div>
 
+  <!-- Mode switcher (sidebar) -->
+  <div id="sb-mode-section" class="px-3 py-2.5 border-b border-white/10 hidden">
+    <div class="text-xs text-slate-500 font-body px-1 mb-1.5">โหมดทำงาน</div>
+    <div id="sidebar-mode-switcher" class="grid grid-cols-2 gap-1"></div>
+  </div>
+
   <!-- Nav -->
   <nav id="sidebar-nav" class="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 space-y-0.5"></nav>
 
@@ -73,9 +79,19 @@
     </div>
 
     <!-- Mode switcher -->
-    <div id="mode-switcher" class="flex items-center gap-1.5 flex-wrap"></div>
+    <!-- <div id="mode-switcher" class="flex items-center gap-1.5 flex-wrap"></div> -->
 
-    <div class="flex items-center gap-4 flex-shrink-0">
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <!-- Offline / sync badge -->
+      <div id="offline-badge"
+           class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full
+                  bg-amber-100 text-amber-700 border border-amber-200">
+        <span>📡</span>
+        <span>ออฟไลน์</span>
+        <span id="sync-count"
+              class="hidden items-center justify-center w-4 h-4 rounded-full
+                     bg-amber-500 text-white text-xs leading-none"></span>
+      </div>
       <div id="save-indicator" class="text-xs text-slate-400 font-body hidden"></div>
       <div id="topbar-date"    class="text-slate-400 text-sm font-body hidden lg:block"></div>
     </div>

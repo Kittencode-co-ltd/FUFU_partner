@@ -6,25 +6,90 @@ router.use(requireAuth);
 
 // ─── Pet Owners ───────────────────────────────────────────────────────────────
 
-// GET /api/pets/owners/search?q=phone_or_name
+// GET /api/pets/owners/search?q=phone_or_name&store_id=UUID
+// q is optional — omit or send empty to list recent owners
+// searches owner name/phone/email AND pet name/HN
 router.get('/owners/search', async (req, res) => {
-  const { q } = req.query;
-  if (!q || q.length < 2) return res.json({ success: true, data: [] });
+  const { q, store_id } = req.query;
 
-  const { data, error } = await req.supabase
+  const petSelect = store_id
+    ? `id, name, species, breed, hn, allergies, store_id`
+    : `id, name, species, breed, hn, allergies`;
+
+  let ownerQuery = req.supabase
     .from('pet_owners')
-    .select('*, pets(id, name, species, breed)')
-    .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
-    .limit(10);
+    .select(`*, pets(${petSelect})`)
+    .order('created_at', { ascending: false })
+    .limit(20);
 
+  if (q && q.length >= 2) {
+    ownerQuery = ownerQuery.or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
+  }
+
+  const { data, error } = await ownerQuery;
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ success: true, data: data || [] });
+
+  let owners = data || [];
+
+  // Also search by pet name / HN — use separate queries to avoid .or() string-parsing issues
+  if (q && q.length >= 2) {
+    const petOwnerIds = new Set();
+
+    // Search by pet name
+    let petNameQ = req.supabase.from('pets').select('owner_id').ilike('name', `%${q}%`).limit(20);
+    if (store_id) petNameQ = petNameQ.eq('store_id', store_id);
+    const { data: byName } = await petNameQ;
+    (byName || []).forEach(p => p.owner_id && petOwnerIds.add(p.owner_id));
+
+    // Search by HN number (strips "HN-", leading zeros: "HN-00001" → 1)
+    const hnNum = parseInt(q.replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(hnNum) && hnNum > 0) {
+      let petHNQ = req.supabase.from('pets').select('owner_id').eq('hn', hnNum).limit(5);
+      if (store_id) petHNQ = petHNQ.eq('store_id', store_id);
+      const { data: byHN } = await petHNQ;
+      (byHN || []).forEach(p => p.owner_id && petOwnerIds.add(p.owner_id));
+    }
+
+    const extraOwnerIds = [...petOwnerIds].filter(id => !owners.some(o => o.id === id));
+    if (extraOwnerIds.length) {
+      const { data: extraOwners } = await req.supabase
+        .from('pet_owners')
+        .select(`*, pets(${petSelect})`)
+        .in('id', extraOwnerIds);
+      owners = [...owners, ...(extraOwners || [])];
+    }
+  }
+
+  const filtered = owners.map(owner => ({
+    ...owner,
+    pets: store_id
+      ? (owner.pets || []).filter(p => p.store_id === store_id)
+      : (owner.pets || []),
+  }));
+
+  res.json({ success: true, data: filtered });
 });
 
 // POST /api/pets/owners
 router.post('/owners', async (req, res) => {
-  const { name, phone, email, line_id, address, notes } = req.body;
+  const { name, phone, line_id, address, notes } = req.body;
+  const email = req.body.email?.trim().toLowerCase() || null;
   if (!name) return res.status(400).json({ error: 'name required' });
+
+  // Email uniqueness check
+  if (email) {
+    const { data: existing } = await req.supabase
+      .from('pet_owners')
+      .select('id, name')
+      .eq('email', email)
+      .maybeSingle();
+    if (existing) {
+      return res.status(400).json({
+        error: `อีเมลนี้มีในระบบแล้ว (${existing.name})`,
+        duplicate_owner_id: existing.id,
+      });
+    }
+  }
 
   const { data, error } = await req.supabase
     .from('pet_owners')
@@ -102,12 +167,23 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/pets
 router.post('/', async (req, res) => {
-  const { owner_id, name, species, breed, gender, dob, color, weight_kg, microchip_no, is_neutered, allergies, notes } = req.body;
+  const { owner_id, store_id, name, breed, gender, dob, color, weight_kg, microchip_no, is_neutered, allergies, notes } = req.body;
+  const species = req.body.species || 'dog';
   if (!name || !owner_id) return res.status(400).json({ error: 'name and owner_id required' });
+  if (!store_id) return res.status(400).json({ error: 'store_id required' });
+
+  // Generate next HN for this store (per-clinic sequential)
+  const { data: lastPet } = await req.supabase
+    .from('pets')
+    .select('hn')
+    .eq('store_id', store_id)
+    .order('hn', { ascending: false })
+    .limit(1);
+  const nextHn = (lastPet?.[0]?.hn || 0) + 1;
 
   const { data, error } = await req.supabase
     .from('pets')
-    .insert([{ owner_id, name, species, breed, gender, dob, color, weight_kg, microchip_no, is_neutered, allergies, notes }])
+    .insert([{ owner_id, store_id, hn: nextHn, name, species, type: species, breed, gender, dob, color, weight_kg, microchip_no, is_neutered: is_neutered ?? false, allergies, notes }])
     .select('*, pet_owners(*)')
     .single();
 
@@ -137,6 +213,8 @@ router.patch('/:id', async (req, res) => {
 router.post('/vaccinations', async (req, res) => {
   const { pet_id, store_id, vaccine_name, given_date, next_due_date, batch_no, vet_name, notes } = req.body;
   if (!pet_id || !vaccine_name) return res.status(400).json({ error: 'pet_id and vaccine_name required' });
+  if (!store_id) return res.status(400).json({ error: 'store_id required' });
+  if (!given_date) return res.status(400).json({ error: 'given_date required' });
 
   const { data, error } = await req.supabase
     .from('pet_vaccinations')

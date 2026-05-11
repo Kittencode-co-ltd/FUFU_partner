@@ -1,27 +1,28 @@
-import { apiFetch }  from '../utils/api-client.js';
-import { storage }   from '../utils/storage.js';
+import { apiFetch } from '../utils/api-client.js';
+import { storage } from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
 const SERVICE_TYPES = ['ตรวจทั่วไป', 'วัคซีน', 'ผ่าตัด', 'ทำฟัน', 'ตรวจเลือด', 'อาบน้ำ-ตัดขน', 'อื่นๆ'];
 
 const STATUS_CFG = {
-  waiting:     { label: 'รอ',          badge: 'badge-gold',                    border: 'border-l-amber-400' },
-  called:      { label: 'เรียกแล้ว',  badge: 'badge-teal',                    border: 'border-l-primary' },
-  in_progress: { label: 'กำลังรักษา', badge: 'bg-blue-50 text-blue-600',      border: 'border-l-blue-500' },
-  completed:   { label: 'เสร็จ',       badge: 'badge-navy',                    border: 'border-l-slate-200' },
-  no_show:     { label: 'ไม่มา',       badge: 'bg-slate-100 text-slate-400',   border: 'border-l-slate-200' },
+  waiting: { label: 'รอ', badge: 'badge-gold', border: 'border-l-amber-400' },
+  called: { label: 'เรียกแล้ว', badge: 'badge-teal', border: 'border-l-primary' },
+  in_progress: { label: 'กำลังรักษา', badge: 'bg-blue-50 text-blue-600', border: 'border-l-blue-500' },
+  completed: { label: 'เสร็จ', badge: 'badge-navy', border: 'border-l-slate-200' },
+  no_show: { label: 'ไม่มา', badge: 'bg-slate-100 text-slate-400', border: 'border-l-slate-200' },
 };
 
 let _storeId = '';
 let _container = null;
 let _refreshTimer = null;
+let _selectedPet = null; // { pet_id, pet_name, owner_name } | null
 
 // ─── Public entry ─────────────────────────────────────────────────────────────
 
 export async function renderQueue(container) {
   _container = container;
-  _storeId   = storage.get(STORAGE_KEYS.STORE_ID);
+  _storeId = storage.get(STORAGE_KEYS.STORE_ID);
 
   container.innerHTML = `
     <!-- Appointment inbox (from app) -->
@@ -29,14 +30,14 @@ export async function renderQueue(container) {
 
     <!-- Walk-in quick-add bar -->
     <div class="card p-4 mb-5">
-      <form id="walkin-form" class="flex flex-wrap gap-3 items-end">
-        <div class="flex-1 min-w-32">
-          <label class="input-label">ชื่อสัตว์เลี้ยง</label>
-          <input id="wk-pet"   class="input-field" placeholder="บัดดี้" required>
-        </div>
-        <div class="flex-1 min-w-32">
-          <label class="input-label">ชื่อเจ้าของ</label>
-          <input id="wk-owner" class="input-field" placeholder="คุณสมชาย">
+      <div class="flex flex-wrap gap-3 items-end">
+        <div class="relative flex-1 min-w-52">
+          <label class="input-label">ค้นหาสัตว์เลี้ยง / เจ้าของ / เบอร์โทร</label>
+          <input id="wk-search" class="input-field" placeholder="บัดดี้ หรือ 0812345678..." autocomplete="off">
+          <div id="wk-dropdown"
+               class="hidden absolute z-30 left-0 right-0 top-full mt-1 bg-white rounded-xl
+                      shadow-card-hover border border-slate-100 max-h-60 overflow-y-auto text-sm">
+          </div>
         </div>
         <div class="flex-1 min-w-36">
           <label class="input-label">บริการ</label>
@@ -49,9 +50,17 @@ export async function renderQueue(container) {
             <input type="checkbox" id="wk-emergency" class="w-4 h-4 accent-red-500">
             <span class="text-sm font-semibold text-red-500">🚨 ด่วน</span>
           </label>
-          <button type="submit" class="btn-primary whitespace-nowrap">+ Walk-in</button>
+          <button id="wk-submit" class="btn-primary whitespace-nowrap">+ Walk-in</button>
         </div>
-      </form>
+      </div>
+      <div class="flex items-center justify-between mt-2 min-h-7">
+        <div id="wk-selected" class="hidden items-center gap-2">
+          <span id="wk-chip"
+                class="text-xs bg-primary-subtle text-primary-dark rounded-lg px-3 py-1.5 font-semibold"></span>
+          <button id="wk-deselect"
+                  class="text-xs text-slate-400 hover:text-red-500 transition-colors">× เปลี่ยน</button>
+        </div>
+      </div>
     </div>
 
     <!-- Stats row -->
@@ -61,7 +70,10 @@ export async function renderQueue(container) {
     <div id="queue-cards" class="space-y-3"></div>
   `;
 
-  container.querySelector('#walkin-form').addEventListener('submit', _handleWalkin);
+  _selectedPet = null;
+  _bindWalkinSearch(container);
+  container.querySelector('#wk-submit').addEventListener('click', _handleWalkin);
+  container.querySelector('#wk-new-patient')?.addEventListener('click', () => _openQuickRegister(container));
   await _loadQueue();
 
   // Auto-refresh every 30s
@@ -91,9 +103,9 @@ function _renderInbox(appointments) {
 
   if (!appointments.length) { el.innerHTML = ''; return; }
 
-  const today    = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
   const todayApt = appointments.filter(a => a.appt_date === today);
-  const futureApt= appointments.filter(a => a.appt_date > today);
+  const futureApt = appointments.filter(a => a.appt_date > today);
 
   el.innerHTML = `
     <div class="card border border-amber-200 bg-amber-50/50 overflow-hidden">
@@ -138,7 +150,7 @@ function _renderInbox(appointments) {
       });
       if (res?.success) {
         const q = res.data?.queue_entry;
-        showToast(`✅ ยืนยันแล้ว — เพิ่มคิว A${String(q?.queue_number||'').padStart(3,'0')} วันที่ ${_thaiDate(q?.queue_date||'')}`);
+        showToast(`✅ ยืนยันแล้ว — เพิ่มคิว A${String(q?.queue_number || '').padStart(3, '0')} วันที่ ${_thaiDate(q?.queue_date || '')}`);
         await _loadQueue();
       } else {
         showToast(res?.error || 'ยืนยันไม่สำเร็จ', 'error');
@@ -163,7 +175,7 @@ function _apptCard(a, today) {
     ? `<span class="font-semibold text-orange-600">วันนี้</span>`
     : `<span>${_thaiDate(a.appt_date)}</span>`;
   const services = (a.services || []).join(', ') || a.category || '—';
-  const dropoff  = a.drop_off_method ? `· ${a.drop_off_method}` : '';
+  const dropoff = a.drop_off_method ? `· ${a.drop_off_method}` : '';
 
   return `
     <div class="flex items-start gap-4 px-5 py-3 ${isToday ? 'bg-orange-50/60' : 'hover:bg-amber-50/40'} transition-colors">
@@ -208,10 +220,10 @@ function _renderStats(queue) {
   if (!el) return;
   const count = (s) => queue.filter(q => q.status === s).length;
   const stats = [
-    { label: 'รอ',          value: count('waiting'),     cls: 'text-amber-500' },
-    { label: 'กำลังรักษา', value: count('in_progress'), cls: 'text-blue-500'  },
-    { label: 'เสร็จแล้ว',  value: count('completed'),   cls: 'text-primary'   },
-    { label: 'ทั้งหมด',    value: queue.length,           cls: 'text-navy'      },
+    { label: 'รอ', value: count('waiting'), cls: 'text-amber-500' },
+    { label: 'กำลังรักษา', value: count('in_progress'), cls: 'text-blue-500' },
+    { label: 'เสร็จแล้ว', value: count('completed'), cls: 'text-primary' },
+    { label: 'ทั้งหมด', value: queue.length, cls: 'text-navy' },
   ];
   el.innerHTML = stats.map(s => `
     <div class="card p-3 text-center">
@@ -243,8 +255,8 @@ function _renderCards(queue) {
 }
 
 function _queueCard(q) {
-  const cfg  = STATUS_CFG[q.status] || STATUS_CFG.waiting;
-  const num  = String(q.queue_number).padStart(3, '0');
+  const cfg = STATUS_CFG[q.status] || STATUS_CFG.waiting;
+  const num = String(q.queue_number).padStart(3, '0');
   const isEmergency = q.priority === 'emergency';
   const isDone = q.status === 'completed' || q.status === 'no_show';
 
@@ -296,18 +308,18 @@ function _cardActions(q) {
              class="${cls} rounded-lg transition-all">${label}</button>`;
 
   if (q.status === 'waiting') return `
-    ${btn('call',  '📢 เรียก',  'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
-    ${btn('opd',   '📋 OPD',    'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
+    ${btn('call', '📢 เรียก', 'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
+    ${btn('opd', '📋 OPD', 'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
 
   if (q.status === 'called') return `
-    ${btn('start',  '▶ เริ่มรักษา', 'bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-colors')}
-    ${btn('noshow', '❌ ไม่มา',     'border border-slate-300 text-slate-500 text-xs px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors')}
-    ${btn('opd',    '📋 OPD',       'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
+    ${btn('start', '▶ เริ่มรักษา', 'bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-colors')}
+    ${btn('noshow', '❌ ไม่มา', 'border border-slate-300 text-slate-500 text-xs px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors')}
+    ${btn('opd', '📋 OPD', 'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
 
   if (q.status === 'in_progress') return `
     ${btn('complete', '✓ เสร็จ', 'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
-    ${btn('opd',      '📋 OPD',   'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}
-    ${btn('pos',      '💳 ชำระ',  'border border-amber-400 text-amber-600 text-xs px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-colors')}`;
+    ${btn('opd', '📋 OPD', 'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}
+    ${btn('pos', '💳 ชำระ', 'border border-amber-400 text-amber-600 text-xs px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-colors')}`;
 
   if (q.status === 'completed') return `
     ${btn('opd', '📋 ดู OPD', 'border border-slate-200 text-slate-400 text-xs px-3 py-1.5 rounded-lg')}
@@ -338,7 +350,7 @@ async function _handleCardAction(e) {
   const newStatus = STATUS_MAP[action];
   if (!newStatus) return;
 
-  btn.disabled   = true;
+  btn.disabled = true;
   btn.textContent = '...';
 
   const res = await apiFetch(`/api/queue/${id}`, {
@@ -356,57 +368,311 @@ async function _handleCardAction(e) {
   }
 }
 
-async function _handleWalkin(e) {
-  e.preventDefault();
-  const form     = e.target;
-  const petName  = form.querySelector('#wk-pet').value.trim();
-  const owner    = form.querySelector('#wk-owner').value.trim();
-  const service  = form.querySelector('#wk-service').value;
-  const isEmerg  = form.querySelector('#wk-emergency').checked;
+// ─── Walk-in search & submit ──────────────────────────────────────────────────
 
-  if (!petName) { showToast('กรุณากรอกชื่อสัตว์เลี้ยง', 'error'); return; }
+function _bindWalkinSearch(container) {
+  const input = container.querySelector('#wk-search');
+  const dropdown = container.querySelector('#wk-dropdown');
+  if (!input || !dropdown) return;
 
-  const submitBtn = form.querySelector('[type="submit"]');
-  submitBtn.disabled = true;
+  const EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+
+  async function _loadDropdown(q) {
+    const url = q.length >= 2
+      ? `/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`
+      : `/api/pets/owners/search?store_id=${_storeId}`;
+    const res = await apiFetch(url);
+    const owners = res?.data || [];
+
+    if (!owners.length) {
+      dropdown.innerHTML = `
+        <div class="px-4 py-3 text-slate-500 font-body flex items-center gap-2">
+          <span>${q ? `ไม่พบ "${q}"` : 'ยังไม่มีข้อมูลในระบบ'}</span>
+          <button id="dd-new" class="text-primary underline text-xs hover:no-underline">+ ลูกค้าใหม่</button>
+        </div>`;
+      dropdown.classList.remove('hidden');
+      dropdown.querySelector('#dd-new')?.addEventListener('click', () => {
+        dropdown.classList.add('hidden');
+        _openQuickRegister(container);
+      });
+      return;
+    }
+
+    const rows = [];
+    for (const owner of owners) {
+      const pets = owner.pets || [];
+      if (!pets.length) {
+        rows.push({ pet_id: null, pet_name: null, owner_name: owner.name, owner_phone: owner.phone || '' });
+      } else {
+        for (const pet of pets) {
+          rows.push({ pet_id: pet.id, pet_name: pet.name, species: pet.species, owner_name: owner.name, owner_phone: owner.phone || '' });
+        }
+      }
+    }
+
+    const header = q ? '' : `<div class="px-4 py-1.5 text-xs text-slate-400 font-body border-b border-slate-100">สัตว์เลี้ยงล่าสุดในระบบ</div>`;
+
+    dropdown.innerHTML = header + rows.map((r, i) => {
+      const emoji = r.pet_id ? (EMOJI[r.species] || '🐾') : '👤';
+      const main = r.pet_id ? `${emoji} ${r.pet_name}` : `${emoji} ${r.owner_name} (ยังไม่มีสัตว์)`;
+      const sub = r.pet_id ? `เจ้าของ: ${r.owner_name}${r.owner_phone ? ' · ' + r.owner_phone : ''}` : r.owner_phone;
+      return `
+        <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors"
+             data-ridx="${i}">
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-navy">${main}</div>
+            ${sub ? `<div class="text-xs text-slate-400 font-body">${sub}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('') + `
+      <div class="border-t border-slate-100 px-4 py-2">
+        <button id="dd-new2" class="text-xs text-primary hover:underline font-body">+ ลูกค้าใหม่</button>
+      </div>`;
+
+    dropdown.classList.remove('hidden');
+
+    dropdown.querySelectorAll('[data-ridx]').forEach(el => {
+      el.addEventListener('click', () => {
+        const r = rows[parseInt(el.dataset.ridx)];
+        _selectedPet = { pet_id: r.pet_id || null, pet_name: r.pet_name || input.value.trim(), owner_name: r.owner_name };
+        input.value = r.pet_id ? r.pet_name : r.owner_name;
+        _updateChip(container);
+        dropdown.classList.add('hidden');
+      });
+    });
+
+    dropdown.querySelector('#dd-new2')?.addEventListener('click', () => {
+      dropdown.classList.add('hidden');
+      _openQuickRegister(container);
+    });
+  }
+
+  let searchTimer;
+
+  input.addEventListener('focus', () => {
+    if (dropdown.classList.contains('hidden')) _loadDropdown('');
+  });
+
+  input.addEventListener('input', () => {
+    _selectedPet = null;
+    _updateChip(container);
+    clearTimeout(searchTimer);
+    const q = input.value.trim();
+    if (q.length === 1) return;
+    searchTimer = setTimeout(() => _loadDropdown(q), 300);
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => dropdown.classList.add('hidden'), 200);
+  });
+
+  container.querySelector('#wk-deselect')?.addEventListener('click', () => {
+    _selectedPet = null;
+    input.value = '';
+    _updateChip(container);
+    input.focus();
+  });
+}
+
+function _updateChip(container) {
+  const selectedEl = container.querySelector('#wk-selected');
+  const chipEl = container.querySelector('#wk-chip');
+  if (!selectedEl || !chipEl) return;
+  if (_selectedPet) {
+    const label = _selectedPet.pet_id
+      ? `🐾 ${_selectedPet.pet_name} · ${_selectedPet.owner_name}`
+      : `👤 ${_selectedPet.owner_name}`;
+    chipEl.textContent = label;
+    selectedEl.classList.remove('hidden');
+    selectedEl.classList.add('flex');
+  } else {
+    selectedEl.classList.add('hidden');
+    selectedEl.classList.remove('flex');
+  }
+}
+
+async function _handleWalkin() {
+  const search = _container?.querySelector('#wk-search');
+  const service = _container?.querySelector('#wk-service')?.value || 'ตรวจทั่วไป';
+  const isEmerg = _container?.querySelector('#wk-emergency')?.checked || false;
+  const freeText = search?.value.trim() || '';
+
+  const pet_id = _selectedPet?.pet_id || null;
+  const pet_name = _selectedPet?.pet_name || freeText;
+  const owner_name = _selectedPet?.owner_name || '';
+
+  if (!pet_name) { showToast('กรุณาค้นหาหรือกรอกชื่อสัตว์เลี้ยง', 'error'); return; }
+
+  const submitBtn = _container?.querySelector('#wk-submit');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '...'; }
 
   const res = await apiFetch('/api/queue', {
     method: 'POST',
     body: JSON.stringify({
-      store_id:     _storeId,
-      pet_name:     petName,
-      owner_name:   owner,
+      store_id: _storeId,
+      pet_id,
+      pet_name,
+      owner_name,
       service_type: service,
-      priority:     isEmerg ? 'emergency' : 'normal',
-      notes:        owner ? `${petName} - ${owner}` : petName,
+      priority: isEmerg ? 'emergency' : 'normal',
+      notes: owner_name ? `${pet_name} - ${owner_name}` : pet_name,
     }),
   });
 
-  submitBtn.disabled = false;
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '+ Walk-in'; }
 
   if (res?.success) {
-    form.reset();
+    if (search) search.value = '';
+    _selectedPet = null;
+    _updateChip(_container);
+    if (_container) _container.querySelector('#wk-emergency').checked = false;
     await _loadQueue();
-    showToast(`เพิ่มคิว ${petName} เรียบร้อย`);
+    showToast(`เพิ่มคิว ${pet_name} เรียบร้อย`);
   } else {
     showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
   }
+}
+
+// ─── Quick register (new patient inline) ─────────────────────────────────────
+
+function _openQuickRegister(container) {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.innerHTML = `
+    <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
+      <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 1/2 เจ้าของ</h3>
+      <div>
+        <label class="input-label">ชื่อ-นามสกุล *</label>
+        <input id="qr-name" class="input-field" placeholder="คุณสมชาย ใจดี" autofocus>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="input-label">เบอร์โทร *</label>
+          <input id="qr-phone" class="input-field" type="tel" placeholder="0812345678">
+        </div>
+        <div>
+          <label class="input-label">อีเมล (ถ้ามี)</label>
+          <input id="qr-email" class="input-field" type="email" placeholder="email@example.com">
+        </div>
+      </div>
+      <div class="flex gap-3 pt-1">
+        <button id="qr-cancel" class="btn-outline flex-1">ยกเลิก</button>
+        <button id="qr-next" class="btn-primary flex-1">ถัดไป →</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.querySelector('#qr-cancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  modal.querySelector('#qr-next').addEventListener('click', async () => {
+    const name = modal.querySelector('#qr-name').value.trim();
+    const phone = modal.querySelector('#qr-phone').value.trim();
+    if (!name || !phone) { showToast('กรุณากรอกชื่อและเบอร์โทร', 'error'); return; }
+
+    const btn = modal.querySelector('#qr-next');
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+    const res = await apiFetch('/api/pets/owners', {
+      method: 'POST',
+      body: JSON.stringify({ name, phone, email: modal.querySelector('#qr-email').value.trim() || null }),
+    });
+
+    if (!res?.success) {
+      showToast(res?.error || 'สร้างเจ้าของไม่สำเร็จ', 'error');
+      btn.disabled = false; btn.textContent = 'ถัดไป →';
+      return;
+    }
+    modal.remove();
+    _openQuickRegisterPet(container, res.data);
+  });
+}
+
+function _openQuickRegisterPet(container, owner) {
+  const SPECIES_OPTS = [
+    { k: 'dog', e: '🐕', l: 'สุนัข' }, { k: 'cat', e: '🐈', l: 'แมว' },
+    { k: 'rabbit', e: '🐰', l: 'กระต่าย' }, { k: 'bird', e: '🐦', l: 'นก' },
+    { k: 'other', e: '🐾', l: 'อื่นๆ' },
+  ];
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.innerHTML = `
+    <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
+      <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 2/2 สัตว์เลี้ยง</h3>
+      <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">
+        👤 ${owner.name} · ${owner.phone || ''}
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="input-label">ชื่อสัตว์เลี้ยง *</label>
+          <input id="qp-name" class="input-field" placeholder="บัดดี้" autofocus>
+        </div>
+        <div>
+          <label class="input-label">ชนิด</label>
+          <select id="qp-species" class="input-field">
+            ${SPECIES_OPTS.map(s => `<option value="${s.k}">${s.e} ${s.l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="input-label">สายพันธุ์ (ถ้ามี)</label>
+        <input id="qp-breed" class="input-field" placeholder="โกลเด้น รีทรีฟเวอร์">
+      </div>
+      <div class="flex gap-3 pt-1">
+        <button id="qp-cancel" class="btn-outline flex-1">ยกเลิก</button>
+        <button id="qp-save" class="btn-primary flex-1">บันทึก + เลือก</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.querySelector('#qp-cancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  modal.querySelector('#qp-save').addEventListener('click', async () => {
+    const petName = modal.querySelector('#qp-name').value.trim();
+    const species = modal.querySelector('#qp-species').value;
+    const breed = modal.querySelector('#qp-breed').value.trim() || null;
+    if (!petName) { showToast('กรุณากรอกชื่อสัตว์เลี้ยง', 'error'); return; }
+
+    const btn = modal.querySelector('#qp-save');
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+    const res = await apiFetch('/api/pets', {
+      method: 'POST',
+      body: JSON.stringify({ owner_id: owner.id, store_id: _storeId, name: petName, species, breed }),
+    });
+
+    if (!res?.success) {
+      showToast(res?.error || 'สร้างสัตว์เลี้ยงไม่สำเร็จ', 'error');
+      btn.disabled = false; btn.textContent = 'บันทึก + เลือก';
+      return;
+    }
+
+    const pet = res.data;
+    _selectedPet = { pet_id: pet.id, pet_name: pet.name, owner_name: owner.name };
+    const search = container.querySelector('#wk-search');
+    if (search) search.value = pet.name;
+    _updateChip(container);
+    showToast(`ลงทะเบียน ${petName} แล้ว — กด Walk-in เพื่อเพิ่มคิว`);
+    modal.remove();
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function _elapsed(since) {
   const mins = Math.floor((Date.now() - since) / 60000);
-  if (mins < 1)  return 'เพิ่งเข้ามา';
+  if (mins < 1) return 'เพิ่งเข้ามา';
   if (mins < 60) return `${mins} นาทีที่แล้ว`;
   return `${Math.floor(mins / 60)} ชม. ${mins % 60} นาที`;
 }
 
 function _statusMsg(status) {
   const MAP = {
-    called:      'เรียกคิวแล้ว',
+    called: 'เรียกคิวแล้ว',
     in_progress: 'เริ่มรักษาแล้ว',
-    completed:   'บันทึกเสร็จสิ้น',
-    no_show:     'บันทึก: ไม่มา',
+    completed: 'บันทึกเสร็จสิ้น',
+    no_show: 'บันทึก: ไม่มา',
   };
   return MAP[status] || 'อัพเดทแล้ว';
 }

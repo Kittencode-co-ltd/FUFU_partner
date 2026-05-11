@@ -44,21 +44,33 @@ router.post('/rooms', async (req, res) => {
 
 // POST /api/hotel/checkin
 router.post('/checkin', async (req, res) => {
-  const { store_id, room_id, pet_name, owner_name, owner_phone, species, check_in_date, check_out_date, notes, deposit_amount = 0 } = req.body;
+  const {
+    store_id, room_id, pet_id,
+    pet_name, owner_name, owner_phone, species,
+    check_in_date, check_out_date, notes, deposit_amount = 0,
+  } = req.body;
   if (!store_id || !room_id || !check_in_date || !check_out_date) {
     return res.status(400).json({ error: 'store_id, room_id, check_in_date, check_out_date required' });
   }
 
-  const { data: room } = await req.supabase.from('hotel_rooms').select('price_per_night').eq('id', room_id).single();
+  const { data: room } = await req.supabase
+    .from('hotel_rooms').select('price_per_night').eq('id', room_id).single();
   const nights = Math.max(1, Math.ceil((new Date(check_out_date) - new Date(check_in_date)) / 86400000));
   const total  = nights * (room?.price_per_night || 400);
 
   const { data: booking, error } = await req.supabase
     .from('hotel_bookings').insert([{
-      store_id, room_id, pet_name, owner_name, owner_phone, species,
-      check_in_date, check_out_date, nights, total_amount: total,
-      deposit_amount, notes, status: 'checked_in',
-      actual_checkin_at: new Date().toISOString(),
+      store_id, room_id,
+      pet_id:             pet_id    || null,
+      pet_name, owner_name, owner_phone,
+      species:            species   || 'dog',
+      check_in_date, check_out_date,
+      nights, total_amount: total, total_cost: total,
+      deposit_amount,
+      notes,
+      status:             'checked_in',
+      actual_checkin_at:  new Date().toISOString(),
+      actual_check_in:    new Date().toISOString(),
     }]).select().single();
 
   if (error) return res.status(500).json({ error: error.message });

@@ -80,6 +80,22 @@ async function _render(container) {
     });
   });
 
+  // Status move via dropdown
+  container.addEventListener('change', async e => {
+    const sel = e.target.closest('[data-move-task]');
+    if (!sel) return;
+    const taskId   = sel.dataset.moveTask;
+    const newStatus = sel.value;
+    const task = _tasks.find(t => t.id === taskId);
+    if (task && task.status !== newStatus) {
+      const res = await apiFetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH', body: JSON.stringify({ status: newStatus }),
+      });
+      if (res?.success) { await _render(container); showToast(`ย้าย "${task.title}" แล้ว`); }
+      else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
+    }
+  });
+
   // Delete & edit
   container.addEventListener('click', async e => {
     const del = e.target.closest('[data-delete-task]');
@@ -101,26 +117,40 @@ function _taskCard(task) {
     ? new Date(task.due_date + 'T00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
     : '';
   const isOverdue = task.due_date && task.status !== 'done' && new Date(task.due_date) < new Date();
+  const colCfg = COLUMNS.find(c => c.id === task.status) || COLUMNS[0];
   return `
     <div class="kanban-task bg-white rounded-xl p-3 shadow-sm border border-slate-100 cursor-grab"
          data-task-id="${task.id}">
+      <!-- Priority badge + delete -->
       <div class="flex items-start justify-between gap-1 mb-2">
-        <span title="${p.label}">${p.icon}</span>
-        <div class="flex items-center gap-1">
+        <span class="text-xs font-bold px-2 py-0.5 rounded-full"
+              style="background:${p.color}22;color:${p.color}">${p.icon} ${p.label}</span>
+        <div class="flex items-center gap-1.5">
           ${due ? `<span class="text-xs font-body ${isOverdue ? 'text-red-500 font-semibold' : 'text-slate-400'}">${due}</span>` : ''}
           <button data-delete-task="${task.id}"
             class="text-slate-300 hover:text-red-400 transition-colors text-base leading-none w-4 flex-shrink-0">×</button>
         </div>
       </div>
-      <div class="text-sm font-semibold text-navy leading-snug mb-2">${task.title}</div>
+      <!-- Title -->
+      <div class="text-sm font-semibold text-navy leading-snug mb-1.5">${task.title}</div>
       ${task.description ? `<div class="text-xs text-slate-400 font-body mb-2 line-clamp-2">${task.description}</div>` : ''}
-      <div class="flex items-center justify-between">
-        <span class="text-xs text-slate-500 font-body">
-          ${task.assigned_to ? `<i class="fas fa-user text-slate-300 mr-1"></i>${task.assigned_to}` : ''}
-        </span>
-        <div class="flex gap-1 flex-wrap">
-          ${(task.tags || []).map(t => `<span class="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-body">${t}</span>`).join('')}
-        </div>
+      <!-- Assignee -->
+      ${task.assigned_to ? `<div class="text-xs text-slate-500 font-body mb-2 flex items-center gap-1">
+        <i class="fas fa-user text-slate-300 text-[10px]"></i>${task.assigned_to}
+      </div>` : ''}
+      <!-- Tags -->
+      ${(task.tags || []).length ? `<div class="flex gap-1 flex-wrap mb-2">
+        ${(task.tags || []).map(t => `<span class="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-body">${t}</span>`).join('')}
+      </div>` : ''}
+      <!-- Status move dropdown -->
+      <div class="border-t border-slate-50 pt-2 flex items-center justify-between gap-2">
+        <span class="text-xs font-body px-2 py-0.5 rounded-full"
+              style="background:${colCfg.color}22;color:${colCfg.color}">${colCfg.label}</span>
+        <select data-move-task="${task.id}"
+          class="text-xs border border-slate-200 rounded-lg px-2 py-1 font-body text-slate-600
+                 focus:border-primary outline-none cursor-pointer">
+          ${COLUMNS.map(c => `<option value="${c.id}" ${task.status === c.id ? 'selected' : ''}>${c.label}</option>`).join('')}
+        </select>
       </div>
     </div>`;
 }

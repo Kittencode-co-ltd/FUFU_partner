@@ -11,28 +11,10 @@ router.get('/cages', async (req, res) => {
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
   const { data, error } = await req.supabase
-    .from('ipd_cages').select('*, ipd_admissions!inner(*)')
+    .from('ipd_cages').select('*')
     .eq('store_id', store_id).order('cage_number');
 
-  // Fallback: select cages then admissions separately to avoid join issues
-  if (error) {
-    const { data: cages, error: e2 } = await req.supabase
-      .from('ipd_cages').select('*').eq('store_id', store_id).order('cage_number');
-    if (e2) return res.status(500).json({ error: e2.message });
-
-    const { data: admissions } = await req.supabase
-      .from('ipd_admissions').select('*')
-      .eq('store_id', store_id).eq('status', 'admitted');
-
-    const admMap = {};
-    (admissions || []).forEach(a => { admMap[a.cage_id] = a; });
-    const enriched = (cages || []).map(c => ({
-      ...c,
-      current_admission: admMap[c.id] || null,
-    }));
-    return res.json({ success: true, data: enriched });
-  }
-
+  if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data: data || [] });
 });
 
@@ -49,7 +31,7 @@ router.post('/cages', async (req, res) => {
 });
 
 router.patch('/cages/:id', async (req, res) => {
-  const allowed = ['status', 'cage_type', 'floor', 'daily_rate', 'notes'];
+  const allowed = ['cage_number', 'status', 'cage_type', 'floor', 'daily_rate', 'notes'];
   const updates = {};
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
 
@@ -57,6 +39,19 @@ router.patch('/cages/:id', async (req, res) => {
     .from('ipd_cages').update(updates).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });
+});
+
+router.delete('/cages/:id', async (req, res) => {
+  const { data: cage, error: findErr } = await req.supabase
+    .from('ipd_cages').select('status, cage_number').eq('id', req.params.id).single();
+  if (findErr) return res.status(404).json({ error: 'Cage not found' });
+  if (cage.status === 'occupied') {
+    return res.status(400).json({ error: `ไม่สามารถลบกรง ${cage.cage_number} ที่มีผู้ป่วยอยู่ได้` });
+  }
+
+  const { error } = await req.supabase.from('ipd_cages').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
 });
 
 // ─── Admissions ───────────────────────────────────────────────────────────────
@@ -75,40 +70,59 @@ router.get('/admissions', async (req, res) => {
 });
 
 router.post('/admissions', async (req, res) => {
-  const { store_id, cage_id, pet_name, owner_name, species, admission_reason, daily_rate, notes } = req.body;
+  const { store_id, cage_id, pet_id, pet_name, owner_name, species, admission_reason, daily_rate, notes } = req.body;
   if (!store_id || !cage_id || !pet_name) {
     return res.status(400).json({ error: 'store_id, cage_id, pet_name required' });
   }
 
-  const admRow = { store_id, cage_id, pet_name, species: species || 'dog', status: 'admitted', daily_rate: parseFloat(daily_rate) || 500 };
-  if (owner_name) admRow.owner_name = owner_name;
-  if (admission_reason) admRow.admission_reason = admission_reason;
-  if (notes) admRow.notes = notes;
+  const admRow = {
+    store_id, cage_id,
+    pet_id:           pet_id           || null,
+    pet_name,
+    owner_name:       owner_name       || null,
+    species:          species          || 'dog',
+    admission_reason: admission_reason || null,
+    daily_rate:       parseFloat(daily_rate) || 500,
+    status:           'admitted',
+    belongings_log:   [],
+  };
+  if (notes) admRow.daily_notes = notes;
 
-  const [admRes] = await Promise.all([
-    req.supabase.from('ipd_admissions').insert([admRow]).select().single(),
-  ]);
+  const { data, error } = await req.supabase
+    .from('ipd_admissions').insert([admRow]).select().single();
+  if (error) return res.status(500).json({ error: error.message });
 
-  if (admRes.error) return res.status(500).json({ error: admRes.error.message });
-
-  // Update cage status
   await req.supabase.from('ipd_cages').update({ status: 'occupied' }).eq('id', cage_id);
+  res.json({ success: true, data });
+});
 
-  res.json({ success: true, data: admRes.data });
+router.patch('/admissions/:id', async (req, res) => {
+  const allowed = ['pet_name', 'owner_name', 'species', 'admission_reason', 'daily_notes', 'belongings_log', 'daily_rate'];
+  const updates = { updated_at: new Date().toISOString() };
+  for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
+
+  const { data, error } = await req.supabase
+    .from('ipd_admissions').update(updates).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data });
 });
 
 router.patch('/admissions/:id/discharge', async (req, res) => {
   const { data: adm, error: findErr } = await req.supabase
-    .from('ipd_admissions').select('cage_id').eq('id', req.params.id).single();
+    .from('ipd_admissions').select('cage_id, admitted_at, daily_rate').eq('id', req.params.id).single();
   if (findErr) return res.status(404).json({ error: 'Admission not found' });
+
+  // Calculate total cost
+  const hrs        = (Date.now() - new Date(adm.admitted_at)) / 3600000;
+  const days       = Math.ceil(hrs / 24) || 1;
+  const total_cost = days * (parseFloat(adm.daily_rate) || 500);
 
   const { data, error } = await req.supabase
     .from('ipd_admissions')
-    .update({ status: 'discharged', discharged_at: new Date().toISOString() })
+    .update({ status: 'discharged', discharged_at: new Date().toISOString(), total_cost })
     .eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
 
-  // Free cage
   if (adm.cage_id) {
     await req.supabase.from('ipd_cages').update({ status: 'available' }).eq('id', adm.cage_id);
   }
@@ -129,11 +143,16 @@ router.post('/treatments', async (req, res) => {
   const { admission_id, store_id, treatment_time, treatment_type, description, dosage, notes } = req.body;
   if (!admission_id || !treatment_time) return res.status(400).json({ error: 'admission_id and treatment_time required' });
 
-  const tRow = { admission_id, treatment_time, treatment_type: treatment_type || 'medication', status: 'pending' };
-  if (store_id) tRow.store_id = store_id;
+  const tRow = {
+    admission_id,
+    treatment_time,
+    treatment_type: treatment_type || 'medication',
+    status: 'pending',
+  };
+  if (store_id)   tRow.store_id   = store_id;
   if (description) tRow.description = description;
-  if (dosage) tRow.dosage = dosage;
-  if (notes) tRow.notes = notes;
+  if (dosage)     tRow.dosage     = dosage;
+  if (notes)      tRow.notes      = notes;
 
   const { data, error } = await req.supabase.from('ipd_treatments').insert([tRow]).select().single();
   if (error) return res.status(500).json({ error: error.message });
@@ -142,10 +161,18 @@ router.post('/treatments', async (req, res) => {
 
 router.patch('/treatments/:id/done', async (req, res) => {
   const { completed_by, eat_status, poop_status, pee_status, notes } = req.body;
+  const updates = {
+    status:       'done',
+    completed_by: completed_by || req.user.email,
+    completed_at: new Date().toISOString(),
+  };
+  if (eat_status  !== undefined) updates.eat_status  = eat_status;
+  if (poop_status !== undefined) updates.poop_status = poop_status;
+  if (pee_status  !== undefined) updates.pee_status  = pee_status;
+  if (notes       !== undefined) updates.notes       = notes;
+
   const { data, error } = await req.supabase
-    .from('ipd_treatments')
-    .update({ status: 'done', completed_by: completed_by || req.user.email, eat_status, poop_status, pee_status, notes, completed_at: new Date().toISOString() })
-    .eq('id', req.params.id).select().single();
+    .from('ipd_treatments').update(updates).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });
 });

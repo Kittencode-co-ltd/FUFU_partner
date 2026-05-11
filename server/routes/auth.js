@@ -152,6 +152,25 @@ router.post('/change-password', async (req, res) => {
   res.json({ success: true });
 });
 
+// POST /api/auth/refresh  — exchange refresh_token for a new access_token
+router.post('/refresh', async (req, res) => {
+  const { refresh_token } = req.body;
+  if (!refresh_token) {
+    return res.status(400).json({ success: false, error: 'refresh_token required' });
+  }
+
+  const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+  if (error || !data?.session) {
+    return res.status(401).json({ success: false, error: 'Session หมดอายุ — กรุณาเข้าสู่ระบบใหม่' });
+  }
+
+  res.json({
+    success:       true,
+    token:         data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  });
+});
+
 // POST /api/auth/logout  (client-side clears token, this just confirms)
 router.post('/logout', (_req, res) => {
   res.json({ success: true });

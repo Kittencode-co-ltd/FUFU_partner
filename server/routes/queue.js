@@ -71,7 +71,7 @@ router.get('/range', async (req, res) => {
 
 // POST /api/queue
 router.post('/', async (req, res) => {
-  const { store_id, pet_name, owner_name, service_type, priority, notes, estimated_time } = req.body;
+  const { store_id, pet_id, pet_name, owner_name, service_type, priority, notes, estimated_time } = req.body;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
   const today = new Date().toISOString().split('T')[0];
@@ -85,12 +85,13 @@ router.post('/', async (req, res) => {
     .limit(1);
 
   const nextNum = existing?.length ? existing[0].queue_number + 1 : 1;
-  const combinedNotes = notes || (pet_name && owner_name ? `${pet_name} - ${owner_name}` : '');
+  const combinedNotes = notes || (pet_name && owner_name ? `${pet_name} - ${owner_name}` : pet_name || '');
 
   const { data, error } = await req.supabase
     .from('queue_entries')
     .insert([{
       store_id,
+      pet_id:         pet_id || null,
       queue_number:   nextNum,
       queue_date:     today,
       service_type:   service_type || 'ตรวจทั่วไป',

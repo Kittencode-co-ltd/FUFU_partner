@@ -11,6 +11,36 @@ const SPECIES = {
   other:  { label: 'อื่นๆ',      emoji: '🐾' },
 };
 
+const BREEDS = {
+  dog: [
+    'Golden Retriever', 'Labrador Retriever', 'German Shepherd', 'French Bulldog',
+    'Bulldog', 'Poodle', 'Beagle', 'Rottweiler', 'Yorkshire Terrier', 'Dachshund',
+    'Chihuahua', 'Shih Tzu', 'Siberian Husky', 'Pomeranian', 'Corgi', 'Border Collie',
+    'Maltese', 'Samoyed', 'Doberman', 'Schnauzer', 'Cocker Spaniel', 'Boxer',
+    'Great Dane', 'Dalmatian', 'Akita', 'Shiba Inu', 'Chow Chow', 'Bichon Frise',
+    'Thai Bangkaew', 'Thai Ridgeback', 'Basenji', 'Weimaraner', 'Vizsla',
+  ],
+  cat: [
+    'Persian', 'Siamese', 'Maine Coon', 'British Shorthair', 'Scottish Fold',
+    'Ragdoll', 'Bengal', 'Abyssinian', 'Russian Blue', 'Burmese', 'Thai',
+    'American Shorthair', 'Sphynx', 'Norwegian Forest Cat', 'Turkish Angora',
+    'Birman', 'Tonkinese', 'Devon Rex', 'Cornish Rex', 'Exotic Shorthair',
+    'Oriental', 'Himalayan', 'Manx',
+  ],
+  rabbit: [
+    'Holland Lop', 'Mini Rex', 'Dutch', 'Lionhead', 'Rex', 'Angora',
+    'Flemish Giant', 'New Zealand White', 'Mini Lop', 'Netherland Dwarf',
+    'American', 'Californian', 'Checkered Giant', 'English Lop', 'Jersey Wooly',
+  ],
+  bird: [
+    'Budgerigar', 'Cockatiel', 'Lovebird', 'Canary', 'Finch', 'Conure',
+    'African Grey Parrot', 'Macaw', 'Cockatoo', 'Parakeet', 'Eclectus',
+    'Sun Conure', 'Green Cheek Conure', 'Ringneck Parakeet', 'Lorikeet',
+    'Caique', 'Pionus', 'Amazon Parrot',
+  ],
+  other: [],
+};
+
 const APPT_STATUS = {
   scheduled: { label: 'นัดหมาย',    cls: 'badge-gold' },
   confirmed: { label: 'ยืนยันแล้ว', cls: 'badge-teal' },
@@ -195,18 +225,20 @@ async function _renderPetsList(el) {
   el.innerHTML = `
     <div class="space-y-4">
       <div class="card p-4 flex gap-3">
-        <input id="pet-search" class="input-field flex-1" placeholder="🔍 ค้นหาชื่อสัตว์ / เจ้าของ / เบอร์โทร">
+        <input id="pet-search" class="input-field flex-1" placeholder="🔍 ค้นหาชื่อสัตว์ / เลข HN / เจ้าของ / เบอร์โทร">
         <button id="new-pet-btn" class="btn-primary text-sm px-4 py-2 whitespace-nowrap">+ สัตว์เลี้ยงใหม่</button>
       </div>
       <div id="pet-search-results" class="space-y-2">
-        <p class="text-center text-slate-400 font-body text-sm py-8">พิมพ์ชื่อหรือเบอร์โทรเพื่อค้นหา</p>
+        <div class="text-center py-4 text-slate-400 font-body animate-pulse">กำลังโหลด...</div>
       </div>
     </div>`;
 
   let searchTimer;
   el.querySelector('#pet-search').addEventListener('input', (e) => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => _searchPets(e.target.value, el), 400);
+    const q = e.target.value.trim();
+    if (q.length === 1) return;
+    searchTimer = setTimeout(() => _searchPets(q, el), 400);
   });
 
   el.querySelector('#new-pet-btn')?.addEventListener('click', () => _openNewPetFlow(el));
@@ -214,17 +246,19 @@ async function _renderPetsList(el) {
     const btn = e.target.closest('[data-pet-id]');
     if (btn) _viewPet(btn.dataset.petId);
   });
+
+  await _searchPets('', el);
 }
 
 async function _searchPets(q, el) {
   const resultsEl = el.querySelector('#pet-search-results');
-  if (!q || q.length < 2) {
+  if (q.length === 1) {
     resultsEl.innerHTML = `<p class="text-center text-slate-400 font-body text-sm py-8">พิมพ์อย่างน้อย 2 ตัวอักษร</p>`;
     return;
   }
 
   resultsEl.innerHTML = `<div class="text-center py-4 text-slate-400 font-body animate-pulse">กำลังค้นหา...</div>`;
-  const res = await apiFetch(`/api/pets/owners/search?q=${encodeURIComponent(q)}`);
+  const res = await apiFetch(`/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`);
   const owners = res?.data || [];
 
   if (!owners.length) {
@@ -233,7 +267,7 @@ async function _searchPets(q, el) {
         <p class="text-slate-500 font-body">ไม่พบ "${q}"</p>
         <button id="create-new-btn" class="btn-primary text-sm px-4 py-2">+ สร้างเจ้าของใหม่</button>
       </div>`;
-    resultsEl.querySelector('#create-new-btn')?.addEventListener('click', () => _openNewPetFlow(el, q));
+    resultsEl.querySelector('#create-new-btn')?.addEventListener('click', () => _openNewPetFlow(el));
     return;
   }
 
@@ -251,8 +285,9 @@ async function _searchPets(q, el) {
              ${SPECIES[pet.species]?.emoji || '🐾'}
            </div>
            <div class="flex-1">
-             <div class="flex items-center gap-2">
+             <div class="flex items-center gap-2 flex-wrap">
                <span class="font-semibold text-navy">${pet.name}</span>
+               ${_hn(pet) ? `<span class="badge badge-navy text-xs">${_hn(pet)}</span>` : ''}
                <span class="text-xs text-slate-400 font-body">${SPECIES[pet.species]?.label || ''} ${pet.breed || ''}</span>
              </div>
              <div class="text-sm text-slate-500 font-body">เจ้าของ: ${owner.name} · ${owner.phone || ''}</div>
@@ -290,14 +325,16 @@ export function renderPetProfile(container, pet) {
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <h2 class="font-bold text-navy text-xl">${pet.name}</h2>
+            ${_hn(pet) ? `<span class="badge bg-navy text-white text-xs font-mono">${_hn(pet)}</span>` : ''}
             <span class="badge badge-teal text-xs">${sp.label}</span>
             ${pet.breed ? `<span class="badge badge-navy text-xs">${pet.breed}</span>` : ''}
             ${pet.is_neutered ? `<span class="badge bg-purple-50 text-purple-600 text-xs">ทำหมันแล้ว</span>` : ''}
           </div>
           <div class="text-sm text-slate-500 font-body mt-1">
-            ${age ? `อายุ ${age} · ` : ''}${pet.gender === 'male' ? 'เพศผู้' : pet.gender === 'female' ? 'เพศเมีย' : ''}
-            ${pet.color ? ` · สี${pet.color}` : ''}
-            ${pet.weight_kg ? ` · น้ำหนัก ${pet.weight_kg} kg` : ''}
+            ${age ? `อายุ ${age} · ` : ''}${pet.gender === 'male' ? 'เพศผู้ ♂' : pet.gender === 'female' ? 'เพศเมีย ♀' : ''}
+            ${pet.color ? ` · ${pet.color}` : ''}
+            ${pet.weight_kg ? ` · ${pet.weight_kg} kg` : ''}
+            ${pet.microchip_no ? ` · ชิป: ${pet.microchip_no}` : ''}
           </div>
           ${pet.allergies ? `<div class="text-xs text-red-500 font-body mt-1">⚠️ แพ้: ${pet.allergies}</div>` : ''}
         </div>
@@ -328,10 +365,11 @@ export function renderPetProfile(container, pet) {
           </button>`).join('')}
       </div>
 
-      <div id="profile-tab-content">
-        ${_renderHistory(pet.medical_records || [])}
-      </div>
+      <div id="profile-tab-content"></div>
     </div>`;
+
+  // Inject initial history tab (DOM node, not HTML string)
+  container.querySelector('#profile-tab-content').appendChild(_renderHistory(pet.medical_records || []));
 
   // Tab switching
   container.querySelectorAll('[data-profile-tab]').forEach(btn => {
@@ -343,9 +381,13 @@ export function renderPetProfile(container, pet) {
         b.classList.toggle('text-slate-500', b !== btn);
       });
       const tc = container.querySelector('#profile-tab-content');
-      if (btn.dataset.profileTab === 'history')      tc.innerHTML = _renderHistory(pet.medical_records || []);
-      if (btn.dataset.profileTab === 'vaccines')     tc.innerHTML = _renderVaccines(pet.vaccinations || [], pet.id);
-      if (btn.dataset.profileTab === 'appointments') tc.innerHTML = _renderPetAppts(pet.appointments || []);
+      if (btn.dataset.profileTab === 'history') {
+        tc.replaceChildren(_renderHistory(pet.medical_records || []));
+      } else if (btn.dataset.profileTab === 'vaccines') {
+        tc.innerHTML = _renderVaccines(pet.vaccinations || [], pet.id);
+      } else if (btn.dataset.profileTab === 'appointments') {
+        tc.innerHTML = _renderPetAppts(pet.appointments || []);
+      }
     });
   });
 
@@ -363,28 +405,76 @@ export function renderPetProfile(container, pet) {
   });
 }
 
+function _fmtAuditTs(ts) {
+  if (!ts) return null;
+  try {
+    const d = new Date(ts);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  } catch { return null; }
+}
+
 function _renderHistory(records) {
-  if (!records.length) return `<div class="card p-8 text-center text-slate-400 font-body">ยังไม่มีประวัติการรักษา</div>`;
-  return `<div class="space-y-2">
-    ${records.map(r => `
-      <div class="card p-4 cursor-pointer hover:shadow-card-hover transition-shadow"
-           onclick="document.dispatchEvent(new CustomEvent('fufu:openOPD',{detail:{_existingRecord:${JSON.stringify(r).replace(/"/g,'&quot;')}}}))" >
-        <div class="flex items-center gap-3">
-          <div class="flex-1">
-            <div class="flex items-center gap-2">
-              <span class="font-semibold text-navy text-sm">${r.visit_date || '—'}</span>
-              <span class="badge ${r.status==='completed' ? 'badge-teal' : 'bg-blue-50 text-blue-600'} text-xs">
-                ${r.status==='completed' ? 'เสร็จสิ้น' : 'กำลังรักษา'}
-              </span>
-            </div>
-            <div class="text-sm text-slate-500 font-body mt-0.5">
-              ${r.assessment || r.diagnosis || '—'}
-            </div>
+  if (!records.length) {
+    const empty = document.createElement('div');
+    empty.className = 'card p-8 text-center text-slate-400 font-body';
+    empty.textContent = 'ยังไม่มีประวัติการรักษา';
+    return empty;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'space-y-2';
+
+  records.forEach(r => {
+    const auditTs = _fmtAuditTs(r.created_at);
+    const card = document.createElement('div');
+    card.className = 'card p-4 hover:shadow-card-hover transition-shadow';
+    card.dataset.recordId = r.id;
+    card.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="flex-1 cursor-pointer" data-opd-open>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-navy text-sm">${r.visit_date || '—'}</span>
+            <span class="badge ${r.status === 'completed' ? 'badge-teal' : 'bg-blue-50 text-blue-600'} text-xs">
+              ${r.status === 'completed' ? 'เสร็จสิ้น' : 'กำลังรักษา'}
+            </span>
           </div>
-          ${r.weight_kg ? `<span class="badge badge-navy text-xs">⚖ ${r.weight_kg}kg</span>` : ''}
+          <div class="text-sm text-slate-500 font-body mt-0.5">
+            ${r.assessment || r.diagnosis || '—'}
+          </div>
+          ${auditTs ? `<div class="text-xs text-slate-400 font-body mt-1">บันทึก: ${auditTs}${r.created_by ? ' · ' + r.created_by : ''}</div>` : ''}
         </div>
-      </div>`).join('')}
-  </div>`;
+        <div class="flex items-center gap-2 flex-shrink-0">
+          ${r.weight_kg ? `<span class="badge badge-navy text-xs">⚖ ${r.weight_kg}kg</span>` : ''}
+          <button class="text-red-500 hover:text-red-700 text-xs font-body px-1" data-delete-record title="ลบบันทึกนี้">ลบ</button>
+        </div>
+      </div>`;
+
+    // Open OPD on clicking the content area
+    card.querySelector('[data-opd-open]').addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('fufu:openOPD', { detail: { _existingRecord: r } }));
+    });
+
+    // Delete button
+    card.querySelector('[data-delete-record]').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('ยืนยันการลบ? การกระทำนี้จะถูกบันทึก log')) return;
+      try {
+        await apiFetch(`/api/medical-records/${r.id}`, { method: 'DELETE' });
+        card.remove();
+        showToast('ลบบันทึกการรักษาแล้ว', 'success');
+      } catch (err) {
+        showToast('ลบไม่สำเร็จ: ' + (err?.message || 'เกิดข้อผิดพลาด'), 'error');
+      }
+    });
+
+    wrap.appendChild(card);
+  });
+
+  return wrap;
 }
 
 function _renderVaccines(vaccines, petId) {
@@ -437,47 +527,76 @@ async function _renderOwnersList(el) {
         <button id="new-owner-btn" class="btn-primary text-sm px-4 py-2 whitespace-nowrap">+ เพิ่มเจ้าของ</button>
       </div>
       <div id="owner-results" class="space-y-2">
-        <p class="text-center text-slate-400 font-body text-sm py-8">พิมพ์เพื่อค้นหา</p>
+        <div class="text-center py-4 text-slate-400 font-body animate-pulse">กำลังโหลด...</div>
       </div>
     </div>`;
+
+  async function _loadOwners(q) {
+    const resultsEl = el.querySelector('#owner-results');
+    if (q.length === 1) return;
+    const url = q.length >= 2
+      ? `/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`
+      : `/api/pets/owners/search?store_id=${_storeId}`;
+    const res = await apiFetch(url);
+    const owners = res?.data || [];
+    if (!owners.length) {
+      resultsEl.innerHTML = `<div class="card p-6 text-center text-slate-400 font-body">${q ? `ไม่พบ "${q}"` : 'ยังไม่มีข้อมูลเจ้าของในระบบ'}</div>`;
+      return;
+    }
+    resultsEl.innerHTML = owners.map(o => `
+      <div class="card p-4 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl">👤</div>
+        <div class="flex-1">
+          <div class="font-semibold text-navy">${o.name}</div>
+          <div class="text-sm text-slate-500 font-body">
+            ${o.phone || ''}${o.email ? ` · ${o.email}` : ''}
+            · สัตว์เลี้ยง ${o.pets?.length || 0} ตัว
+          </div>
+        </div>
+      </div>`).join('');
+  }
 
   let timer;
   el.querySelector('#owner-search').addEventListener('input', (e) => {
     clearTimeout(timer);
-    timer = setTimeout(async () => {
-      const q = e.target.value.trim();
-      if (q.length < 2) return;
-      const res = await apiFetch(`/api/pets/owners/search?q=${encodeURIComponent(q)}`);
-      const owners = res?.data || [];
-      const resultsEl = el.querySelector('#owner-results');
-      if (!owners.length) {
-        resultsEl.innerHTML = `<div class="card p-6 text-center text-slate-400 font-body">ไม่พบ "${q}"</div>`;
-        return;
-      }
-      resultsEl.innerHTML = owners.map(o => `
-        <div class="card p-4 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl">👤</div>
-          <div class="flex-1">
-            <div class="font-semibold text-navy">${o.name}</div>
-            <div class="text-sm text-slate-500 font-body">
-              ${o.phone || ''}${o.email ? ` · ${o.email}` : ''}
-              · สัตว์เลี้ยง ${o.pets?.length || 0} ตัว
-            </div>
-          </div>
-        </div>`).join('');
-    }, 400);
+    timer = setTimeout(() => _loadOwners(e.target.value.trim()), 400);
   });
 
   el.querySelector('#new-owner-btn')?.addEventListener('click', () => _openOwnerModal(el));
+  await _loadOwners('');
 }
 
 // ─── Modals ───────────────────────────────────────────────────────────────────
 
 function _openApptModal(el, pet = null) {
+  // When called without a pet, show owner/pet search fields
+  const ownerPetSection = pet ? `
+    <div class="bg-primary-subtle rounded-lg px-4 py-2 text-sm text-primary-dark font-semibold">
+      🐾 ${pet.name} · เจ้าของ: ${pet.pet_owners?.name || '—'}
+    </div>` : `
+    <div class="space-y-2">
+      <div class="relative">
+        <label class="input-label">เลือกเจ้าของ *</label>
+        <input id="ap-owner-search" class="input-field" placeholder="พิมพ์ชื่อ / เบอร์โทร..." autocomplete="off">
+        <div id="ap-owner-dropdown"
+          class="hidden absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-card-hover
+                 border border-slate-100 max-h-48 overflow-y-auto z-50 text-sm"></div>
+      </div>
+      <div id="ap-owner-badge" class="hidden bg-primary-subtle rounded-lg px-3 py-2 flex items-center justify-between">
+        <span id="ap-owner-label" class="text-sm font-semibold text-primary-dark"></span>
+        <button id="ap-owner-clear" class="text-xs text-slate-400 hover:text-red-500">× เปลี่ยน</button>
+      </div>
+      <div>
+        <label class="input-label">เลือกสัตว์เลี้ยง</label>
+        <select id="ap-pet-select" class="input-field" disabled>
+          <option value="">— เลือกเจ้าของก่อน —</option>
+        </select>
+      </div>
+    </div>`;
+
   const modal = _modal('สร้างนัดหมาย', `
     <div class="space-y-3">
-      ${pet ? `<div class="bg-primary-subtle rounded-lg px-4 py-2 text-sm text-primary-dark font-semibold">
-        🐾 ${pet.name} · เจ้าของ: ${pet.pet_owners?.name || '—'}</div>` : ''}
+      ${ownerPetSection}
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="input-label">วันที่นัด *</label>
@@ -501,15 +620,84 @@ function _openApptModal(el, pet = null) {
       </div>
     </div>`);
 
+  // Wire up owner search if no pet pre-selected
+  let _selectedOwnerId = null;
+  let _selectedPetId   = pet?.id || null;
+
+  if (!pet) {
+    const ownerInput    = modal.querySelector('#ap-owner-search');
+    const ownerDd       = modal.querySelector('#ap-owner-dropdown');
+    const ownerBadge    = modal.querySelector('#ap-owner-badge');
+    const ownerLabel    = modal.querySelector('#ap-owner-label');
+    const ownerClear    = modal.querySelector('#ap-owner-clear');
+    const petSelect     = modal.querySelector('#ap-pet-select');
+
+    function _selectOwner(owner) {
+      _selectedOwnerId = owner.id;
+      ownerLabel.textContent = `👤 ${owner.name}${owner.phone ? ' · ' + owner.phone : ''}`;
+      ownerBadge.classList.remove('hidden');
+      ownerInput.parentElement.classList.add('hidden');
+      ownerDd.classList.add('hidden');
+
+      // Populate pet dropdown
+      const pets = owner.pets || [];
+      petSelect.innerHTML = `<option value="">— ไม่ระบุสัตว์เลี้ยง —</option>` +
+        pets.map(p => `<option value="${p.id}">${SPECIES[p.species]?.emoji || '🐾'} ${p.name}</option>`).join('');
+      petSelect.disabled = false;
+      petSelect.addEventListener('change', () => { _selectedPetId = petSelect.value || null; });
+    }
+
+    ownerClear?.addEventListener('click', () => {
+      _selectedOwnerId = null;
+      _selectedPetId   = null;
+      ownerBadge.classList.add('hidden');
+      ownerInput.parentElement.classList.remove('hidden');
+      ownerInput.value = '';
+      petSelect.innerHTML = `<option value="">— เลือกเจ้าของก่อน —</option>`;
+      petSelect.disabled = true;
+      ownerInput.focus();
+    });
+
+    let ownerTimer;
+    ownerInput?.addEventListener('input', () => {
+      clearTimeout(ownerTimer);
+      const q = ownerInput.value.trim();
+      if (q.length < 2) { ownerDd.classList.add('hidden'); return; }
+      ownerTimer = setTimeout(async () => {
+        const res = await apiFetch(`/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`);
+        const owners = res?.data || [];
+        if (!owners.length) {
+          ownerDd.innerHTML = `<div class="px-4 py-3 text-slate-400 font-body text-sm">ไม่พบ "${q}"</div>`;
+        } else {
+          ownerDd.innerHTML = owners.map(o => `
+            <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors"
+                 data-owner-idx="${owners.indexOf(o)}">
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-navy text-sm">${o.name}</div>
+                <div class="text-xs text-slate-400 font-body">${o.phone || ''}${o.email ? ' · ' + o.email : ''} · สัตว์ ${(o.pets||[]).length} ตัว</div>
+              </div>
+            </div>`).join('');
+          ownerDd.querySelectorAll('[data-owner-idx]').forEach(row => {
+            row.addEventListener('click', () => _selectOwner(owners[parseInt(row.dataset.ownerIdx)]));
+          });
+        }
+        ownerDd.classList.remove('hidden');
+      }, 300);
+    });
+    ownerInput?.addEventListener('blur', () => setTimeout(() => ownerDd.classList.add('hidden'), 200));
+  }
+
   modal.querySelector('#modal-confirm').addEventListener('click', async () => {
     const date = modal.querySelector('#ap-date').value;
     if (!date) { showToast('กรุณาเลือกวันที่', 'error'); return; }
+    if (!pet && !_selectedOwnerId) { showToast('กรุณาเลือกเจ้าของ', 'error'); return; }
 
     const res = await apiFetch('/api/pets/appointments', {
       method: 'POST',
       body: JSON.stringify({
         store_id:     _storeId,
-        pet_id:       pet?.id || null,
+        pet_id:       _selectedPetId || null,
+        owner_id:     _selectedOwnerId || null,
         appt_date:    date,
         appt_time:    modal.querySelector('#ap-time').value || null,
         service_type: modal.querySelector('#ap-service').value,
@@ -528,103 +716,261 @@ function _openApptModal(el, pet = null) {
   });
 }
 
-function _openNewPetFlow(el, prefillName = '') {
-  const modal = _modal('เพิ่มสัตว์เลี้ยงใหม่', `
-    <div class="space-y-4">
-      <p class="text-sm text-slate-500 font-body">ขั้นตอนที่ 1: ข้อมูลเจ้าของ</p>
+// Step 1 — ค้นหา / เลือกเจ้าของก่อน
+function _openNewPetFlow(el) {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.innerHTML = `
+    <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-lg space-y-4">
+      <h3 class="font-bold text-navy text-lg">เพิ่มสัตว์เลี้ยง — เลือกเจ้าของ</h3>
+      <div>
+        <label class="input-label">ค้นหาเจ้าของ (ชื่อ / เบอร์โทร / อีเมล)</label>
+        <input id="os-input" class="input-field" placeholder="พิมพ์อย่างน้อย 2 ตัวอักษร..." autofocus>
+      </div>
+      <div id="os-results" class="space-y-2 max-h-64 overflow-y-auto">
+        <p class="text-sm text-slate-400 font-body text-center py-6">พิมพ์เพื่อค้นหาเจ้าของ</p>
+      </div>
+      <div class="border-t border-slate-100 pt-3 flex gap-3">
+        <button id="os-cancel" class="btn-outline flex-1">ยกเลิก</button>
+        <button id="os-create-owner" class="btn-primary flex-1">+ สร้างเจ้าของใหม่</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.querySelector('#os-cancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  modal.querySelector('#os-create-owner').addEventListener('click', () => {
+    modal.remove();
+    _openCreateOwnerThenPet(el);
+  });
+
+  let timer;
+  modal.querySelector('#os-input').addEventListener('input', (e) => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const q = e.target.value.trim();
+      const resultsEl = modal.querySelector('#os-results');
+      if (q.length < 2) {
+        resultsEl.innerHTML = `<p class="text-sm text-slate-400 font-body text-center py-6">พิมพ์อย่างน้อย 2 ตัวอักษร</p>`;
+        return;
+      }
+      resultsEl.innerHTML = `<div class="text-center py-4 text-slate-400 font-body text-sm animate-pulse">กำลังค้นหา...</div>`;
+      const res    = await apiFetch(`/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`);
+      const owners = res?.data || [];
+      if (!owners.length) {
+        resultsEl.innerHTML = `<p class="text-sm text-slate-400 font-body text-center py-6">ไม่พบ "${q}" — กด "สร้างเจ้าของใหม่"</p>`;
+        return;
+      }
+      resultsEl.innerHTML = owners.map(o => `
+        <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-primary-subtle transition-colors cursor-pointer border border-slate-100"
+             data-oid="${o.id}" data-oname="${o.name}" data-ophone="${o.phone || ''}" data-oemail="${o.email || ''}">
+          <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-lg flex-shrink-0">👤</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-navy text-sm">${o.name}</div>
+            <div class="text-xs text-slate-500 font-body">
+              ${o.phone || ''}${o.email ? ` · ${o.email}` : ''} · สัตว์ ${o.pets?.length || 0} ตัว
+            </div>
+          </div>
+          <span class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg flex-shrink-0">เลือก →</span>
+        </div>`).join('');
+
+      resultsEl.querySelectorAll('[data-oid]').forEach(row => {
+        row.addEventListener('click', () => {
+          modal.remove();
+          _openAddPetModal(el, {
+            id:    row.dataset.oid,
+            name:  row.dataset.oname,
+            phone: row.dataset.ophone,
+            email: row.dataset.oemail,
+          });
+        });
+      });
+    }, 350);
+  });
+}
+
+// Step 1b — สร้างเจ้าของใหม่ก่อน แล้วต่อที่ฟอร์มสัตว์เลี้ยง
+function _openCreateOwnerThenPet(el, prefillName = '') {
+  const modal = _modal('สร้างเจ้าของใหม่', `
+    <div class="space-y-3">
+      <div>
+        <label class="input-label">ชื่อ-นามสกุล *</label>
+        <input id="co-name" class="input-field" value="${prefillName}" placeholder="คุณสมชาย ใจดี">
+      </div>
       <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2">
-          <label class="input-label">ชื่อเจ้าของ *</label>
-          <input id="nf-owner-name" class="input-field" value="${prefillName}" placeholder="คุณสมชาย">
-        </div>
         <div>
           <label class="input-label">เบอร์โทร</label>
-          <input id="nf-phone" class="input-field" placeholder="0812345678" type="tel">
+          <input id="co-phone" class="input-field" placeholder="0812345678" type="tel">
         </div>
         <div>
-          <label class="input-label">Line ID</label>
-          <input id="nf-line" class="input-field" placeholder="@somchai">
+          <label class="input-label">อีเมล</label>
+          <input id="co-email" class="input-field" type="email" placeholder="somchai@email.com">
         </div>
       </div>
-      <hr class="border-slate-100">
-      <p class="text-sm text-slate-500 font-body">ขั้นตอนที่ 2: ข้อมูลสัตว์เลี้ยง</p>
+    </div>`);
+
+  modal.querySelector('#modal-confirm').addEventListener('click', async () => {
+    const name = modal.querySelector('#co-name').value.trim();
+    if (!name) { showToast('กรุณากรอกชื่อ', 'error'); return; }
+    const btn = modal.querySelector('#modal-confirm');
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+    const res = await apiFetch('/api/pets/owners', {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        phone: modal.querySelector('#co-phone').value.trim() || null,
+        email: modal.querySelector('#co-email').value.trim() || null,
+      }),
+    });
+    if (!res?.success) {
+      showToast(res?.error || 'สร้างเจ้าของไม่สำเร็จ', 'error');
+      btn.disabled = false; btn.textContent = 'บันทึก';
+      return;
+    }
+    modal.remove();
+    showToast(`เพิ่มเจ้าของ ${name} แล้ว`);
+    _openAddPetModal(el, res.data);
+  });
+}
+
+function _attachBreedAutocomplete(modal) {
+  const input   = modal.querySelector('#ap-breed');
+  const species = modal.querySelector('#ap-species');
+  if (!input || !species) return;
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'absolute left-0 right-0 top-full z-[60] bg-white border border-slate-200 rounded-xl shadow-card-hover max-h-44 overflow-y-auto hidden mt-1';
+  input.parentElement.style.position = 'relative';
+  input.parentElement.appendChild(dropdown);
+
+  function render(q) {
+    const list    = BREEDS[species.value] || [];
+    const matches = list
+      .filter(b => !q || b.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 8);
+    if (!matches.length) { dropdown.classList.add('hidden'); return; }
+    dropdown.innerHTML = matches.map(b =>
+      `<div class="px-3 py-2 text-sm cursor-pointer hover:bg-primary-subtle font-body text-navy transition-colors" data-breed="${b}">${b}</div>`
+    ).join('');
+    dropdown.classList.remove('hidden');
+  }
+
+  input.addEventListener('focus', () => render(input.value));
+  input.addEventListener('input', () => render(input.value));
+  input.addEventListener('blur',  () => setTimeout(() => dropdown.classList.add('hidden'), 150));
+
+  dropdown.addEventListener('mousedown', (e) => {
+    const item = e.target.closest('[data-breed]');
+    if (!item) return;
+    input.value = item.dataset.breed;
+    dropdown.classList.add('hidden');
+  });
+
+  species.addEventListener('change', () => {
+    input.value = '';
+    dropdown.classList.add('hidden');
+  });
+}
+
+// Step 2 — ฟอร์มสัตว์เลี้ยง โดยมีเจ้าของที่เลือกไว้แสดงด้านบน
+function _openAddPetModal(el, owner) {
+  const modal = _modal('เพิ่มสัตว์เลี้ยง', `
+    <div class="space-y-4">
+      <!-- Owner badge (read-only) -->
+      <div class="bg-primary-subtle rounded-xl px-4 py-3 flex items-center gap-3">
+        <span class="text-xl">👤</span>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-primary-dark text-sm">${owner.name}</div>
+          ${(owner.phone || owner.email) ? `<div class="text-xs text-slate-500 font-body">${owner.phone || ''}${owner.email ? (owner.phone ? ' · ' : '') + owner.email : ''}</div>` : ''}
+        </div>
+        <span class="text-xs text-slate-400 font-body">เจ้าของ</span>
+      </div>
+      <!-- Pet fields -->
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="input-label">ชื่อสัตว์เลี้ยง *</label>
-          <input id="nf-pet-name" class="input-field" placeholder="บัดดี้">
+          <input id="ap-name" class="input-field" placeholder="บัดดี้">
         </div>
         <div>
           <label class="input-label">ชนิด</label>
-          <select id="nf-species" class="input-field">
+          <select id="ap-species" class="input-field">
             ${Object.entries(SPECIES).map(([k,v]) => `<option value="${k}">${v.emoji} ${v.label}</option>`).join('')}
           </select>
         </div>
         <div>
           <label class="input-label">สายพันธุ์</label>
-          <input id="nf-breed" class="input-field" placeholder="โกลเด้น รีทรีฟเวอร์">
-        </div>
-        <div>
-          <label class="input-label">วันเกิด</label>
-          <input id="nf-dob" class="input-field" type="date">
+          <input id="ap-breed" class="input-field" placeholder="โกลเด้น รีทรีฟเวอร์">
         </div>
         <div>
           <label class="input-label">เพศ</label>
-          <select id="nf-gender" class="input-field">
+          <select id="ap-gender" class="input-field">
             <option value="unknown">ไม่ระบุ</option>
-            <option value="male">เพศผู้</option>
-            <option value="female">เพศเมีย</option>
+            <option value="male">เพศผู้ ♂</option>
+            <option value="female">เพศเมีย ♀</option>
           </select>
         </div>
         <div>
-          <label class="input-label">น้ำหนัก (kg)</label>
-          <input id="nf-weight" class="input-field" type="number" step="0.1" placeholder="5.2">
+          <label class="input-label">วันเกิด</label>
+          <input id="ap-dob" class="input-field" type="date">
         </div>
+        <div>
+          <label class="input-label">น้ำหนัก (kg)</label>
+          <input id="ap-weight" class="input-field" type="number" step="0.1" placeholder="5.2">
+        </div>
+        <div>
+          <label class="input-label">สีและตำหนิ</label>
+          <input id="ap-color" class="input-field" placeholder="สีน้ำตาล ดาวที่หน้าผาก">
+        </div>
+        <div>
+          <label class="input-label">เลขไมโครชิป</label>
+          <input id="ap-microchip" class="input-field" placeholder="900123456789012">
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <input id="ap-neutered" type="checkbox" class="w-4 h-4 accent-primary">
+        <label for="ap-neutered" class="text-sm font-body text-navy cursor-pointer">ทำหมันแล้ว</label>
       </div>
       <div>
         <label class="input-label">แพ้ยา / อาหาร</label>
-        <input id="nf-allergies" class="input-field" placeholder="ถ้าไม่มีให้เว้นว่าง">
+        <input id="ap-allergies" class="input-field" placeholder="ถ้าไม่มีให้เว้นว่าง">
       </div>
     </div>`);
 
+  _attachBreedAutocomplete(modal);
+
   modal.querySelector('#modal-confirm').addEventListener('click', async () => {
-    const ownerName = modal.querySelector('#nf-owner-name').value.trim();
-    const petName   = modal.querySelector('#nf-pet-name').value.trim();
-    if (!ownerName || !petName) { showToast('กรุณากรอกชื่อเจ้าของและชื่อสัตว์เลี้ยง', 'error'); return; }
-
+    const petName = modal.querySelector('#ap-name').value.trim();
+    if (!petName) { showToast('กรุณากรอกชื่อสัตว์เลี้ยง', 'error'); return; }
     const btn = modal.querySelector('#modal-confirm');
-    btn.disabled = true;
-    btn.textContent = 'กำลังบันทึก...';
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
 
-    // Create owner first
-    const ownerRes = await apiFetch('/api/pets/owners', {
-      method: 'POST',
-      body: JSON.stringify({
-        name:    ownerName,
-        phone:   modal.querySelector('#nf-phone').value.trim() || null,
-        line_id: modal.querySelector('#nf-line').value.trim()  || null,
-      }),
-    });
-
-    if (!ownerRes?.success) { showToast(ownerRes?.error || 'สร้างเจ้าของไม่สำเร็จ', 'error'); btn.disabled = false; return; }
-
-    // Create pet
     const petRes = await apiFetch('/api/pets', {
       method: 'POST',
       body: JSON.stringify({
-        owner_id:   ownerRes.data.id,
-        name:       petName,
-        species:    modal.querySelector('#nf-species').value,
-        breed:      modal.querySelector('#nf-breed').value.trim()  || null,
-        dob:        modal.querySelector('#nf-dob').value           || null,
-        gender:     modal.querySelector('#nf-gender').value,
-        weight_kg:  parseFloat(modal.querySelector('#nf-weight').value) || null,
-        allergies:  modal.querySelector('#nf-allergies').value.trim() || null,
+        owner_id:     owner.id,
+        store_id:     _storeId,
+        name:         petName,
+        species:      modal.querySelector('#ap-species').value,
+        breed:        modal.querySelector('#ap-breed').value.trim()       || null,
+        dob:          modal.querySelector('#ap-dob').value                || null,
+        gender:       modal.querySelector('#ap-gender').value,
+        weight_kg:    parseFloat(modal.querySelector('#ap-weight').value) || null,
+        color:        modal.querySelector('#ap-color').value.trim()       || null,
+        microchip_no: modal.querySelector('#ap-microchip').value.trim()  || null,
+        is_neutered:  modal.querySelector('#ap-neutered').checked,
+        allergies:    modal.querySelector('#ap-allergies').value.trim()   || null,
       }),
     });
 
-    if (!petRes?.success) { showToast(petRes?.error || 'สร้างข้อมูลสัตว์เลี้ยงไม่สำเร็จ', 'error'); btn.disabled = false; return; }
-
-    showToast(`เพิ่ม ${petName} เรียบร้อย`);
+    if (!petRes?.success) {
+      showToast(petRes?.error || 'สร้างข้อมูลสัตว์เลี้ยงไม่สำเร็จ', 'error');
+      btn.disabled = false; btn.textContent = 'บันทึก';
+      return;
+    }
+    const hn = _hn(petRes.data);
+    showToast(`เพิ่ม ${petName} แล้ว${hn ? ` · ${hn}` : ''}`);
     modal.remove();
     await _renderPetsList(el);
   });
@@ -738,6 +1084,10 @@ function _openVaccineModal(pet, container) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function _hn(pet) {
+  return pet?.hn ? `HN-${String(pet.hn).padStart(5, '0')}` : '';
+}
 
 function _calcAge(dob) {
   const diff  = Date.now() - new Date(dob).getTime();

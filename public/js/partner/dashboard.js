@@ -3,6 +3,7 @@ import { showToast } from '../utils/toast.js';
 import { apiFetch }       from '../utils/api-client.js';
 import { storage }        from '../utils/storage.js';
 import { STORAGE_KEYS, CATEGORY_MAP } from '../utils/config.js';
+import { startSyncEngine } from '../utils/sync-engine.js';
 
 // ─── Staff Mode config ────────────────────────────────────────────────────────
 
@@ -119,6 +120,13 @@ const PAGE_TITLES = {
 
 // ─── Navigate ─────────────────────────────────────────────────────────────────
 
+// Pages that are safe to restore on refresh (no mandatory detail context needed)
+const _RESTORABLE_PAGES = new Set([
+  'home','queue','medical','pets','hotel','grooming',
+  'inventory','finance','ipd','documents','kanban','settings','users','staff','opd',
+]);
+const _PAGE_KEY = 'fufu_current_page';
+
 export function navigate(pageId, detail = null) {
   document.querySelectorAll('main section').forEach(s => s.classList.add('hidden'));
   const target = document.getElementById(`page-${pageId}`);
@@ -133,6 +141,8 @@ export function navigate(pageId, detail = null) {
     el.classList.toggle('text-white',     active);
     el.classList.toggle('text-slate-400', !active);
   });
+
+  if (_RESTORABLE_PAGES.has(pageId)) sessionStorage.setItem(_PAGE_KEY, pageId);
 
   _renderPage(pageId, detail);
 }
@@ -192,7 +202,38 @@ export async function initDashboard() {
   // Pet profile bridge — from pets list
   document.addEventListener('fufu:openPetProfile', (e) => navigate('pet-profile', e.detail));
 
-  navigate('home');
+  const lastPage = sessionStorage.getItem(_PAGE_KEY);
+  navigate(lastPage && _RESTORABLE_PAGES.has(lastPage) ? lastPage : 'home');
+
+  _initOfflineBadge();
+  startSyncEngine();
+}
+
+// ─── Offline badge ────────────────────────────────────────────────────────────
+
+function _initOfflineBadge() {
+  const badge = document.getElementById('offline-badge');
+  const count = document.getElementById('sync-count');
+  if (!badge) return;
+
+  function _showBadge(visible) {
+    badge.classList.toggle('hidden', !visible);
+    badge.classList.toggle('flex',    visible);
+  }
+
+  function _updateCount(n) {
+    if (!count) return;
+    count.classList.toggle('hidden', n === 0);
+    count.classList.toggle('flex',   n > 0);
+    count.textContent = n > 9 ? '9+' : String(n);
+  }
+
+  // Set initial state
+  _showBadge(!navigator.onLine);
+
+  document.addEventListener('fufu:offline', () => _showBadge(true));
+  document.addEventListener('fufu:online',  () => _showBadge(false));
+  document.addEventListener('fufu:sync-status', e => _updateCount(e.detail?.pending ?? 0));
 }
 
 // ─── Sidebar toggle ───────────────────────────────────────────────────────────
@@ -263,35 +304,37 @@ async function _loadApptBadge() {
 }
 
 function _renderModeSwitcher(role) {
-  const el = document.getElementById('mode-switcher');
-  if (!el) return;
+  const sbEl    = document.getElementById('sidebar-mode-switcher');
+  const section = document.getElementById('sb-mode-section');
+  if (!sbEl) return;
 
-  // Staff sees only their assigned roles; owner sees all
   const staffRoles = storage.getJSON('fufu_staff_roles');
   const availableModes = staffRoles
-    ? staffRoles  // staff: only assigned roles
+    ? staffRoles
     : (role === 'vet'
         ? ['all','counter','doctor','pharmacy','finance']
         : ['all','counter','finance']);
 
-  el.innerHTML = availableModes.map(m => {
+  if (section) section.classList.toggle('hidden', availableModes.length <= 1);
+
+  sbEl.innerHTML = availableModes.map(m => {
     const cfg    = MODES[m];
     const active = m === _currentMode;
     return `
-      <button data-mode="${m}" title="${cfg.description}"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+      <button data-sb-mode="${m}" title="${cfg.description}"
+        class="flex items-center gap-1.5 px-2 py-2 rounded-lg text-xs font-semibold transition-all
                ${active
-                 ? 'bg-primary text-white shadow-glow'
-                 : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">
-        <span>${cfg.icon}</span>
-        <span class="hidden sm:inline">${cfg.label}</span>
+                 ? 'bg-primary text-white'
+                 : 'bg-white/10 text-slate-400 hover:bg-white/20 hover:text-white'}">
+        <span class="flex-shrink-0">${cfg.icon}</span>
+        <span class="truncate">${cfg.label}</span>
       </button>`;
   }).join('');
 
-  el.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-mode]');
-    if (btn && btn.dataset.mode !== _currentMode) _setMode(btn.dataset.mode, role);
-  });
+  sbEl.onclick = (e) => {
+    const btn = e.target.closest('[data-sb-mode]');
+    if (btn && btn.dataset.sbMode !== _currentMode) _setMode(btn.dataset.sbMode, role);
+  };
 }
 
 // ─── Lazy page renderer ───────────────────────────────────────────────────────
@@ -380,103 +423,3 @@ async function _renderPage(pageId, detail = null) {
   }
 }
 
-// ─── Home page ────────────────────────────────────────────────────────────────
-
-async function _renderHome() {
-  const container = document.getElementById('page-home');
-  if (!container) return;
-
-  const storeId = storage.get(STORAGE_KEYS.STORE_ID);
-
-  if (!storeId) {
-    container.innerHTML = `
-      <div class="card p-10 text-center space-y-3">
-        <div class="text-4xl">🏪</div>
-        <div class="font-semibold text-navy">ยังไม่ได้เลือกร้านค้า</div>
-        <p class="text-slate-400 font-body text-sm">กรุณา logout แล้ว login ใหม่เพื่อเลือกร้านค้า</p>
-        <button id="home-logout" class="btn-primary mt-2">ออกจากระบบ</button>
-      </div>`;
-    container.querySelector('#home-logout')?.addEventListener('click', logout);
-    return;
-  }
-
-  const today = new Date().toISOString().split('T')[0];
-
-  let queue = [], summary = {};
-  try {
-    const [queueRes, summaryRes] = await Promise.all([
-      apiFetch(`/api/queue?store_id=${storeId}&date=${today}`),
-      apiFetch(`/api/finance/summary?store_id=${storeId}`),
-    ]);
-    queue   = queueRes?.data   || [];
-    summary = summaryRes?.data || {};
-  } catch (err) {
-    console.error('[Home] fetch error:', err);
-  }
-
-  const waiting = queue.filter(q => q.status === 'waiting').length;
-  const inProg  = queue.filter(q => q.status === 'in_progress').length;
-  const done    = queue.filter(q => q.status === 'completed').length;
-  const income  = summary.today || 0;
-
-  container.innerHTML = `
-    <div class="space-y-6">
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        ${_statCard('📋', 'รอตรวจ',      waiting,                      'รายการ', 'text-amber-500')}
-        ${_statCard('🩺', 'กำลังรักษา',  inProg,                       'รายการ', 'text-blue-500')}
-        ${_statCard('✅', 'เสร็จแล้ว',   done,                         'รายการ', 'text-primary')}
-        ${_statCard('💰', 'รายได้วันนี้', income.toLocaleString('th-TH'), '฿',      'text-accent-dark')}
-      </div>
-
-      <div class="card p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-navy text-base">คิววันนี้</h3>
-          <button id="home-see-queue" class="text-xs text-primary hover:underline font-body">ดูทั้งหมด →</button>
-        </div>
-        ${queue.length === 0
-          ? `<p class="text-slate-400 font-body text-sm text-center py-8">ยังไม่มีคิวในวันนี้</p>`
-          : queue.slice(0, 6).map(_queuePreviewRow).join('')
-        }
-      </div>
-    </div>`;
-
-  container.querySelector('#home-see-queue')?.addEventListener('click', () => navigate('queue'));
-}
-
-function _statCard(icon, label, value, unit, valueClass) {
-  return `
-    <div class="card p-5">
-      <div class="text-2xl mb-2">${icon}</div>
-      <div class="text-xs text-slate-400 font-body">${label}</div>
-      <div class="mt-1 flex items-baseline gap-1">
-        <span class="text-2xl font-bold ${valueClass}">${value}</span>
-        <span class="text-xs text-slate-400 font-body">${unit}</span>
-      </div>
-    </div>`;
-}
-
-function _queuePreviewRow(q) {
-  const STATUS_MAP = {
-    waiting:     { label: 'รอ',          cls: 'badge-gold' },
-    called:      { label: 'เรียกแล้ว',  cls: 'badge-teal' },
-    in_progress: { label: 'กำลังรักษา', cls: 'bg-blue-50 text-blue-600' },
-    completed:   { label: 'เสร็จ',       cls: 'badge-navy' },
-    no_show:     { label: 'ไม่มา',       cls: 'bg-slate-100 text-slate-500' },
-  };
-  const s   = STATUS_MAP[q.status] || STATUS_MAP.waiting;
-  const num = String(q.queue_number).padStart(3, '0');
-  const notes = q.notes || '';
-  const [petName, ownerName] = notes.includes(' - ')
-    ? notes.split(' - ').map(s => s.trim())
-    : [notes, ''];
-
-  return `
-    <div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
-      <span class="font-mono font-bold text-primary text-sm w-12 flex-shrink-0">A${num}</span>
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-semibold text-navy truncate">${petName || '—'}</div>
-        <div class="text-xs text-slate-400 font-body truncate">${ownerName ? `${ownerName} · ` : ''}${q.service_type || ''}</div>
-      </div>
-      <span class="badge ${s.cls} flex-shrink-0">${s.label}</span>
-    </div>`;
-}

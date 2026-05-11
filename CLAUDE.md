@@ -50,22 +50,44 @@ document.dispatchEvent(new CustomEvent('fufu:openOPD', { detail: queueItem }));
 
 ### Auth / session state (localStorage)
 
-All keys are defined in `public/js/utils/config.js → STORAGE_KEYS`:
+All keys are defined in `public/js/utils/config.js → STORAGE_KEYS`. Use `storage.saveSession()` / `storage.clearSession()` from `public/js/utils/storage.js` rather than writing localStorage directly.
 
 | Key constant | localStorage key | Value |
 |---|---|---|
 | `TOKEN` | `fufu_token` | Supabase JWT |
+| `REFRESH_TOKEN` | `fufu_refresh_token` | Supabase refresh token |
+| `USER` | `fufu_user` | JSON `{ email, id }` |
 | `STORE_ID` | `fufu_store_id` | UUID of active store |
+| `STORE_NAME` | `fufu_store_name` | Display name of active store |
 | `STORE_CATEGORY` | `fufu_store_category` | `vet_clinic` \| `pet_shop` \| `pet_hotel` \| `pet_grooming` |
 | `ROLE` | `fufu_role` | `vet` \| `shop` \| `hotel` \| `grooming` \| `admin` |
+| `STAFF_ID` | `fufu_staff_id` | Staff member UUID (for audit logs) |
 | `STAFF_ROLE` | `fufu_staff_role` | `owner` \| `vet` \| `reception` \| `staff` \| `accountant` |
 | `MASKING_LEVEL` | `fufu_masking_level` | `1` (full) \| `2` (partial) \| `3` (hidden) |
+| `FONT_SCALE` | `fufu_font_scale` | UI font size preference |
+| `PROMPTPAY_ID` | `fufu_promptpay_id` | PromptPay ID for payment QR |
+
+`fufu_mode` (mode switcher state, not in `STORAGE_KEYS`) is managed by `dashboard.js` directly.
 
 ### RBAC
 
 Two independent access layers:
 - **Partner type** (`STORE_CATEGORY`) — determines which nav items and modules are visible.
 - **Staff role** (`STAFF_ROLE`) — determines field-level permissions within a store. Logic lives in `public/js/partner/rbac.js`.
+
+### Staff mode
+
+`dashboard.js` also has a **mode switcher** (independent from `STAFF_ROLE`) that restricts which pages a logged-in session can access. Modes are defined in the `MODES` constant in `dashboard.js`:
+
+| Mode | Pages visible |
+|---|---|
+| `all` | everything |
+| `counter` | home, queue, pets, pos, income |
+| `doctor` | home, queue, opd, medical, pets, inventory |
+| `pharmacy` | home, inventory |
+| `finance` | home, income |
+
+The active mode is stored in `localStorage` under key `fufu_mode` and survives page reloads.
 
 ### Environment variables (`.env`)
 
@@ -74,7 +96,9 @@ Two independent access layers:
 | `PORT` | Express port (default `3000`) |
 | `Project_URL` | Supabase project URL |
 | `publishable_key` | Supabase anon key |
-| `SERVICE_ROLE_KEY` | Supabase service role key (used only by auth change-password) |
+| `service_role_key` | Supabase service-role key — bypasses RLS; used by `appointments.js` (cross-store reads) and auth change-password |
+
+Note: the env var is lowercase `service_role_key` — match exactly or routes will fail silently.
 
 ## Key patterns
 
@@ -130,16 +154,28 @@ Each `agents/<module>/CLAUDE.md` contains module-specific DB schemas, API contra
 | Agent | Primary files |
 |---|---|
 | `agents/auth/` | `public/js/auth.js`, `server/routes/auth.js` |
-| `agents/queue/` | `public/js/partner/queue.js` |
-| `agents/clinic/` | `public/js/partner/opd-card.js`, `medical.js`, `ipd.js` |
-| `agents/inventory/` | `public/js/partner/inventory.js` |
-| `agents/pos/` | `public/js/partner/pos.js`, `invoice.js` |
-| `agents/finance/` | `public/js/partner/finance.js` |
-| `agents/grooming/` | `public/js/partner/grooming.js` |
-| `agents/hotel/` | `public/js/partner/hotel.js` |
-| `agents/document/` | `public/js/partner/documents.js` |
+| `agents/queue/` | `public/js/partner/queue.js`, `server/routes/queue.js` |
+| `agents/clinic/` | `public/js/partner/opd-card.js`, `medical.js`, `ipd.js`, `server/routes/medical.js`, `ipd.js` |
+| `agents/inventory/` | `public/js/partner/inventory.js`, `server/routes/inventory.js` |
+| `agents/pos/` | `public/js/partner/pos.js`, `invoice.js`, `server/routes/pos.js` |
+| `agents/finance/` | `public/js/partner/finance.js`, `server/routes/finance.js` |
+| `agents/grooming/` | `public/js/partner/grooming.js`, `server/routes/grooming.js` |
+| `agents/hotel/` | `public/js/partner/hotel.js`, `server/routes/hotel.js` |
+| `agents/document/` | `public/js/partner/documents.js`, `server/routes/documents.js` |
 | `agents/pm/` | Project status, phase plan, module dependency map |
 | `agents/test/` | API test suite, UI checklists, test credentials |
+
+Additional routes mounted in `server/index.js` with **no dedicated agent file**:
+
+| Route prefix | File | Purpose |
+|---|---|---|
+| `/api/appointments` | `server/routes/appointments.js` | Reads booking inbox from mobile-app customers; uses service-role client for cross-store queries |
+| `/api/staff` | `server/routes/staff.js` | Staff management within a store |
+| `/api/stores` | `server/routes/stores.js` | Store CRUD and multi-store context switching |
+| `/api/tasks` | `server/routes/tasks.js` | Kanban task board (`public/js/partner/kanban.js`) |
+| `/api/pets` | `server/routes/pets.js` | Pet profiles (`public/js/partner/pets.js`) |
+
+> **Note:** `agents/CLAUDE.md` (the root overview file) documents the old monolith structure (`api.js`, `js/` paths). Ignore its file-tree section — the current layout is `server/` + `public/js/`.
 
 ## Completion status (as of 2026-04-26)
 

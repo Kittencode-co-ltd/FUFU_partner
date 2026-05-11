@@ -81,7 +81,7 @@ export async function renderFinancePage(container) {
           <h3 class="font-semibold text-navy" id="chart-title">📈 รายได้รายวัน</h3>
           <span class="text-xs text-slate-400 font-body" id="chart-max-label"></span>
         </div>
-        <div id="finance-chart" class="flex items-end gap-1.5 h-32">
+        <div id="finance-chart" class="flex items-end gap-1.5 h-64">
           ${[1,2,3,4,5,6,7].map(() => `<div class="flex-1 bg-slate-100 rounded-t animate-pulse h-16"></div>`).join('')}
         </div>
       </div>
@@ -221,16 +221,25 @@ function _renderChart(container, days, from, to) {
     const pct     = Math.max((d.total / max) * 100, 2);
     const isToday = d.date === today;
     const showLbl = (i % showEvery === 0) || i === days.length - 1;
+    const dt      = new Date(d.date + 'T00:00');
     const day     = showLbl
-      ? new Date(d.date + 'T00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+      ? `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`
+      : '';
+    const valLabel = d.total > 0
+      ? (d.total >= 1000 ? '฿' + Math.round(d.total / 1000) + 'k' : '฿' + d.total.toLocaleString('th-TH'))
       : '';
     return `
-      <div class="flex-1 flex flex-col items-center gap-1 min-w-0" title="${d.date}: ฿${d.total.toLocaleString('th-TH')}">
-        <span class="text-xs font-semibold font-body truncate w-full text-center" style="color:${isToday ? '#0D9488' : '#94A3B8'}">
-          ${d.total > 0 ? '฿' + Math.round(d.total / 1000) + 'k' : ''}
+      <div class="flex-1 flex flex-col items-center gap-0.5 min-w-0 group relative" title="${d.date}: ฿${d.total.toLocaleString('th-TH')}">
+        <span class="text-xs font-semibold font-body truncate w-full text-center leading-tight" style="color:${isToday ? '#0D9488' : '#94A3B8'}">
+          ${valLabel}
         </span>
-        <div class="w-full rounded-t transition-all"
-             style="height:${pct}%;background:${isToday ? '#0D9488' : '#CCFBF1'};min-height:4px"></div>
+        <div class="w-full rounded-t transition-all relative"
+             style="height:${pct}%;background:${isToday ? '#0D9488' : '#CCFBF1'};min-height:4px">
+          <div class="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:flex
+                      bg-navy text-white text-xs font-body px-2 py-0.5 rounded-md whitespace-nowrap z-10 shadow">
+            ฿${d.total.toLocaleString('th-TH')}
+          </div>
+        </div>
         <span class="text-xs font-body text-center leading-tight truncate w-full"
               style="color:#94A3B8;font-size:9px">${day}</span>
       </div>`;

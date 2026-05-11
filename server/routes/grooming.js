@@ -24,13 +24,18 @@ router.get('/', async (req, res) => {
 
 // POST /api/grooming — create session
 router.post('/', async (req, res) => {
-  const { store_id, pet_name, owner_name, species, services, groomer_name, estimated_minutes, notes } = req.body;
+  const { store_id, pet_id, pet_name, owner_name, species, services, groomer_name, estimated_minutes, notes } = req.body;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
   const { data, error } = await req.supabase
     .from('grooming_sessions').insert([{
-      store_id, pet_name, owner_name, species: species || 'dog',
-      services: services || [], groomer_name, estimated_minutes: estimated_minutes || 60,
+      store_id,
+      pet_id:    pet_id    || null,
+      pet_name, owner_name,
+      species:   species   || 'dog',
+      services:  services  || [],
+      groomer_name,
+      estimated_minutes: estimated_minutes || 60,
       notes, status: 'waiting',
     }]).select().single();
 

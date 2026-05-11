@@ -16,6 +16,8 @@ const STATUS_CFG = {
 };
 
 let _storeId = '';
+let _hotelSelPet = null; // { pet_id, pet_name, species, owner_name, owner_phone } | null
+const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
 
 export async function renderHotel(container) {
   _storeId = storage.get(STORAGE_KEYS.STORE_ID);
@@ -101,58 +103,220 @@ async function _markAvailable(roomId, container) {
 
 function _openCheckinModal(room, container) {
   const type = ROOM_TYPES[room.room_type] || ROOM_TYPES.standard;
-  const modal = _modal(`Check-in ห้อง ${room.room_number} (${type.label})`, `
-    <div class="space-y-3">
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="input-label">ชื่อสัตว์เลี้ยง *</label><input id="ci-pet" class="input-field" placeholder="บัดดี้"></div>
-        <div><label class="input-label">ชนิด</label>
-          <select id="ci-species" class="input-field">
-            <option value="dog">🐕 สุนัข</option><option value="cat">🐈 แมว</option><option value="rabbit">🐰 กระต่าย</option><option value="other">🐾 อื่นๆ</option>
-          </select>
+  _hotelSelPet = null;
+
+  const m = document.createElement('div');
+  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
+  m.innerHTML = `
+    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg space-y-4 my-4">
+      <h3 class="font-bold text-navy text-lg">Check-in ห้อง ${room.room_number} (${type.label})</h3>
+
+      <!-- Pet search -->
+      <div id="hs1">
+        <label class="input-label">ค้นหาสัตว์เลี้ยงในระบบ</label>
+        <div class="relative">
+          <input id="hs-search" class="input-field" placeholder="บัดดี้ หรือ 0812345678..." autocomplete="off">
+          <div id="hs-dd" class="hidden absolute z-30 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-card-hover border border-slate-100 max-h-56 overflow-y-auto text-sm"></div>
+        </div>
+        <div class="mt-1.5 text-right">
+          <button id="hs-register" class="text-xs text-primary hover:underline font-body">+ ลงทะเบียนสัตว์ใหม่</button>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="input-label">ชื่อเจ้าของ</label><input id="ci-owner" class="input-field" placeholder="คุณสมชาย"></div>
-        <div><label class="input-label">เบอร์โทร</label><input id="ci-phone" class="input-field" placeholder="0812345678" type="tel"></div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="input-label">วันที่เช็คอิน *</label><input id="ci-in" class="input-field" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
-        <div><label class="input-label">วันที่เช็คเอาต์ *</label><input id="ci-out" class="input-field" type="date"></div>
-      </div>
-      <div id="ci-calc" class="bg-primary-subtle rounded-lg p-3 text-sm text-primary-dark font-body hidden"></div>
-      <div><label class="input-label">หมายเหตุ</label><input id="ci-notes" class="input-field" placeholder="อาหาร / ยา / พฤติกรรม"></div>
-    </div>`);
 
-  const calcTotal = () => {
-    const inDate  = modal.querySelector('#ci-in').value;
-    const outDate = modal.querySelector('#ci-out').value;
-    if (!inDate || !outDate) return;
-    const nights = Math.max(1, Math.ceil((new Date(outDate) - new Date(inDate)) / 86400000));
-    const total  = nights * room.price_per_night;
-    const calc   = modal.querySelector('#ci-calc');
-    calc.textContent = `${nights} คืน × ฿${room.price_per_night} = ฿${total.toLocaleString('th-TH')}`;
+      <!-- Selected pet + details -->
+      <div id="hs2" class="hidden space-y-3">
+        <div id="hs-pet-card" class="rounded-xl border-2 border-primary bg-primary-subtle p-3"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="input-label">วันที่เช็คอิน *</label><input id="ci-in" class="input-field" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+          <div><label class="input-label">วันที่เช็คเอาต์ *</label><input id="ci-out" class="input-field" type="date"></div>
+        </div>
+        <div id="ci-calc" class="bg-primary-subtle rounded-lg p-3 text-sm text-primary-dark font-body hidden"></div>
+        <div><label class="input-label">หมายเหตุ (อาหาร / ยา / พฤติกรรม)</label>
+          <input id="ci-notes" class="input-field" placeholder="กินอาหาร Royal Canin วันละ 2 ครั้ง...">
+        </div>
+        <button id="hs-change" class="text-xs text-primary hover:underline font-body">← เปลี่ยนสัตว์เลี้ยง</button>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="hs-cancel" class="btn-outline flex-1">ยกเลิก</button>
+        <button id="hs-confirm" class="btn-primary flex-1" disabled>Check-in</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(m);
+
+  const input   = m.querySelector('#hs-search');
+  const dd      = m.querySelector('#hs-dd');
+  const s1      = m.querySelector('#hs1');
+  const s2      = m.querySelector('#hs2');
+  const confBtn = m.querySelector('#hs-confirm');
+
+  function showS2(pet) {
+    _hotelSelPet = pet;
+    s1.classList.add('hidden'); s2.classList.remove('hidden'); confBtn.disabled = false;
+    m.querySelector('#hs-pet-card').innerHTML = `
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">${SPECIES_EMOJI[pet.species]||'🐾'}</span>
+        <div>
+          <div class="font-bold text-primary-dark">${pet.pet_name}</div>
+          <div class="text-xs text-slate-500 font-body">เจ้าของ: ${pet.owner_name}${pet.owner_phone?' · '+pet.owner_phone:''}</div>
+          ${pet.allergies?`<div class="text-xs text-red-600 mt-0.5">⚠️ แพ้: ${pet.allergies}</div>`:''}
+        </div>
+      </div>`;
+  }
+
+  function showS1() {
+    _hotelSelPet = null; s2.classList.add('hidden'); s1.classList.remove('hidden');
+    confBtn.disabled = true; input.value = ''; input.focus();
+  }
+
+  m.querySelector('#hs-change').addEventListener('click', showS1);
+  m.querySelector('#hs-cancel').addEventListener('click', () => m.remove());
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#hs-register').addEventListener('click', () => _hotelRegister(m, showS2));
+
+  let timer;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 2) { dd.classList.add('hidden'); return; }
+    timer = setTimeout(async () => {
+      const res = await apiFetch(`/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`);
+      const owners = res?.data || [];
+      if (!owners.length) {
+        dd.innerHTML = `<div class="px-4 py-3 text-slate-400 font-body text-sm">ไม่พบ — <button id="hd-reg" class="text-primary underline text-xs">ลงทะเบียนใหม่</button></div>`;
+        dd.classList.remove('hidden');
+        dd.querySelector('#hd-reg')?.addEventListener('click', () => { dd.classList.add('hidden'); _hotelRegister(m, showS2); });
+        return;
+      }
+      const rows = [];
+      for (const o of owners)
+        for (const p of (o.pets || []))
+          rows.push({ pet_id: p.id, pet_name: p.name, species: p.species, allergies: p.allergies, owner_name: o.name, owner_phone: o.phone||'' });
+
+      dd.innerHTML = rows.map((r, i) =>
+        `<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors" data-hi="${i}">
+           <span>${SPECIES_EMOJI[r.species]||'🐾'}</span>
+           <div><div class="font-semibold text-navy text-sm">${r.pet_name}${r.allergies?' ⚠️':''}</div>
+           <div class="text-xs text-slate-400 font-body">เจ้าของ: ${r.owner_name}${r.owner_phone?' · '+r.owner_phone:''}</div></div>
+         </div>`
+      ).join('') + `<div class="border-t px-4 py-2"><button id="hd-reg2" class="text-xs text-primary hover:underline font-body">+ ลงทะเบียนใหม่</button></div>`;
+      dd.classList.remove('hidden');
+      dd.querySelectorAll('[data-hi]').forEach(el => {
+        el.addEventListener('click', () => { dd.classList.add('hidden'); showS2(rows[parseInt(el.dataset.hi)]); });
+      });
+      dd.querySelector('#hd-reg2')?.addEventListener('click', () => { dd.classList.add('hidden'); _hotelRegister(m, showS2); });
+    }, 300);
+  });
+  input.addEventListener('blur', () => setTimeout(() => dd.classList.add('hidden'), 200));
+
+  // Calc nights
+  const calcNights = () => {
+    const inD = m.querySelector('#ci-in')?.value;
+    const outD = m.querySelector('#ci-out')?.value;
+    if (!inD || !outD) return;
+    const nights = Math.max(1, Math.ceil((new Date(outD) - new Date(inD)) / 86400000));
+    const calc   = m.querySelector('#ci-calc');
+    calc.textContent = `${nights} คืน × ฿${room.price_per_night} = ฿${(nights*room.price_per_night).toLocaleString('th-TH')}`;
     calc.classList.remove('hidden');
   };
-  modal.querySelector('#ci-in').addEventListener('change', calcTotal);
-  modal.querySelector('#ci-out').addEventListener('change', calcTotal);
+  m.querySelector('#ci-in')?.addEventListener('change', calcNights);
+  m.querySelector('#ci-out')?.addEventListener('change', calcNights);
 
-  modal.querySelector('#modal-confirm').addEventListener('click', async () => {
-    const pet = modal.querySelector('#ci-pet').value.trim();
-    const inD = modal.querySelector('#ci-in').value;
-    const outD = modal.querySelector('#ci-out').value;
-    if (!pet || !inD || !outD) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
-    if (outD <= inD) { showToast('วันเช็คเอาต์ต้องหลังวันเช็คอิน', 'error'); return; }
+  confBtn.addEventListener('click', async () => {
+    if (!_hotelSelPet) return;
+    const inD  = m.querySelector('#ci-in').value;
+    const outD = m.querySelector('#ci-out').value;
+    if (!inD || !outD) { showToast('กรุณาเลือกวันที่', 'error'); return; }
+    if (outD <= inD)   { showToast('วันเช็คเอาต์ต้องหลังวันเช็คอิน', 'error'); return; }
 
+    confBtn.disabled = true; confBtn.textContent = 'กำลังบันทึก...';
     const res = await apiFetch('/api/hotel/checkin', { method: 'POST', body: JSON.stringify({
       store_id: _storeId, room_id: room.id,
-      pet_name: pet, owner_name: modal.querySelector('#ci-owner').value.trim(),
-      owner_phone: modal.querySelector('#ci-phone').value.trim(),
-      species: modal.querySelector('#ci-species').value,
+      pet_id:     _hotelSelPet.pet_id,
+      pet_name:   _hotelSelPet.pet_name,
+      owner_name: _hotelSelPet.owner_name,
+      owner_phone:_hotelSelPet.owner_phone || null,
+      species:    _hotelSelPet.species || 'dog',
       check_in_date: inD, check_out_date: outD,
-      notes: modal.querySelector('#ci-notes').value.trim() || null,
+      notes: m.querySelector('#ci-notes').value.trim() || null,
     })});
-    if (res?.success) { showToast(`Check-in ${pet} เรียบร้อย`); modal.remove(); await _renderRooms(container); }
-    else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
+    if (res?.success) {
+      showToast(`Check-in ${_hotelSelPet.pet_name} เรียบร้อย`); m.remove(); await _renderRooms(container);
+    } else {
+      showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
+      confBtn.disabled = false; confBtn.textContent = 'Check-in';
+    }
+  });
+
+  setTimeout(() => input.focus(), 100);
+}
+
+function _hotelRegister(parentModal, onDone) {
+  parentModal.style.visibility = 'hidden';
+  const m1 = document.createElement('div');
+  m1.className = 'fixed inset-0 flex items-center justify-center bg-black/40 p-4';
+  m1.style.zIndex = '60';
+  m1.innerHTML = `
+    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+      <h3 class="font-bold text-navy text-lg">ลงทะเบียน — 1/2 เจ้าของ</h3>
+      <div><label class="input-label">ชื่อ *</label><input id="ho-name" class="input-field" placeholder="คุณสมชาย" autofocus></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="input-label">เบอร์โทร *</label><input id="ho-phone" class="input-field" type="tel" placeholder="0812345678"></div>
+        <div><label class="input-label">อีเมล</label><input id="ho-email" class="input-field" type="email"></div>
+      </div>
+      <div class="flex gap-3">
+        <button id="ho-cancel" class="btn-outline flex-1">ยกเลิก</button>
+        <button id="ho-next" class="btn-primary flex-1">ถัดไป →</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m1);
+  m1.querySelector('#ho-cancel').addEventListener('click', () => { m1.remove(); parentModal.style.visibility=''; });
+
+  m1.querySelector('#ho-next').addEventListener('click', async () => {
+    const name  = m1.querySelector('#ho-name').value.trim();
+    const phone = m1.querySelector('#ho-phone').value.trim();
+    if (!name||!phone) { showToast('กรุณากรอกชื่อและเบอร์','error'); return; }
+    const btn = m1.querySelector('#ho-next'); btn.disabled=true; btn.textContent='กำลังบันทึก...';
+    const res = await apiFetch('/api/pets/owners',{method:'POST',body:JSON.stringify({name,phone,email:m1.querySelector('#ho-email').value.trim()||null})});
+    if (!res?.success) { showToast(res?.error||'เกิดข้อผิดพลาด','error'); btn.disabled=false; btn.textContent='ถัดไป →'; return; }
+    m1.remove();
+    const owner = res.data;
+    const m2 = document.createElement('div');
+    m2.className = 'fixed inset-0 flex items-center justify-center bg-black/40 p-4';
+    m2.style.zIndex = '60';
+    m2.innerHTML = `
+      <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+        <h3 class="font-bold text-navy text-lg">ลงทะเบียน — 2/2 สัตว์เลี้ยง</h3>
+        <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">👤 ${owner.name} · ${owner.phone||''}</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="input-label">ชื่อสัตว์ *</label><input id="hp-name" class="input-field" placeholder="บัดดี้" autofocus></div>
+          <div><label class="input-label">ชนิด</label>
+            <select id="hp-species" class="input-field">
+              <option value="dog">🐕 สุนัข</option><option value="cat">🐈 แมว</option><option value="rabbit">🐰 กระต่าย</option><option value="bird">🐦 นก</option><option value="other">🐾 อื่นๆ</option>
+            </select>
+          </div>
+          <div class="col-span-2"><label class="input-label">แพ้ยา/อาหาร</label><input id="hp-allergy" class="input-field" placeholder="ถ้าไม่มีเว้นว่าง"></div>
+        </div>
+        <div class="flex gap-3">
+          <button id="hp-cancel" class="btn-outline flex-1">ยกเลิก</button>
+          <button id="hp-save" class="btn-primary flex-1">บันทึก + เลือก</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m2);
+    m2.querySelector('#hp-cancel').addEventListener('click', () => { m2.remove(); parentModal.style.visibility=''; });
+    m2.querySelector('#hp-save').addEventListener('click', async () => {
+      const petName = m2.querySelector('#hp-name').value.trim();
+      const species = m2.querySelector('#hp-species').value;
+      if (!petName) { showToast('กรุณากรอกชื่อสัตว์','error'); return; }
+      const b2 = m2.querySelector('#hp-save'); b2.disabled=true; b2.textContent='กำลังบันทึก...';
+      const pr = await apiFetch('/api/pets',{method:'POST',body:JSON.stringify({owner_id:owner.id,store_id:_storeId,name:petName,species,allergies:m2.querySelector('#hp-allergy').value.trim()||null})});
+      if (!pr?.success) { showToast(pr?.error||'เกิดข้อผิดพลาด','error'); b2.disabled=false; b2.textContent='บันทึก + เลือก'; return; }
+      const pet = pr.data;
+      m2.remove(); parentModal.style.visibility='';
+      showToast(`ลงทะเบียน ${petName} แล้ว`);
+      onDone({ pet_id: pet.id, pet_name: pet.name, species: pet.species, allergies: pet.allergies||null, owner_name: owner.name, owner_phone: owner.phone||'' });
+    });
   });
 }
 

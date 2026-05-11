@@ -19,6 +19,7 @@ import ipdRoutes       from './routes/ipd.js';
 import documentsRoutes from './routes/documents.js';
 import tasksRoutes        from './routes/tasks.js';
 import appointmentsRoutes from './routes/appointments.js';
+import rolesRoutes         from './routes/roles.js';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use('/api/ipd',             ipdRoutes);
 app.use('/api/documents',       documentsRoutes);
 app.use('/api/tasks',           tasksRoutes);
 app.use('/api/appointments',    appointmentsRoutes);
+app.use('/api/roles',           rolesRoutes);
 
 // SPA fallback — serve login for unknown routes
 app.get('*', (req, res) => {
