@@ -1,4 +1,4 @@
-import { apiFetch }  from '../utils/api-client.js';
+﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
@@ -52,10 +52,27 @@ export function renderPOS(container, context = {}) {
         <div class="flex justify-between items-center text-sm">
           <span class="text-slate-500 font-body">ส่วนลด</span>
           <div class="flex items-center gap-2">
-            <span class="text-slate-400 font-body">฿</span>
+            <div class="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold">
+              <button id="disc-type-amt" data-dtype="amount"
+                class="px-2 py-1 bg-primary text-white transition-colors">฿</button>
+              <button id="disc-type-pct" data-dtype="pct"
+                class="px-2 py-1 text-slate-500 hover:bg-slate-50 transition-colors">%</button>
+            </div>
             <input id="pos-discount" type="number" value="0" min="0"
-              class="w-24 px-2 py-1 border border-slate-200 rounded-lg text-right text-sm outline-none focus:border-primary">
+              class="w-20 px-2 py-1 border border-slate-200 rounded-lg text-right text-sm outline-none focus:border-primary">
           </div>
+        </div>
+        <div id="pos-vat-row" class="flex justify-between items-center text-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-slate-500 font-body">VAT</span>
+            <div class="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold">
+              <button id="vat-0" data-vat="0"
+                class="px-2 py-1 bg-primary text-white transition-colors">0%</button>
+              <button id="vat-7" data-vat="7"
+                class="px-2 py-1 text-slate-500 hover:bg-slate-50 transition-colors">7%</button>
+            </div>
+          </div>
+          <span id="pos-vat-amount" class="text-sm text-slate-500 font-body">฿0</span>
         </div>
         <div class="flex justify-between text-sm border-t border-slate-100 pt-3">
           <span class="font-semibold text-navy">ยอดสุทธิ</span>
@@ -85,7 +102,7 @@ export function renderPOS(container, context = {}) {
         </div>
         <div id="pos-qr-wrap" class="hidden mt-4 flex flex-col items-center gap-3">
           <div class="text-sm font-semibold text-navy">สแกน QR พร้อมเพย์</div>
-          <div id="pos-qr-img" class="w-48 h-48 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-200">
+          <div id="pos-qr-img" class="w-40 h-40 sm:w-48 sm:h-48 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-200">
             <span class="text-slate-400 text-xs font-body text-center px-4">กำลังสร้าง QR...</span>
           </div>
           <div id="pos-qr-amount" class="text-lg font-bold text-primary"></div>
@@ -100,8 +117,10 @@ export function renderPOS(container, context = {}) {
     </div>`;
 
   // State
-  let items    = [...lineItems];
-  let method   = 'cash';
+  let items        = [...lineItems];
+  let method       = 'cash';
+  let discountType = 'amount'; // 'amount' | 'pct'
+  let vatRate      = 0;        // 0 | 7
 
   // Back
   container.querySelector('#pos-back')?.addEventListener('click', () => {
@@ -117,7 +136,7 @@ export function renderPOS(container, context = {}) {
     if (!btn) return;
     items.splice(parseInt(btn.dataset.remove), 1);
     _refreshItems(container, items);
-    _calcTotal(container, items);
+    _calcTotal(container, items, discountType, vatRate);
   });
 
   // Price/qty edit
@@ -127,11 +146,41 @@ export function renderPOS(container, context = {}) {
     const idx = parseInt(inp.dataset.idx);
     if (inp.dataset.field === 'qty')   items[idx].qty        = parseInt(inp.value) || 1;
     if (inp.dataset.field === 'price') items[idx].unit_price = parseInt(inp.value) || 0;
-    _calcTotal(container, items);
+    _calcTotal(container, items, discountType, vatRate);
   });
 
-  // Discount
-  container.querySelector('#pos-discount')?.addEventListener('input', () => _calcTotal(container, items));
+  // Discount value
+  container.querySelector('#pos-discount')?.addEventListener('input', () =>
+    _calcTotal(container, items, discountType, vatRate));
+
+  // Discount type toggle (฿ / %)
+  container.querySelectorAll('[data-dtype]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      discountType = btn.dataset.dtype;
+      container.querySelector('#disc-type-amt')?.classList.toggle('bg-primary',   discountType === 'amount');
+      container.querySelector('#disc-type-amt')?.classList.toggle('text-white',   discountType === 'amount');
+      container.querySelector('#disc-type-amt')?.classList.toggle('text-slate-500', discountType !== 'amount');
+      container.querySelector('#disc-type-pct')?.classList.toggle('bg-primary',   discountType === 'pct');
+      container.querySelector('#disc-type-pct')?.classList.toggle('text-white',   discountType === 'pct');
+      container.querySelector('#disc-type-pct')?.classList.toggle('text-slate-500', discountType !== 'pct');
+      container.querySelector('#pos-discount').value = '0';
+      _calcTotal(container, items, discountType, vatRate);
+    });
+  });
+
+  // VAT toggle
+  container.querySelectorAll('[data-vat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      vatRate = parseInt(btn.dataset.vat);
+      container.querySelector('#vat-0')?.classList.toggle('bg-primary',    vatRate === 0);
+      container.querySelector('#vat-0')?.classList.toggle('text-white',    vatRate === 0);
+      container.querySelector('#vat-0')?.classList.toggle('text-slate-500', vatRate !== 0);
+      container.querySelector('#vat-7')?.classList.toggle('bg-primary',    vatRate === 7);
+      container.querySelector('#vat-7')?.classList.toggle('text-white',    vatRate === 7);
+      container.querySelector('#vat-7')?.classList.toggle('text-slate-500', vatRate !== 7);
+      _calcTotal(container, items, discountType, vatRate);
+    });
+  });
 
   // Payment method
   container.querySelectorAll('.method-btn').forEach(btn => {
@@ -148,9 +197,13 @@ export function renderPOS(container, context = {}) {
   // Confirm
   container.querySelector('#pos-confirm')?.addEventListener('click', async () => {
     if (!items.length) { showToast('กรุณาเพิ่มรายการก่อน', 'error'); return; }
-    const discount = parseInt(container.querySelector('#pos-discount').value) || 0;
-    const ref      = container.querySelector('#pos-ref')?.value.trim() || null;
-    const notes    = queueItem?.notes || '';
+    const discountRaw = parseFloat(container.querySelector('#pos-discount').value) || 0;
+    const subtotal    = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
+    const discount    = discountType === 'pct' ? Math.round(subtotal * discountRaw / 100) : Math.round(discountRaw);
+    const afterDisc   = Math.max(0, subtotal - discount);
+    const vatAmount   = Math.round(afterDisc * vatRate / 100);
+    const ref         = container.querySelector('#pos-ref')?.value.trim() || null;
+    const notes       = queueItem?.notes || '';
     const [petName, ownerName] = notes.includes(' - ') ? notes.split(' - ').map(s=>s.trim()) : [notes, ''];
 
     const btn = container.querySelector('#pos-confirm');
@@ -166,6 +219,9 @@ export function renderPOS(container, context = {}) {
         owner_name:        ownerName,
         line_items:        items.map(i => ({ name: i.name, qty: i.qty, unit_price: i.unit_price, total: i.qty * i.unit_price })),
         discount,
+        discount_type:     discountType,
+        vat_rate:          vatRate,
+        vat_amount:        vatAmount,
         payment_method:    method,
         payment_reference: ref,
       }),
@@ -174,13 +230,13 @@ export function renderPOS(container, context = {}) {
     btn.disabled = false; btn.textContent = 'ยืนยันการชำระเงิน';
 
     if (res?.success) {
-      _showReceipt(container, res.data, items, discount, method);
+      _showReceipt(container, res.data, items, discount, vatAmount, vatRate, method);
     } else {
       showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
     }
   });
 
-  _calcTotal(container, items);
+  _calcTotal(container, items, discountType, vatRate);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -217,14 +273,19 @@ function _refreshItems(container, items) {
     : `<p class="text-slate-400 font-body text-sm text-center py-4">ยังไม่มีรายการ</p>`;
 }
 
-function _calcTotal(container, items) {
-  const subtotal = items.reduce((s, i) => s + (i.qty * i.unit_price), 0);
-  const discount = parseInt(container.querySelector('#pos-discount')?.value) || 0;
-  const total    = Math.max(0, subtotal - discount);
-  const comm     = Math.round(total * 0.05);
-  container.querySelector('#pos-subtotal').textContent   = `฿${subtotal.toLocaleString('th-TH')}`;
-  container.querySelector('#pos-total').textContent      = `฿${total.toLocaleString('th-TH')}`;
-  container.querySelector('#pos-commission').textContent = `฿${comm.toLocaleString('th-TH')}`;
+function _calcTotal(container, items, discountType = 'amount', vatRate = 0) {
+  const subtotal    = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
+  const discRaw     = parseFloat(container.querySelector('#pos-discount')?.value) || 0;
+  const discount    = discountType === 'pct' ? Math.round(subtotal * discRaw / 100) : Math.round(discRaw);
+  const afterDisc   = Math.max(0, subtotal - discount);
+  const vatAmount   = Math.round(afterDisc * vatRate / 100);
+  const total       = afterDisc + vatAmount;
+  const comm        = Math.round(total * 0.05);
+
+  container.querySelector('#pos-subtotal').textContent    = `฿${subtotal.toLocaleString('th-TH')}`;
+  container.querySelector('#pos-vat-amount').textContent  = vatRate ? `+฿${vatAmount.toLocaleString('th-TH')}` : '฿0';
+  container.querySelector('#pos-total').textContent       = `฿${total.toLocaleString('th-TH')}`;
+  container.querySelector('#pos-commission').textContent  = `฿${comm.toLocaleString('th-TH')}`;
 
   const activeMethod = container.querySelector('.method-btn.border-primary')?.dataset.method;
   if (activeMethod === 'promptpay') _updateQR(container, 'promptpay', items);
@@ -285,69 +346,216 @@ function _updateQR(container, method, items) {
 }
 
 async function _openAddItemModal(storeId, items, container) {
-  const invRes  = await apiFetch(`/api/inventory?store_id=${storeId}`);
-  const products = invRes?.data || [];
+  // Load services + inventory in parallel
+  const [svcRes, invRes] = await Promise.all([
+    apiFetch(`/api/service-items?store_id=${storeId}`),
+    apiFetch(`/api/inventory?store_id=${storeId}`),
+  ]);
+  const services  = svcRes?.data   || [];
+  const products  = invRes?.data   || [];
+  const catLabels = svcRes?.category_labels || {};
+  const grouped   = svcRes?.grouped || {};
+
+  const buildSvcOptions = (grp, labels) => Object.entries(grp).map(([cat, svcItems]) =>
+    `<optgroup label="${labels[cat] || cat}">
+      ${svcItems.map(s =>
+        `<option value="svc:${s.id}" data-name="${s.name}" data-price="${s.price}" data-svc-id="${s.id}" data-use="${s.use_count}">
+          ${s.name} (฿${Number(s.price).toLocaleString('th-TH')})
+        </option>`
+      ).join('')}
+    </optgroup>`
+  ).join('');
+
+  const serviceOptions = buildSvcOptions(grouped, catLabels);
+
+  const productOptions = products.length
+    ? products.map(p =>
+        `<option value="inv:${p.id}" data-name="${p.name}" data-price="${p.sell_price||0}">
+          ${p.icon||'📦'} ${p.name} (฿${p.sell_price||0})
+        </option>`
+      ).join('')
+    : `<option disabled>ยังไม่มีสินค้าในคลัง</option>`;
 
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
-    <div class="bg-white rounded-xl2 p-6 w-full max-w-md space-y-4 shadow-card-hover">
+    <div class="bg-white rounded-xl shadow-card-hover p-6 w-full max-w-md space-y-4">
       <h3 class="font-bold text-navy text-lg">เพิ่มรายการ</h3>
-      <div>
-        <label class="input-label">เลือกจากสต็อก</label>
+
+      <!-- Source tabs -->
+      <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-sm">
+        <button id="tab-svc" data-tab="svc"
+          class="flex-1 py-1.5 rounded-md font-semibold transition-colors bg-white text-navy shadow-sm">
+          🏥 ค่าบริการ
+        </button>
+        <button id="tab-inv" data-tab="inv"
+          class="flex-1 py-1.5 rounded-md font-semibold transition-colors text-slate-500 hover:text-navy">
+          💊 สินค้า / ยา
+        </button>
+        <button id="tab-custom" data-tab="custom"
+          class="flex-1 py-1.5 rounded-md font-semibold transition-colors text-slate-500 hover:text-navy">
+          ✏️ พิมพ์เอง
+        </button>
+      </div>
+
+      <!-- Service picker -->
+      <div id="panel-svc">
+        <label class="input-label">เลือกค่าบริการ</label>
+        <select id="mi-service" class="input-field" size="1">
+          <option value="">— เลือกรายการ —</option>
+          ${serviceOptions}
+        </select>
+        ${services.length === 0 ? `
+          <p class="text-xs text-amber-600 font-body mt-1">
+            ยังไม่มีรายการ —
+            <button id="seed-btn" class="underline font-semibold">เพิ่มรายการเริ่มต้น</button>
+          </p>` : ''}
+      </div>
+
+      <!-- Inventory picker -->
+      <div id="panel-inv" class="hidden">
+        <label class="input-label">เลือกสินค้า / ยา</label>
         <select id="mi-product" class="input-field">
-          <option value="">— รายการพิเศษ —</option>
-          ${products.map(p => `<option value="${p.id}" data-name="${p.name}" data-price="${p.sell_price||0}">${p.icon||'📦'} ${p.name} (฿${p.sell_price||0})</option>`).join('')}
+          <option value="">— เลือกสินค้า —</option>
+          ${productOptions}
         </select>
       </div>
-      <div>
+
+      <!-- Custom input -->
+      <div id="panel-custom" class="hidden">
         <label class="input-label">ชื่อรายการ *</label>
-        <input id="mi-name" class="input-field" placeholder="ค่าตรวจ / ค่ายา / ค่าบริการ">
+        <input id="mi-custom-name" class="input-field" placeholder="ระบุรายการ...">
       </div>
+
+      <!-- Name + price row (filled by selection or custom input) -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="input-label">จำนวน</label>
-          <input id="mi-qty" class="input-field" type="number" value="1" min="1">
+          <label class="input-label">รายการที่เลือก</label>
+          <input id="mi-name"  class="input-field bg-slate-50" readonly placeholder="ยังไม่ได้เลือก">
         </div>
         <div>
-          <label class="input-label">ราคาต่อหน่วย (฿)</label>
+          <label class="input-label">ราคา (฿)</label>
           <input id="mi-price" class="input-field" type="number" value="0" min="0">
         </div>
       </div>
+      <div>
+        <label class="input-label">จำนวน</label>
+        <input id="mi-qty" class="input-field" type="number" value="1" min="1" style="max-width:100px">
+      </div>
+
       <div class="flex gap-3">
         <button id="mi-cancel" class="btn-outline flex-1">ยกเลิก</button>
-        <button id="mi-add" class="btn-primary flex-1">+ เพิ่ม</button>
+        <button id="mi-add"    class="btn-primary flex-1">+ เพิ่ม</button>
       </div>
     </div>`;
 
   document.body.appendChild(modal);
-  modal.querySelector('#mi-product').addEventListener('change', (e) => {
+
+  // ── Tab switching ──
+  let selectedSvcId = null;
+
+  function _switchTab(tab) {
+    ['svc', 'inv', 'custom'].forEach(t => {
+      const tabEl   = modal.querySelector(`#tab-${t}`);
+      const panelEl = modal.querySelector(`#panel-${t}`);
+      tabEl?.classList.toggle('bg-white',       t === tab);
+      tabEl?.classList.toggle('text-navy',       t === tab);
+      tabEl?.classList.toggle('shadow-sm',       t === tab);
+      tabEl?.classList.toggle('text-slate-500',  t !== tab);
+      panelEl?.classList.toggle('hidden',        t !== tab);
+    });
+    modal.querySelector('#mi-name').value  = '';
+    modal.querySelector('#mi-price').value = '0';
+    selectedSvcId = null;
+  }
+
+  modal.querySelectorAll('[data-tab]').forEach(btn =>
+    btn.addEventListener('click', () => _switchTab(btn.dataset.tab))
+  );
+
+  // ── Service selection ──
+  modal.querySelector('#mi-service')?.addEventListener('change', e => {
     const opt = e.target.selectedOptions[0];
-    if (opt.value) {
+    if (!opt?.value) return;
+    selectedSvcId = opt.dataset.svcId || null;
+    modal.querySelector('#mi-name').value  = opt.dataset.name;
+    modal.querySelector('#mi-price').value = opt.dataset.price;
+  });
+
+  // ── Inventory selection ──
+  modal.querySelector('#mi-product')?.addEventListener('change', e => {
+    const opt = e.target.selectedOptions[0];
+    if (opt?.value) {
       modal.querySelector('#mi-name').value  = opt.dataset.name;
       modal.querySelector('#mi-price').value = opt.dataset.price;
     }
   });
+
+  // ── Custom name → clear price for user to fill ──
+  modal.querySelector('#mi-custom-name')?.addEventListener('input', e => {
+    modal.querySelector('#mi-name').value = e.target.value;
+  });
+
+  // ── Seed defaults ──
+  modal.querySelector('#seed-btn')?.addEventListener('click', async () => {
+    const btn = modal.querySelector('#seed-btn');
+    btn.textContent = 'กำลังเพิ่ม...'; btn.disabled = true;
+    const res = await apiFetch('/api/service-items/seed', {
+      method: 'POST', body: JSON.stringify({ store_id: storeId }),
+    });
+    if (res?.success) {
+      showToast(`เพิ่มรายการเริ่มต้น ${res.inserted} รายการแล้ว`);
+      const svcRes2 = await apiFetch(`/api/service-items?store_id=${storeId}`);
+      const grouped2   = svcRes2?.grouped        || {};
+      const catLabels2 = svcRes2?.category_labels || {};
+      const sel = modal.querySelector('#mi-service');
+      if (sel) {
+        sel.innerHTML = '<option value="">— เลือกรายการ —</option>' + buildSvcOptions(grouped2, catLabels2);
+      }
+      btn.closest('p')?.remove();
+    } else {
+      showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
+      btn.textContent = 'เพิ่มรายการเริ่มต้น';
+      btn.disabled = false;
+    }
+  });
+
   modal.querySelector('#mi-cancel').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  modal.querySelector('#mi-add').addEventListener('click', () => {
+
+  modal.querySelector('#mi-add').addEventListener('click', async () => {
     const name = modal.querySelector('#mi-name').value.trim();
-    if (!name) { showToast('กรุณากรอกชื่อรายการ', 'error'); return; }
-    items.push({ name, qty: parseInt(modal.querySelector('#mi-qty').value)||1, unit_price: parseInt(modal.querySelector('#mi-price').value)||0 });
+    if (!name) { showToast('กรุณาเลือกหรือกรอกชื่อรายการ', 'error'); return; }
+
+    const qty        = parseInt(modal.querySelector('#mi-qty').value)   || 1;
+    const unit_price = parseFloat(modal.querySelector('#mi-price').value) || 0;
+
+    items.push({ name, qty, unit_price });
     _refreshItems(container, items);
-    _calcTotal(container, items);
+    _calcTotal(container, items, discountType, vatRate);
+
+    // Increment use count for service items (non-blocking)
+    if (selectedSvcId) {
+      const svc = services.find(s => s.id === selectedSvcId);
+      apiFetch(`/api/service-items/${selectedSvcId}/use`, {
+        method: 'POST',
+        body: JSON.stringify({ current_count: svc?.use_count || 0 }),
+      }).catch(() => {});
+    }
+
     modal.remove();
   });
 }
 
-function _showReceipt(container, result, items, discount, method) {
-  const subtotal   = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
-  const total      = Math.max(0, subtotal - discount);
-  const pm         = PAYMENT_METHODS[method];
-  const petName    = result.invoice?.pet_name   || '';
-  const ownerName  = result.invoice?.owner_name || '';
-  const storeName  = storage.get(STORAGE_KEYS.STORE_NAME) || 'คลินิก';
-  const paidAt     = result.invoice?.created_at || new Date().toISOString();
+function _showReceipt(container, result, items, discount, vatAmount, vatRate, method) {
+  const subtotal  = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
+  const afterDisc = Math.max(0, subtotal - discount);
+  const total     = afterDisc + vatAmount;
+  const pm        = PAYMENT_METHODS[method];
+  const petName   = result.invoice?.pet_name   || '';
+  const ownerName = result.invoice?.owner_name || '';
+  const storeName = storage.get(STORAGE_KEYS.STORE_NAME) || 'คลินิก';
+  const paidAt    = result.invoice?.created_at || new Date().toISOString();
 
   container.innerHTML = `
     <div class="max-w-md mx-auto space-y-4">
@@ -367,8 +575,9 @@ function _showReceipt(container, result, items, discount, method) {
             <span class="font-semibold text-navy">฿${(i.qty * i.unit_price).toLocaleString()}</span>
           </div>`).join('')}
         ${discount ? `<div class="flex justify-between text-sm text-red-500 border-t border-slate-50 pt-2"><span class="font-body">ส่วนลด</span><span>-฿${discount.toLocaleString()}</span></div>` : ''}
+        ${vatAmount ? `<div class="flex justify-between text-sm text-slate-500 font-body"><span>VAT ${vatRate}%</span><span>+฿${vatAmount.toLocaleString()}</span></div>` : ''}
         <div class="flex justify-between font-bold border-t border-slate-100 pt-2">
-          <span class="text-navy">รวม</span>
+          <span class="text-navy">รวมทั้งสิ้น</span>
           <span class="text-primary">฿${total.toLocaleString()}</span>
         </div>
         <div class="flex justify-between text-xs text-slate-400 font-body">
@@ -390,23 +599,24 @@ function _showReceipt(container, result, items, discount, method) {
   container.querySelector('#receipt-print')?.addEventListener('click', () => {
     _printReceipt({
       invoiceNumber: result.invoice_number,
-      storeName,
-      petName,
-      ownerName,
-      items,
-      subtotal,
-      discount,
-      total,
+      storeName, petName, ownerName, items,
+      subtotal, discount, vatAmount, vatRate, total,
       commission: result.commission || 0,
-      method:     pm.label,
-      paidAt,
+      method: pm.label, paidAt,
     });
   });
 
   showToast(`ชำระเงินสำเร็จ ฿${total.toLocaleString()}`);
 }
 
-function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, subtotal, discount, total, commission, method, paidAt }) {
+function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, subtotal, discount, vatAmount = 0, vatRate = 0, total, commission, method, paidAt }) {
+  const si      = (() => { try { return JSON.parse(localStorage.getItem('fufu_store_info') || '{}'); } catch { return {}; } })();
+  storeName     = storeName || si.name || 'คลินิก';
+  const storePhone  = si.phone   || '';
+  const storeAddr   = si.address || '';
+  const storeTaxId  = si.tax_id  || '';
+  const receiptNote = si.receipt_header_note || '';
+
   const dateStr = new Date(paidAt).toLocaleString('th-TH', {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -421,11 +631,12 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
     </tr>`
   ).join('');
 
+  const esc = _esc;
   const html = `<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>ใบเสร็จ ${_esc(invoiceNumber)}</title>
+<title>ใบเสร็จ ${esc(invoiceNumber)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: 'Sarabun', 'Tahoma', sans-serif; font-size:13px; color:#111;
@@ -451,11 +662,14 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
 </style>
 </head>
 <body>
-  <h1>${_esc(storeName)}</h1>
+  <h1>${esc(storeName)}</h1>
   <div class="sub">
+    ${storePhone ? esc(storePhone) + '<br>' : ''}
+    ${storeAddr  ? esc(storeAddr)  + '<br>' : ''}
+    ${storeTaxId ? 'เลขภาษี ' + esc(storeTaxId) + '<br>' : ''}
     ${dateStr}<br>
-    เลขที่: ${_esc(invoiceNumber)}
-    ${petName ? `<br>🐾 ${_esc(petName)}${ownerName ? ' · ' + _esc(ownerName) : ''}` : ''}
+    เลขที่: ${esc(invoiceNumber)}
+    ${petName ? `<br>🐾 ${esc(petName)}${ownerName ? ' · ' + esc(ownerName) : ''}` : ''}
   </div>
 
   <hr class="dashed">
@@ -477,6 +691,7 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
   <table>
     <tbody>
       ${discount ? `<tr><td>ส่วนลด</td><td class="num" style="color:#c53030">-฿${discount.toLocaleString('th-TH')}</td></tr>` : ''}
+      ${vatAmount ? `<tr><td>VAT ${vatRate}%</td><td class="num">+฿${vatAmount.toLocaleString('th-TH')}</td></tr>` : ''}
       <tr class="total-row">
         <td>รวมทั้งสิ้น</td>
         <td class="num" style="color:#0D9488">฿${total.toLocaleString('th-TH')}</td>
@@ -492,6 +707,7 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
 
   <hr class="dashed">
   <div class="footer">
+    ${receiptNote ? esc(receiptNote) + '<br>' : ''}
     ขอบคุณที่ใช้บริการ<br>
     Powered by FUFU Partner
   </div>

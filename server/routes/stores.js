@@ -4,17 +4,19 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
+const STORE_FIELDS = 'id, name, category, branch_name, phone, address, tax_id, website, receipt_header_note, business_hours, default_service_rates';
+
 // GET /api/stores — list stores for current user
 router.get('/', async (req, res) => {
   let { data: stores } = await req.supabase
     .from('stores')
-    .select('id, name, category')
+    .select(STORE_FIELDS)
     .eq('owner_id', req.user.id);
 
   if (!stores?.length) {
     const { data: byEmail } = await req.supabase
       .from('stores')
-      .select('id, name, category')
+      .select(STORE_FIELDS)
       .eq('owner_email', req.user.email);
     stores = byEmail;
   }
@@ -47,7 +49,7 @@ router.post('/', async (req, res) => {
 
 // PATCH /api/stores/:id — update store settings (business_hours, default_service_rates, etc.)
 router.patch('/:id', async (req, res) => {
-  const ALLOWED = new Set(['name', 'branch_name', 'business_hours', 'default_service_rates']);
+  const ALLOWED = new Set(['name', 'branch_name', 'phone', 'address', 'tax_id', 'website', 'receipt_header_note', 'business_hours', 'default_service_rates']);
   const updates = {};
   for (const [k, v] of Object.entries(req.body)) {
     if (ALLOWED.has(k)) updates[k] = v;

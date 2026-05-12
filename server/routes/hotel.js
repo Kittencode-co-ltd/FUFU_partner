@@ -116,4 +116,46 @@ router.get('/bookings', async (req, res) => {
   res.json({ success: true, data: data || [] });
 });
 
+// GET /api/hotel/availability?store_id=UUID&from=YYYY-MM-DD&to=YYYY-MM-DD
+router.get('/availability', async (req, res) => {
+  const { store_id, from, to } = req.query;
+  if (!store_id || !from || !to) return res.status(400).json({ error: 'store_id, from, to required' });
+
+  const [{ data: rooms, error: rErr }, { data: bookings, error: bErr }] = await Promise.all([
+    req.supabase.from('hotel_rooms').select('id,room_number,room_type,price_per_night,status').eq('store_id', store_id).order('room_number'),
+    req.supabase.from('hotel_bookings').select('room_id,pet_name,owner_name,check_in_date,check_out_date,status')
+      .eq('store_id', store_id)
+      .in('status', ['checked_in', 'checked_out'])
+      .or(`check_in_date.lte.${to},check_out_date.gte.${from}`),
+  ]);
+
+  if (rErr) return res.status(500).json({ error: rErr.message });
+
+  // Build date list from→to
+  const dates = [];
+  for (let d = new Date(from); d <= new Date(to); d.setDate(d.getDate() + 1)) {
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
+  // For each room, which dates are booked?
+  const bookingsByRoom = {};
+  (bookings || []).forEach(b => {
+    if (!bookingsByRoom[b.room_id]) bookingsByRoom[b.room_id] = [];
+    bookingsByRoom[b.room_id].push(b);
+  });
+
+  const result = (rooms || []).map(r => ({
+    ...r,
+    bookings: (bookingsByRoom[r.id] || []).map(b => ({
+      pet_name:       b.pet_name,
+      owner_name:     b.owner_name,
+      check_in_date:  b.check_in_date,
+      check_out_date: b.check_out_date,
+      status:         b.status,
+    })),
+  }));
+
+  res.json({ success: true, data: result, dates });
+});
+
 export default router;

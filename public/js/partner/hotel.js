@@ -1,4 +1,4 @@
-import { apiFetch }  from '../utils/api-client.js';
+﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
@@ -19,9 +19,48 @@ let _storeId = '';
 let _hotelSelPet = null; // { pet_id, pet_name, species, owner_name, owner_phone } | null
 const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
 
+let _hotelView = 'rooms'; // 'rooms' | 'calendar'
+
 export async function renderHotel(container) {
   _storeId = storage.get(STORAGE_KEYS.STORE_ID);
-  await _renderRooms(container);
+  _renderShell(container);
+}
+
+function _renderShell(container) {
+  container.innerHTML = `
+    <div class="space-y-4 max-w-5xl">
+      <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        <button data-hotel-tab="rooms"
+          class="hotel-tab px-4 py-2 rounded-lg text-sm font-semibold transition-colors
+                 ${_hotelView === 'rooms' ? 'bg-white text-navy shadow-card' : 'text-slate-500 hover:text-navy'}">
+          🏨 ห้องพัก
+        </button>
+        <button data-hotel-tab="calendar"
+          class="hotel-tab px-4 py-2 rounded-lg text-sm font-semibold transition-colors
+                 ${_hotelView === 'calendar' ? 'bg-white text-navy shadow-card' : 'text-slate-500 hover:text-navy'}">
+          📅 ปฏิทิน
+        </button>
+      </div>
+      <div id="hotel-content"></div>
+    </div>`;
+
+  container.querySelectorAll('[data-hotel-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _hotelView = btn.dataset.hotelTab;
+      container.querySelectorAll('.hotel-tab').forEach(b => {
+        const active = b.dataset.hotelTab === _hotelView;
+        b.className = `hotel-tab px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${active ? 'bg-white text-navy shadow-card' : 'text-slate-500 hover:text-navy'}`;
+      });
+      _loadView(container.querySelector('#hotel-content'));
+    });
+  });
+
+  _loadView(container.querySelector('#hotel-content'));
+}
+
+function _loadView(el) {
+  if (_hotelView === 'calendar') _renderCalendar(el);
+  else _renderRooms(el);
 }
 
 async function _renderRooms(container) {
@@ -34,7 +73,7 @@ async function _renderRooms(container) {
   container.innerHTML = `
     <div class="space-y-5 max-w-5xl">
       <!-- Stats -->
-      <div class="grid grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         ${[['🟢','ว่าง',stats.available,'text-primary'],['🐾','มีผู้เข้าพัก',stats.occupied,'text-orange-500'],
            ['🔧','ซ่อมบำรุง',stats.maintenance,'text-slate-400'],['🧹','ทำความสะอาด',stats.cleaning,'text-blue-500']]
           .map(([icon,label,val,cls])=>`<div class="card p-4 text-center"><div class="text-2xl">${icon}</div><div class="text-xs text-slate-400 font-body mt-1">${label}</div><div class="text-2xl font-bold ${cls} mt-1">${val}</div></div>`).join('')}
@@ -52,7 +91,7 @@ async function _renderRooms(container) {
              <div class="font-semibold text-navy">ยังไม่มีห้องพัก</div>
              <button id="add-room-btn2" class="btn-primary">+ เพิ่มห้องแรก</button>
            </div>`
-        : `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" id="room-grid">
+        : `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3" id="room-grid">
              ${rooms.map(_roomCard).join('')}
            </div>`}
     </div>`;
@@ -99,6 +138,105 @@ async function _markAvailable(roomId, container) {
   await apiFetch(`/api/hotel/rooms/${roomId}`, { method: 'PATCH', body: JSON.stringify({ status: 'available' }) });
   showToast('ห้องพร้อมใช้งานแล้ว');
   await _renderRooms(container);
+}
+
+// ─── Calendar view ────────────────────────────────────────────────────────────
+
+let _calWeekOffset = 0;
+
+async function _renderCalendar(container) {
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay() + 1 + _calWeekOffset * 7); // Monday
+
+  const dates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+  const [from, to] = [dates[0], dates[6]];
+
+  container.innerHTML = `<div class="text-center py-8 text-slate-400 font-body animate-pulse">กำลังโหลด...</div>`;
+  const res = await apiFetch(`/api/hotel/availability?store_id=${_storeId}&from=${from}&to=${to}`);
+  const rooms = res?.data || [];
+
+  const dayLabels = dates.map(d => {
+    const dt = new Date(d + 'T00:00');
+    return { date: d, label: dt.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' }) };
+  });
+
+  const todayStr = today.toISOString().split('T')[0];
+
+  container.innerHTML = `
+    <div class="space-y-3">
+      <!-- Week navigation -->
+      <div class="flex items-center justify-between">
+        <button id="cal-prev" class="btn-outline text-sm px-3 py-2">← สัปดาห์ก่อน</button>
+        <span class="font-semibold text-navy font-body text-sm">
+          ${new Date(from + 'T00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'long' })}
+          – ${new Date(to + 'T00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </span>
+        <button id="cal-next" class="btn-outline text-sm px-3 py-2">สัปดาห์ถัดไป →</button>
+      </div>
+
+      ${rooms.length === 0
+        ? `<div class="card p-10 text-center text-slate-400 font-body">ยังไม่มีห้องพัก</div>`
+        : `<div class="card overflow-x-auto">
+            <table class="w-full text-xs border-collapse min-w-[600px]">
+              <thead>
+                <tr>
+                  <th class="text-left px-3 py-2 font-semibold text-slate-500 w-20 border-b border-slate-100">ห้อง</th>
+                  ${dayLabels.map(d => `
+                    <th class="px-1 py-2 font-semibold text-center border-b border-slate-100 w-24
+                               ${d.date === todayStr ? 'text-primary bg-primary-subtle' : 'text-slate-500'}">
+                      ${d.label}
+                    </th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${rooms.map(room => {
+                  const type = ROOM_TYPES[room.room_type] || ROOM_TYPES.standard;
+                  return `<tr class="border-b border-slate-50 hover:bg-slate-50">
+                    <td class="px-3 py-2.5 font-semibold text-navy whitespace-nowrap">
+                      ${type.icon} ${room.room_number}
+                      <div class="text-slate-400 font-normal font-body">${type.label}</div>
+                    </td>
+                    ${dates.map(date => {
+                      const booking = room.bookings?.find(b =>
+                        b.check_in_date <= date && b.check_out_date > date
+                      );
+                      if (booking) {
+                        const isIn  = booking.check_in_date === date;
+                        const isOut = (() => {
+                          const out = new Date(booking.check_out_date);
+                          out.setDate(out.getDate() - 1);
+                          return out.toISOString().split('T')[0] === date;
+                        })();
+                        return `<td class="px-1 py-1">
+                          <div class="rounded-lg bg-orange-100 text-orange-700 px-1 py-1.5 text-center leading-tight">
+                            <div class="font-semibold truncate max-w-20">${booking.pet_name}</div>
+                            ${isIn  ? '<div class="text-orange-500 text-xs">→ Check-in</div>'  : ''}
+                            ${isOut ? '<div class="text-orange-500 text-xs">← Check-out</div>' : ''}
+                          </div>
+                        </td>`;
+                      }
+                      return `<td class="px-1 py-1">
+                        <div class="rounded-lg bg-primary-subtle text-primary text-center py-1.5 font-semibold">ว่าง</div>
+                      </td>`;
+                    }).join('')}
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+           </div>`}
+    </div>`;
+
+  container.querySelector('#cal-prev')?.addEventListener('click', () => {
+    _calWeekOffset--; _renderCalendar(container);
+  });
+  container.querySelector('#cal-next')?.addEventListener('click', () => {
+    _calWeekOffset++; _renderCalendar(container);
+  });
 }
 
 function _openCheckinModal(room, container) {
@@ -377,7 +515,7 @@ function _openAddRoomModal(container) {
 
 function _modal(title, body) {
   const m = document.createElement('div');
-  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   m.innerHTML = `<div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
     <h3 class="font-bold text-navy text-lg">${title}</h3>
     <div>${body}</div>

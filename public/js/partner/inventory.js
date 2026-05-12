@@ -1,4 +1,4 @@
-import { apiFetch }  from '../utils/api-client.js';
+﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
@@ -562,7 +562,7 @@ function _openSupplierModal(tabEl) {
 
 function _createModal(title, bodyHTML) {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-lg space-y-4">
       <h3 class="font-bold text-navy text-lg">${title}</h3>

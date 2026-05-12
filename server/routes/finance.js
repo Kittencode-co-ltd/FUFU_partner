@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -141,7 +142,7 @@ router.get('/range', async (req, res) => {
 });
 
 // POST /api/finance/transactions
-router.post('/transactions', async (req, res) => {
+router.post('/transactions', requireRole('owner', 'accountant', 'reception', 'staff'), async (req, res) => {
   const { store_id, total, subtotal, discount = 0, payment_method = 'cash', description } = req.body;
   if (!store_id || !total) return res.status(400).json({ error: 'store_id and total required' });
 

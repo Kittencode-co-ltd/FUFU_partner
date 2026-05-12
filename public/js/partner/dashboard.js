@@ -128,6 +128,7 @@ const _RESTORABLE_PAGES = new Set([
 const _PAGE_KEY = 'fufu_current_page';
 
 export function navigate(pageId, detail = null) {
+  document.dispatchEvent(new CustomEvent('fufu:navigate', { detail: pageId }));
   document.querySelectorAll('main section').forEach(s => s.classList.add('hidden'));
   const target = document.getElementById(`page-${pageId}`);
   if (target) target.classList.remove('hidden');
@@ -239,20 +240,42 @@ function _initOfflineBadge() {
 // ─── Sidebar toggle ───────────────────────────────────────────────────────────
 
 function _initSidebarToggle() {
-  const btn = document.getElementById('sidebar-toggle');
+  const btn     = document.getElementById('sidebar-toggle');
+  const overlay = document.getElementById('sb-overlay');
   if (!btn) return;
 
-  // Restore saved state
-  if (localStorage.getItem('fufu_sidebar') === 'collapsed') {
+  const isMobile = () => window.innerWidth < 768;
+
+  // Restore desktop collapsed state
+  if (!isMobile() && localStorage.getItem('fufu_sidebar') === 'collapsed') {
     document.body.classList.add('sb-collapsed');
   }
 
   btn.addEventListener('click', () => {
-    document.body.classList.toggle('sb-collapsed');
-    localStorage.setItem(
-      'fufu_sidebar',
-      document.body.classList.contains('sb-collapsed') ? 'collapsed' : 'open'
-    );
+    if (isMobile()) {
+      document.body.classList.toggle('sb-open');
+    } else {
+      document.body.classList.toggle('sb-collapsed');
+      localStorage.setItem(
+        'fufu_sidebar',
+        document.body.classList.contains('sb-collapsed') ? 'collapsed' : 'open'
+      );
+    }
+  });
+
+  // Close sidebar when clicking overlay (mobile)
+  overlay?.addEventListener('click', () => {
+    document.body.classList.remove('sb-open');
+  });
+
+  // Auto-close sidebar on navigate (mobile)
+  document.addEventListener('fufu:navigate', () => {
+    if (isMobile()) document.body.classList.remove('sb-open');
+  });
+
+  // Collapse sidebar on resize to desktop if it was open as overlay
+  window.addEventListener('resize', () => {
+    if (!isMobile()) document.body.classList.remove('sb-open');
   });
 }
 

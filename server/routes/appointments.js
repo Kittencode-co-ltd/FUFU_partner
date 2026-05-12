@@ -1,6 +1,7 @@
 import { Router }      from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -57,7 +58,7 @@ router.get('/inbox', async (req, res) => {
 
 // ─── PATCH /api/appointments/:id/confirm ─────────────────────────────────────
 // ยืนยันการจอง → สร้าง queue_entry + อัปเดต appointment
-router.patch('/:id/confirm', async (req, res) => {
+router.patch('/:id/confirm', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { store_id, notes } = req.body;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
@@ -114,12 +115,12 @@ router.patch('/:id/confirm', async (req, res) => {
 });
 
 // ─── PATCH /api/appointments/:id/reject ──────────────────────────────────────
-router.patch('/:id/reject', async (req, res) => {
+router.patch('/:id/reject', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { reason } = req.body;
 
   const { error } = await adminSb
     .from('appointments')
-    .update({ status: 'rejected' })
+    .update({ status: 'rejected', reject_reason: reason || null })
     .eq('id', req.params.id);
 
   if (error) return res.status(500).json({ error: error.message });

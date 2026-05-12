@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -7,16 +8,20 @@ router.use(requireAuth);
 const COMMISSION_RATE = 0.05;
 
 // POST /api/pos/checkout
-router.post('/checkout', async (req, res) => {
+router.post('/checkout', requireRole('owner', 'vet', 'reception', 'staff'), async (req, res) => {
   const { store_id, queue_entry_id, medical_record_id, pet_name, owner_name,
-          line_items, discount = 0, payment_method = 'cash', payment_reference } = req.body;
+          line_items, discount = 0, discount_type = 'amount',
+          vat_rate = 0, vat_amount = 0,
+          payment_method = 'cash', payment_reference } = req.body;
 
   if (!store_id || !line_items?.length) {
     return res.status(400).json({ error: 'store_id and line_items required' });
   }
 
-  const subtotal = line_items.reduce((s, i) => s + (i.qty * i.unit_price), 0);
-  const total    = Math.max(0, subtotal - discount);
+  const subtotal   = line_items.reduce((s, i) => s + (i.qty * i.unit_price), 0);
+  const afterDisc  = Math.max(0, subtotal - discount);
+  const vatAmt     = Math.round(afterDisc * (vat_rate || 0) / 100);
+  const total      = afterDisc + vatAmt;
   const commission = Math.round(total * COMMISSION_RATE);
   const net_amount = total - commission;
 
@@ -38,7 +43,8 @@ router.post('/checkout', async (req, res) => {
       medical_record_id: medical_record_id || null,
       pet_name, owner_name,
       invoice_number: inv_number,
-      line_items, subtotal, discount, total,
+      line_items, subtotal, discount, discount_type,
+      vat_rate: vat_rate || 0, vat_amount: vatAmt, total,
       payment_method, payment_reference: payment_reference || null,
       status: 'paid',
       created_by: req.user.email,
@@ -55,6 +61,8 @@ router.post('/checkout', async (req, res) => {
       invoice_number:    inv_number,
       subtotal,
       discount,
+      vat_rate: vat_rate || 0,
+      vat_amount: vatAmt,
       total,
       commission_rate:   COMMISSION_RATE,
       commission_amount: commission,

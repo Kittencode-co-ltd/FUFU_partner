@@ -21,3 +21,14 @@ export function formatThaiDateTime(dateStr) {
     });
   } catch { return dateStr; }
 }
+
+// Omits year — for compact timestamps where date context is implicit
+export function formatThaiDateTimeShort(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    return new Date(dateStr).toLocaleString('th-TH', {
+      day: 'numeric', month: 'short',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return dateStr; }
+}

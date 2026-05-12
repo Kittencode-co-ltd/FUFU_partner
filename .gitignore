@@ -5,3 +5,4 @@ public/css/main.css
 .DS_Store
 Thumbs.db
 docs/
+.claude/

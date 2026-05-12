@@ -12,11 +12,25 @@
 
 <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
 <style>
-  #sidebar    { transition: transform 0.22s ease; }
-  #main-wrap  { transition: margin-left 0.22s ease; }
-  body.sb-collapsed #sidebar   { transform: translateX(-100%); }
-  body.sb-collapsed #main-wrap { margin-left: 0 !important; }
+  #sidebar   { transition: transform 0.22s ease; }
+  #main-wrap { transition: margin-left 0.22s ease; }
+
+  /* Desktop: toggle collapsed */
+  @media (min-width: 768px) {
+    body.sb-collapsed #sidebar   { transform: translateX(-100%); }
+    body.sb-collapsed #main-wrap { margin-left: 0 !important; }
+  }
+
+  /* Mobile: sidebar hidden by default, slides in as overlay */
+  @media (max-width: 767px) {
+    #sidebar { transform: translateX(-100%); }
+    body.sb-open #sidebar { transform: translateX(0); }
+    body.sb-open #sb-overlay { display: block !important; }
+  }
 </style>
+
+<!-- Mobile overlay -->
+<div id="sb-overlay" class="hidden fixed inset-0 z-10 bg-black/40 md:hidden"></div>
 
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-20 w-64 bg-navy flex flex-col">
 
@@ -64,7 +78,7 @@
 </aside>
 
 <!-- ── Main ──────────────────────────────────────────────────────────────── -->
-<div id="main-wrap" class="ml-64 flex flex-col min-h-screen">
+<div id="main-wrap" class="md:ml-64 flex flex-col min-h-screen">
 
   <!-- Topbar -->
   <header class="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 h-16 flex items-center justify-between gap-4">
@@ -98,7 +112,7 @@
   </header>
 
   <!-- Pages -->
-  <main class="flex-1 p-6">
+  <main class="flex-1 p-3 sm:p-5 md:p-6">
     <section id="page-home"      class="hidden"></section>
     <section id="page-queue"     class="hidden"></section>
     <section id="page-opd"       class="hidden"></section>

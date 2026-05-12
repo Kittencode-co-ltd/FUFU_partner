@@ -19,17 +19,17 @@ import { apiRequest } from '../utils/supabase-client.js';
 // ===== CONSTANTS =====
 const PRIORITY = {
   emergency: { label: '🔴 ฉุกเฉิน', class: 'priority-emergency', color: '#EF4444' },
-  vip:       { label: '⭐ VIP', class: 'priority-vip', color: '#F59E0B' },
-  normal:    { label: 'ปกติ', class: 'priority-normal', color: '#64748B' },
+  vip: { label: '⭐ VIP', class: 'priority-vip', color: '#F59E0B' },
+  normal: { label: 'ปกติ', class: 'priority-normal', color: '#64748B' },
 };
 
 const STATUS = {
-  waiting:     { label: 'รอ', class: 'qs-waiting', color: '#F59E0B' },
-  called:      { label: 'เรียกแล้ว', class: 'qs-active', color: '#8B5CF6' },
+  waiting: { label: 'รอ', class: 'qs-waiting', color: '#F59E0B' },
+  called: { label: 'เรียกแล้ว', class: 'qs-active', color: '#8B5CF6' },
   in_progress: { label: 'กำลังรักษา', class: 'qs-active', color: '#3B82F6' },
-  completed:   { label: 'เสร็จสิ้น', class: 'qs-done', color: '#10B981' },
-  cancelled:   { label: 'ยกเลิก', class: 'qs-cancelled', color: '#EF4444' },
-  no_show:     { label: 'ไม่มา', class: 'qs-noshow', color: '#64748B' },
+  completed: { label: 'เสร็จสิ้น', class: 'qs-done', color: '#10B981' },
+  cancelled: { label: 'ยกเลิก', class: 'qs-cancelled', color: '#EF4444' },
+  no_show: { label: 'ไม่มา', class: 'qs-noshow', color: '#64748B' },
 };
 
 // ===== QUEUE COUNTER =====
@@ -84,9 +84,9 @@ export function renderQueue(queue) {
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <div class="queue-time">${q.time}</div>
           ${q.priority && q.priority !== 'normal'
-            ? `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${priority.color}15;color:${priority.color}">${priority.label}</span>`
-            : `<span style="font-size:10px;color:var(--text-muted)">${waitTime}</span>`
-          }
+        ? `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${priority.color}15;color:${priority.color}">${priority.label}</span>`
+        : `<span style="font-size:10px;color:var(--text-muted)">${waitTime}</span>`
+      }
         </div>
         <span class="queue-status qs-${q.status}">${q.statusLabel}</span>
       </div>`;
@@ -148,8 +148,8 @@ export async function renderFullQueue(demoData) {
     const petName = (q.notes || '').split(' - ')[0] || `คิว ${q.queue_number}`;
     const ownerName = (q.notes || '').split(' - ')[1] || '';
     const num = `A${String(q.queue_number).padStart(3, '0')}`;
-    const time = q.called_at ? new Date(q.called_at).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) 
-               : q.created_at ? new Date(q.created_at).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) : '-';
+    const time = q.called_at ? new Date(q.called_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      : q.created_at ? new Date(q.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-';
 
     return `
       <tr data-queue-id="${q.id}" data-status="${q.status}" data-priority="${q.priority || 'normal'}">
@@ -157,8 +157,8 @@ export async function renderFullQueue(demoData) {
           <div style="display:flex;align-items:center;gap:8px">
             <strong>${num}</strong>
             ${q.priority && q.priority !== 'normal'
-              ? `<span style="font-size:10px;padding:2px 8px;border-radius:6px;background:${priority.color}15;color:${priority.color};font-weight:600">${priority.label}</span>`
-              : ''}
+        ? `<span style="font-size:10px;padding:2px 8px;border-radius:6px;background:${priority.color}15;color:${priority.color};font-weight:600">${priority.label}</span>`
+        : ''}
           </div>
         </td>
         <td>
@@ -338,9 +338,9 @@ export function renderCalendar(container, baseDate = new Date()) {
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center">
-        ${['อา','จ','อ','พ','พฤ','ศ','ส'].map(d =>
-          `<div style="padding:8px;font-size:12px;font-weight:600;color:var(--text-muted)">${d}</div>`
-        ).join('')}
+        ${['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(d =>
+    `<div style="padding:8px;font-size:12px;font-weight:600;color:var(--text-muted)">${d}</div>`
+  ).join('')}
   `;
 
   // Empty cells before first day
@@ -429,7 +429,7 @@ export function toggleTVMode() {
 
     // Full screen
     if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { });
     }
   }
 }

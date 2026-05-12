@@ -1,4 +1,4 @@
-import { apiFetch }  from '../utils/api-client.js';
+﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
@@ -157,7 +157,7 @@ function _taskCard(task) {
 
 function _openAddModal(container) {
   const m = document.createElement('div');
-  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   m.innerHTML = `
     <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
       <h3 class="font-bold text-navy text-lg">+ เพิ่มงานใหม่</h3>

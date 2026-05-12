@@ -1,4 +1,4 @@
-import { apiFetch }  from '../utils/api-client.js';
+﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
@@ -376,7 +376,7 @@ function _openEditModal(member, container) {
 
 function _showPasswordModal(title, name, email, password) {
   const m = document.createElement('div');
-  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   m.innerHTML = `
     <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
       <h3 class="font-bold text-navy text-lg text-center">${title}</h3>

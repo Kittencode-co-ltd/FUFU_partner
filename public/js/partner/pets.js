@@ -1,4 +1,4 @@
-import { apiFetch }  from '../utils/api-client.js';
+﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
@@ -103,39 +103,74 @@ async function _switchTab(tab, container) {
   if (tab === 'owners')       await _renderOwnersList(content);
 }
 
-// ─── Appointments Tab ─────────────────────────────────────────────────────────
+// ─── Appointments Tab — Calendar + List side-by-side ─────────────────────────
+
+let _calOffset    = 0;          // months from current
+let _listFilter   = 'today';    // 'today' | 'week' | 'month' | 'date'
+let _selectedDate = null;       // YYYY-MM-DD when user clicks a calendar cell
+let _monthAppts   = [];         // cached appointments for current calendar month
 
 async function _renderAppointments(el) {
-  const today    = new Date().toISOString().split('T')[0];
-  const in7days  = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-
-  el.innerHTML = `<div class="text-center py-10 text-slate-400 font-body animate-pulse">กำลังโหลด...</div>`;
-
-  const res  = await apiFetch(`/api/pets/appointments/list?store_id=${_storeId}&from=${today}&to=${in7days}`);
-  const appts = res?.data || [];
+  _calOffset    = 0;
+  _listFilter   = 'today';
+  _selectedDate = null;
+  _monthAppts   = [];
+  const today = new Date().toISOString().split('T')[0];
+  _selectedDate = today;
 
   el.innerHTML = `
     <div class="space-y-4">
+
       <!-- Header -->
       <div class="flex items-center justify-between">
-        <div>
-          <h3 class="font-semibold text-navy">นัดหมาย 7 วันข้างหน้า</h3>
-          <p class="text-xs text-slate-400 font-body mt-0.5">${today} — ${in7days}</p>
-        </div>
+        <h3 class="font-semibold text-navy">📅 นัดหมาย</h3>
         <button id="new-appt-btn" class="btn-primary text-sm px-4 py-2">+ นัดหมายใหม่</button>
       </div>
 
-      <!-- Today section -->
-      ${_apptSection('📅 วันนี้', appts.filter(a => a.appt_date === today), el)}
+      <!-- Split layout: Calendar left · List right -->
+      <div class="grid grid-cols-1 md:grid-cols-[minmax(260px,300px)_1fr] gap-4 items-start">
 
-      <!-- Upcoming section -->
-      ${_apptSection('📆 ที่กำลังจะมา', appts.filter(a => a.appt_date > today), el)}
+        <!-- ── Left: Calendar ── -->
+        <div id="appt-cal-panel" class="card overflow-hidden"></div>
 
-      ${appts.length === 0 ? `<div class="card p-10 text-center text-slate-400 font-body">ไม่มีนัดหมายใน 7 วันข้างหน้า</div>` : ''}
+        <!-- ── Right: List ── -->
+        <div class="space-y-3">
+          <!-- Filter tabs -->
+          <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
+            ${[
+              { id:'today', label:'วันนี้'       },
+              { id:'week',  label:'สัปดาห์นี้'    },
+              { id:'month', label:'เดือนนี้'      },
+            ].map(f => `
+              <button data-filter="${f.id}"
+                class="list-filter-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors
+                       ${_listFilter === f.id ? 'bg-white text-navy shadow-sm' : 'text-slate-500 hover:text-navy'}">
+                ${f.label}
+              </button>`).join('')}
+          </div>
+          <!-- List container -->
+          <div id="appt-list-panel"></div>
+        </div>
+
+      </div>
     </div>`;
 
-  el.querySelector('#new-appt-btn')?.addEventListener('click', () => _openApptModal(el));
-  el.addEventListener('click', (e) => {
+  // Filter buttons → update list
+  el.querySelectorAll('[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _listFilter   = btn.dataset.filter;
+      _selectedDate = null;
+      el.querySelectorAll('.list-filter-btn').forEach(b => {
+        const active = b.dataset.filter === _listFilter;
+        b.className = `list-filter-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${active ? 'bg-white text-navy shadow-sm' : 'text-slate-500 hover:text-navy'}`;
+      });
+      _refreshCalHighlight(el);
+      _renderListPanel(el.querySelector('#appt-list-panel'));
+    });
+  });
+
+  // Action delegation
+  el.addEventListener('click', e => {
     const btn = e.target.closest('[data-appt-action]');
     if (!btn) return;
     const id = btn.dataset.apptId;
@@ -143,16 +178,202 @@ async function _renderAppointments(el) {
     if (btn.dataset.apptAction === 'cancel')  _cancelAppt(id, el);
     if (btn.dataset.apptAction === 'view')    _viewPet(btn.dataset.petId);
   });
+
+  el.querySelector('#new-appt-btn')?.addEventListener('click', () => _openApptModal(el));
+
+  // Initial render (calendar + list in parallel)
+  await _renderCalPanel(el);
 }
 
-function _apptSection(title, appts, el) {
-  if (!appts.length) return '';
-  return `
-    <div>
-      <h4 class="text-sm font-semibold text-slate-500 mb-2">${title} (${appts.length})</h4>
-      <div class="space-y-2">
-        ${appts.map(a => _apptCard(a)).join('')}
-      </div>
+// ── Calendar panel ──────────────────────────────────────────────────────────
+
+async function _renderCalPanel(rootEl) {
+  const panel = rootEl.querySelector('#appt-cal-panel');
+  if (!panel) return;
+
+  const now      = new Date();
+  const baseMonth = now.getMonth() + _calOffset;
+  const year     = now.getFullYear() + Math.floor(baseMonth / 12);
+  const month    = ((baseMonth % 12) + 12) % 12;
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  const from     = firstDay.toISOString().split('T')[0];
+  const to       = lastDay.toISOString().split('T')[0];
+  const today    = now.toISOString().split('T')[0];
+  const monthName = firstDay.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+  panel.innerHTML = `<div class="text-center py-8 text-slate-400 animate-pulse text-sm">กำลังโหลด...</div>`;
+
+  const res      = await apiFetch(`/api/pets/appointments/list?store_id=${_storeId}&from=${from}&to=${to}`);
+  _monthAppts    = res?.data || [];
+
+  const byDate   = {};
+  _monthAppts.forEach(a => { (byDate[a.appt_date] = byDate[a.appt_date] || []).push(a); });
+
+  const startDow = (firstDay.getDay() + 6) % 7;
+  const cells    = Array(startDow).fill(null)
+    .concat(Array.from({ length: lastDay.getDate() }, (_, i) => new Date(year, month, i + 1)));
+
+  panel.innerHTML = `
+    <!-- Month navigation -->
+    <div class="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+      <button id="cp-prev" class="w-7 h-7 flex items-center justify-center rounded-lg
+              hover:bg-slate-100 text-slate-500 transition-colors text-base font-bold">‹</button>
+      <span class="text-sm font-bold text-navy">${monthName}</span>
+      <button id="cp-next" class="w-7 h-7 flex items-center justify-center rounded-lg
+              hover:bg-slate-100 text-slate-500 transition-colors text-base font-bold">›</button>
+    </div>
+
+    <!-- Day-of-week headers -->
+    <div class="grid grid-cols-7 border-b border-slate-100">
+      ${['จ','อ','พ','พฤ','ศ','ส','อา'].map((d, i) => `
+        <div class="py-1.5 text-center text-xs font-semibold ${i >= 5 ? 'text-red-400' : 'text-slate-400'}">${d}</div>
+      `).join('')}
+    </div>
+
+    <!-- Cells -->
+    <div class="grid grid-cols-7" id="cal-cells">
+      ${cells.map(d => {
+        if (!d) return `<div class="h-10 border-r border-b border-slate-50/50"></div>`;
+        const ds       = d.toISOString().split('T')[0];
+        const count    = byDate[ds]?.length || 0;
+        const isToday  = ds === today;
+        const isSel    = ds === _selectedDate;
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        return `
+          <div data-cal-date="${ds}"
+               class="cal-cell h-10 flex flex-col items-center justify-center gap-0.5 cursor-pointer
+                      border-r border-b border-slate-50/50 transition-colors hover:bg-primary-subtle
+                      ${isSel ? 'bg-primary-subtle' : ''}">
+            <span class="text-xs font-semibold leading-none
+              ${isToday  ? 'w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center' :
+                isWeekend ? 'text-red-400' : 'text-slate-600'}">
+              ${d.getDate()}
+            </span>
+            ${count > 0 ? `
+              <span class="text-xs font-bold leading-none ${isSel ? 'text-primary' : 'text-primary'}"
+                    style="font-size:9px">●&nbsp;${count}</span>` : ''}
+          </div>`;
+      }).join('')}
+    </div>`;
+
+  panel.querySelector('#cp-prev')?.addEventListener('click', () => { _calOffset--; _renderCalPanel(rootEl); });
+  panel.querySelector('#cp-next')?.addEventListener('click', () => { _calOffset++; _renderCalPanel(rootEl); });
+
+  panel.querySelectorAll('.cal-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const ds = cell.dataset.calDate;
+      _selectedDate = ds;
+      _listFilter   = 'date';
+      // Deactivate filter tabs
+      rootEl.querySelectorAll('.list-filter-btn').forEach(b => {
+        b.className = `list-filter-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors text-slate-500 hover:text-navy`;
+      });
+      _refreshCalHighlight(rootEl);
+      _renderListPanel(rootEl.querySelector('#appt-list-panel'));
+    });
+  });
+
+  // Render list too (initial or after month change)
+  await _renderListPanel(rootEl.querySelector('#appt-list-panel'));
+}
+
+function _refreshCalHighlight(rootEl) {
+  rootEl.querySelectorAll('.cal-cell').forEach(cell => {
+    const ds  = cell.dataset.calDate;
+    const sel = _listFilter === 'date' ? ds === _selectedDate : _isInFilter(ds);
+    cell.classList.toggle('bg-primary-subtle', sel);
+    const dot = cell.querySelector('span:last-child');
+    if (dot && dot !== cell.querySelector('span:first-child')) {
+      dot.style.color = '#0D9488';
+    }
+  });
+}
+
+function _isInFilter(ds) {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  if (_listFilter === 'today') return ds === today;
+  if (_listFilter === 'week') {
+    const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    return ds >= mon.toISOString().split('T')[0] && ds <= sun.toISOString().split('T')[0];
+  }
+  if (_listFilter === 'month') return ds.startsWith(today.substring(0, 7));
+  return false;
+}
+
+// ── List panel ──────────────────────────────────────────────────────────────
+
+async function _renderListPanel(listEl) {
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="text-center py-8 text-slate-400 animate-pulse text-sm">กำลังโหลด...</div>`;
+
+  const today  = new Date().toISOString().split('T')[0];
+  let from, to, title;
+
+  if (_listFilter === 'today' || (_listFilter === 'date' && _selectedDate === today)) {
+    from = today; to = today;
+    title = 'วันนี้ — ' + new Date().toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long' });
+  } else if (_listFilter === 'date' && _selectedDate) {
+    from = _selectedDate; to = _selectedDate;
+    const dt = new Date(_selectedDate + 'T00:00');
+    title = dt.toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  } else if (_listFilter === 'week') {
+    const now = new Date();
+    const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    from  = mon.toISOString().split('T')[0];
+    to    = sun.toISOString().split('T')[0];
+    title = `สัปดาห์นี้ (${mon.toLocaleDateString('th-TH',{day:'numeric',month:'short'})} – ${sun.toLocaleDateString('th-TH',{day:'numeric',month:'short'})})`;
+  } else {
+    const now = new Date();
+    from  = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    to    = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    title = new Date(from + 'T00:00').toLocaleDateString('th-TH', { month:'long', year:'numeric' });
+  }
+
+  const raw = (_listFilter === 'month' && _monthAppts.length)
+    ? _monthAppts
+    : (await apiFetch(`/api/pets/appointments/list?store_id=${_storeId}&from=${from}&to=${to}`))?.data || [];
+  const appts = [...raw].sort((a, b) =>
+    a.appt_date.localeCompare(b.appt_date) || (a.appt_time||'').localeCompare(b.appt_time||'')
+  );
+
+  if (!appts.length) {
+    listEl.innerHTML = `
+      <div class="card p-10 text-center space-y-2">
+        <div class="text-3xl">📭</div>
+        <div class="text-slate-400 font-body text-sm">ไม่มีนัดหมาย<br><span class="text-xs">${title}</span></div>
+      </div>`;
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  appts.forEach(a => { (byDate[a.appt_date] = byDate[a.appt_date] || []).push(a); });
+
+  listEl.innerHTML = `
+    <div class="space-y-3">
+      <p class="text-xs text-slate-400 font-body font-semibold px-1">${title} · ${appts.length} รายการ</p>
+      ${Object.entries(byDate).map(([ds, list]) => {
+        const dt  = new Date(ds + 'T00:00');
+        const isT = ds === today;
+        const dayLabel = dt.toLocaleDateString('th-TH', { weekday:'short', day:'numeric', month:'short' });
+        return `
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="text-xs font-bold px-2 py-0.5 rounded-full
+                ${isT ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500'}">
+                ${dayLabel}${isT ? ' · วันนี้' : ''}
+              </span>
+              <span class="text-xs text-slate-400 font-body">${list.length} นัด</span>
+            </div>
+            <div class="space-y-2">
+              ${list.map(a => _apptCard(a)).join('')}
+            </div>
+          </div>`;
+      }).join('')}
     </div>`;
 }
 
@@ -384,7 +605,7 @@ export function renderPetProfile(container, pet) {
       if (btn.dataset.profileTab === 'history') {
         tc.replaceChildren(_renderHistory(pet.medical_records || []));
       } else if (btn.dataset.profileTab === 'vaccines') {
-        tc.innerHTML = _renderVaccines(pet.vaccinations || [], pet.id);
+        tc.innerHTML = _renderVaccines(pet.vaccinations || [], pet.id, pet.medical_records || []);
       } else if (btn.dataset.profileTab === 'appointments') {
         tc.innerHTML = _renderPetAppts(pet.appointments || []);
       }
@@ -477,24 +698,96 @@ function _renderHistory(records) {
   return wrap;
 }
 
-function _renderVaccines(vaccines, petId) {
+function _renderVaccines(vaccines, petId, medicalRecords = []) {
+  const today    = new Date().toISOString().split('T')[0];
+  const soon30   = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+
+  function _vaccineBadge(v) {
+    if (!v.next_due_date) return '';
+    if (v.next_due_date < today) {
+      return `<span class="text-xs font-semibold bg-red-100 text-red-600 rounded-lg px-2 py-0.5">⚠️ เกินกำหนด</span>`;
+    }
+    if (v.next_due_date <= soon30) {
+      return `<span class="text-xs font-semibold bg-amber-100 text-amber-600 rounded-lg px-2 py-0.5">🔔 ใกล้ถึงกำหนด</span>`;
+    }
+    return `<span class="text-xs font-semibold bg-primary-subtle text-primary rounded-lg px-2 py-0.5">✓ ปกติ</span>`;
+  }
+
+  // Weight chart from medical records
+  const weightPoints = (medicalRecords || [])
+    .filter(r => r.weight_kg && (r.visit_date || r.created_at))
+    .map(r => ({ date: (r.visit_date || r.created_at).split('T')[0], w: parseFloat(r.weight_kg) }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-12);
+
+  const weightChart = weightPoints.length >= 2 ? (() => {
+    const minW = Math.min(...weightPoints.map(p => p.w));
+    const maxW = Math.max(...weightPoints.map(p => p.w));
+    const range = maxW - minW || 1;
+    const W = 480, H = 100, PAD = 10;
+    const xStep = (W - PAD * 2) / (weightPoints.length - 1);
+
+    const pts = weightPoints.map((p, i) => ({
+      x: PAD + i * xStep,
+      y: H - PAD - ((p.w - minW) / range) * (H - PAD * 2),
+      ...p,
+    }));
+
+    const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+    return `
+      <div class="card p-4 mb-3">
+        <h4 class="font-semibold text-navy text-sm mb-3">⚖ น้ำหนักตามเวลา</h4>
+        <svg viewBox="0 0 ${W} ${H}" class="w-full" style="height:100px">
+          <!-- Grid lines -->
+          <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="#e2e8f0" stroke-width="1"/>
+          <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="#e2e8f0" stroke-width="1"/>
+          <!-- Weight line -->
+          <path d="${pathD}" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Data points -->
+          ${pts.map(p => `
+            <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#0D9488"/>
+            <text x="${p.x.toFixed(1)}" y="${(p.y - 7).toFixed(1)}" text-anchor="middle"
+                  font-size="9" fill="#0D9488" font-family="Sarabun,sans-serif">${p.w}kg</text>
+          `).join('')}
+          <!-- Min/Max labels -->
+          <text x="${(PAD-2).toFixed(1)}" y="${PAD}" text-anchor="end" font-size="8" fill="#94a3b8" font-family="Sarabun,sans-serif">${maxW}kg</text>
+          <text x="${(PAD-2).toFixed(1)}" y="${H-PAD}" text-anchor="end" font-size="8" fill="#94a3b8" font-family="Sarabun,sans-serif">${minW}kg</text>
+        </svg>
+        <div class="flex justify-between text-xs text-slate-400 font-body mt-1 px-2">
+          <span>${weightPoints[0].date}</span>
+          <span>${weightPoints[weightPoints.length-1].date}</span>
+        </div>
+      </div>`;
+  })() : '';
+
   return `
     <div class="space-y-3">
+      ${weightChart}
       <div class="flex justify-end">
         <button id="add-vaccine-btn" class="btn-primary text-sm px-4 py-2">+ บันทึกวัคซีน</button>
       </div>
       ${!vaccines.length
         ? `<div class="card p-8 text-center text-slate-400 font-body">ยังไม่มีประวัติวัคซีน</div>`
         : vaccines.map(v => `
-            <div class="card p-4">
-              <div class="flex items-center justify-between">
+            <div class="card p-4 border-l-4 ${
+              !v.next_due_date               ? 'border-l-slate-200' :
+              v.next_due_date < today        ? 'border-l-red-400'   :
+              v.next_due_date <= soon30      ? 'border-l-amber-400' : 'border-l-primary'}">
+              <div class="flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                  <span class="font-semibold text-navy">💉 ${v.vaccine_name}</span>
-                  ${v.batch_no ? `<span class="text-xs text-slate-400 ml-2 font-body">Lot: ${v.batch_no}</span>` : ''}
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-semibold text-navy">💉 ${v.vaccine_name}</span>
+                    ${_vaccineBadge(v)}
+                    ${v.batch_no ? `<span class="text-xs text-slate-400 font-body">Lot: ${v.batch_no}</span>` : ''}
+                  </div>
+                  ${v.vet_name ? `<div class="text-xs text-slate-400 font-body mt-0.5">สัตวแพทย์: ${v.vet_name}</div>` : ''}
                 </div>
-                <div class="text-right text-xs font-body">
+                <div class="text-right text-xs font-body flex-shrink-0">
                   <div class="text-slate-500">ฉีดวันที่ ${v.given_date}</div>
-                  ${v.next_due_date ? `<div class="text-primary font-semibold">นัดครั้งหน้า: ${v.next_due_date}</div>` : ''}
+                  ${v.next_due_date ? `<div class="${v.next_due_date < today ? 'text-red-500 font-bold' : 'text-primary font-semibold'}">
+                    ครั้งหน้า: ${v.next_due_date}
+                  </div>` : ''}
                 </div>
               </div>
             </div>`).join('')}
@@ -719,7 +1012,7 @@ function _openApptModal(el, pet = null) {
 // Step 1 — ค้นหา / เลือกเจ้าของก่อน
 function _openNewPetFlow(el) {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-lg space-y-4">
       <h3 class="font-bold text-navy text-lg">เพิ่มสัตว์เลี้ยง — เลือกเจ้าของ</h3>

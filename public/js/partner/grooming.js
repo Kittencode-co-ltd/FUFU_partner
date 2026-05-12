@@ -1,15 +1,21 @@
-import { apiFetch }  from '../utils/api-client.js';
+﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
 const SERVICES = [
-  { id: 'bath',    name: 'อาบน้ำ',             icon: '🛁', price: 200 },
-  { id: 'nail',    name: 'ตัดเล็บ',             icon: '💅', price: 80  },
-  { id: 'ear',     name: 'ทำความสะอาดหู',       icon: '👂', price: 100 },
-  { id: 'teeth',   name: 'แปรงฟัน',             icon: '🪥', price: 120 },
-  { id: 'spa',     name: 'สปาผิว',               icon: '💆', price: 350 },
-  { id: 'haircut', name: 'ตัดขน',               icon: '✂️', price: 300 },
+  { id: 'bath',       name: 'อาบน้ำ',             icon: '🛁', price: 200 },
+  { id: 'nail',       name: 'ตัดเล็บ',             icon: '💅', price: 80  },
+  { id: 'ear',        name: 'ทำความสะอาดหู',       icon: '👂', price: 100 },
+  { id: 'teeth',      name: 'แปรงฟัน',             icon: '🪥', price: 120 },
+  { id: 'spa',        name: 'สปาผิว',              icon: '💆', price: 350 },
+  { id: 'haircut',    name: 'ตัดขน',               icon: '✂️', price: 300 },
+  // add-ons
+  { id: 'cologne',    name: 'น้ำหอม',              icon: '🌸', price: 50  },
+  { id: 'blueberry',  name: 'สระบลูเบอร์รี่',      icon: '🫐', price: 150 },
+  { id: 'detangle',   name: 'แก้ขนพัน',            icon: '🧶', price: 200 },
+  { id: 'anal',       name: 'บีบต่อมกลิ่น',        icon: '🐾', price: 80  },
+  { id: 'bandana',    name: 'ผ้าพันคอ',             icon: '🎀', price: 30  },
 ];
 
 let _storeId     = '';
@@ -62,7 +68,7 @@ async function _render(container) {
       </div>
 
       <!-- Stats -->
-      <div class="grid grid-cols-3 gap-3">
+      <div class="grid grid-cols-3 gap-2 sm:gap-3">
         ${[['⏳','รอ',waiting,'text-amber-500'],['✂️','กำลังทำ',inProg,'text-primary'],['✅','เสร็จ',done,'text-slate-400']]
           .map(([i,l,v,c])=>`<div class="card p-3 text-center"><div class="text-2xl">${i}</div><div class="text-xs text-slate-400 font-body mt-0.5">${l}</div><div class="text-2xl font-bold ${c} mt-1">${v}</div></div>`).join('')}
       </div>
@@ -89,6 +95,7 @@ async function _render(container) {
     if (btn.dataset.action === 'services') _openServicesModal(s, container);
     if (btn.dataset.action === 'complete') _openCompleteModal(s, container);
     if (btn.dataset.action === 'progress') _updateProgress(id, parseInt(btn.dataset.pct), container);
+    if (btn.dataset.action === 'print')    _printGroomReport(s);
   });
 }
 
@@ -144,6 +151,8 @@ function _sessionCard(s) {
                        ${progress >= p ? 'bg-primary-subtle border-primary text-primary' : ''}">${p}%</button>`).join('')}
             </div>
             <button data-action="complete" data-id="${s.id}" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">✓ เสร็จสิ้น</button>` : ''}
+          ${s.status === 'done' ? `
+            <button data-action="print" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">🖨 รายงาน</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -164,7 +173,7 @@ async function _startSession(id, container) {
 function _openServicesModal(session, container) {
   const selected = new Set((session.services || []).map(s => s.id));
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
       <h3 class="font-bold text-navy text-lg">บริการ — ${session.pet_name}</h3>
@@ -209,7 +218,7 @@ function _openServicesModal(session, container) {
 
 function _openCompleteModal(session, container) {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
       <h3 class="font-bold text-navy text-lg">รายงานสุขภาพหลัง Grooming</h3>
@@ -354,7 +363,7 @@ async function _handleGroomWalkin(container) {
 function _groomRegister(container) {
   // reuse same 2-step owner+pet registration pattern
   const m = document.createElement('div');
-  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   m.innerHTML = `
     <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
       <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 1/2 เจ้าของ</h3>
@@ -383,7 +392,7 @@ function _groomRegister(container) {
     m.remove();
     const owner = res.data;
     const m2 = document.createElement('div');
-    m2.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+    m2.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
     m2.innerHTML = `
       <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
         <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 2/2 สัตว์เลี้ยง</h3>
@@ -420,4 +429,79 @@ function _groomRegister(container) {
       m2.remove();
     });
   });
+}
+
+// ─── Print grooming session report ───────────────────────────────────────────
+
+function _printGroomReport(session) {
+  const svcs    = Array.isArray(session.services) ? session.services : [];
+  const total   = svcs.reduce((s, v) => s + (v.price || 0), 0);
+  const report  = session.health_report || {};
+  const checks  = report.checklist || {};
+  const dateStr = new Date(session.end_time || session.created_at).toLocaleString('th-TH', {
+    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+  const checkLabels = { skin: 'ผิวหนัง', coat: 'ขน', ear: 'หู', nail: 'เล็บ', eye: 'ตา' };
+
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const storeName = localStorage.getItem('fufu_store_name') || 'ร้าน';
+
+  const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>รายงาน Grooming — ${esc(session.pet_name)}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Sarabun','Tahoma',sans-serif; font-size:12pt; color:#111;
+         padding:20mm; max-width:210mm; margin:auto; }
+  h1  { font-size:18pt; text-align:center; }
+  .sub{ text-align:center; font-size:10pt; color:#555; margin-bottom:6mm; }
+  hr  { border:none; border-top:1px solid #ccc; margin:5mm 0; }
+  h2  { font-size:13pt; border-left:4px solid #0D9488; padding-left:6px; margin:4mm 0 2mm; }
+  .svc-row { display:flex; justify-content:space-between; font-size:11pt; padding:2px 0; }
+  .total   { font-weight:bold; font-size:14pt; border-top:1px solid #ccc; padding-top:4px; margin-top:4px; }
+  .check   { display:flex; justify-content:space-between; padding:3px 0; font-size:11pt; }
+  .ok      { color:#0D9488; }
+  .abnormal{ color:#dc2626; font-weight:bold; }
+  .footer  { text-align:center; color:#aaa; font-size:10pt; margin-top:12mm; }
+  .print-btn { display:block; margin:8mm auto; padding:8px 24px; background:#0D9488;
+               color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-family:inherit; }
+  @media print { .print-btn { display:none !important; } body { padding:10mm; } }
+</style>
+</head>
+<body>
+  <h1>${esc(storeName)}</h1>
+  <p class="sub">ใบรายงานการ Grooming · ${dateStr}</p>
+  <hr>
+
+  <h2>ข้อมูลสัตว์เลี้ยง</h2>
+  <div class="svc-row"><span>ชื่อ</span><span>${esc(session.pet_name)}</span></div>
+  ${session.owner_name ? `<div class="svc-row"><span>เจ้าของ</span><span>${esc(session.owner_name)}</span></div>` : ''}
+  ${session.groomer_name ? `<div class="svc-row"><span>ช่าง Grooming</span><span>${esc(session.groomer_name)}</span></div>` : ''}
+
+  <h2>รายการบริการ</h2>
+  ${svcs.length ? svcs.map(s => `<div class="svc-row"><span>${esc(s.icon||'')} ${esc(s.name)}</span><span>฿${(s.price||0).toLocaleString('th-TH')}</span></div>`).join('')
+               : '<p style="color:#888">ไม่มีบริการ</p>'}
+  <div class="svc-row total"><span>รวม</span><span>฿${total.toLocaleString('th-TH')}</span></div>
+
+  ${Object.keys(checks).length ? `
+  <h2>รายงานสุขภาพ</h2>
+  ${Object.entries(checkLabels).map(([k, l]) =>
+    `<div class="check"><span>${l}</span>
+     <span class="${checks[k]==='abnormal'?'abnormal':'ok'}">${checks[k]==='abnormal'?'⚠ ผิดปกติ':'✓ ปกติ'}</span></div>`
+  ).join('')}
+  ${report.notes ? `<p style="margin-top:4px;font-size:10pt;color:#555;">หมายเหตุ: ${esc(report.notes)}</p>` : ''}
+  ${report.referred_to_clinic ? `<p style="margin-top:4px;color:#dc2626;font-weight:bold;">⚠ แนะนำพาพบสัตวแพทย์</p>` : ''}` : ''}
+
+  <div class="footer">ขอบคุณที่ใช้บริการ · Powered by FUFU Partner</div>
+  <button class="print-btn" onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const tab  = window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  if (!tab) showToast('กรุณาอนุญาต Pop-up', 'error');
 }

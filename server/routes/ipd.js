@@ -183,4 +183,45 @@ router.delete('/treatments/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+// ─── Vital Signs ─────────────────────────────────────────────────────────────
+
+router.get('/vitals/:admission_id', async (req, res) => {
+  const { data, error } = await req.supabase
+    .from('ipd_vitals')
+    .select('*')
+    .eq('admission_id', req.params.admission_id)
+    .order('recorded_at', { ascending: true })
+    .limit(200);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data: data || [] });
+});
+
+router.post('/vitals', async (req, res) => {
+  const { admission_id, store_id, recorded_at, temperature, heart_rate, weight_kg, respiratory_rate, pain_score, notes } = req.body;
+  if (!admission_id) return res.status(400).json({ error: 'admission_id required' });
+
+  const row = {
+    admission_id,
+    recorded_at: recorded_at || new Date().toISOString(),
+    recorded_by: req.user.email,
+  };
+  if (store_id         != null) row.store_id         = store_id;
+  if (temperature      != null) row.temperature      = parseFloat(temperature);
+  if (heart_rate       != null) row.heart_rate        = parseInt(heart_rate);
+  if (weight_kg        != null) row.weight_kg         = parseFloat(weight_kg);
+  if (respiratory_rate != null) row.respiratory_rate  = parseInt(respiratory_rate);
+  if (pain_score       != null) row.pain_score        = parseInt(pain_score);
+  if (notes != null)            row.notes             = notes;
+
+  const { data, error } = await req.supabase.from('ipd_vitals').insert([row]).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data });
+});
+
+router.delete('/vitals/:id', async (req, res) => {
+  const { error } = await req.supabase.from('ipd_vitals').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
 export default router;

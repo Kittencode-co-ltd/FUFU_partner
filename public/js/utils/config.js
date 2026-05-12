@@ -15,6 +15,7 @@ export const STORAGE_KEYS = {
   STAFF_ID:       'fufu_staff_id',
   STAFF_ROLE:     'fufu_staff_role',
   PROMPTPAY_ID:   'fufu_promptpay_id',
+  STORE_INFO:     'fufu_store_info',
 };
 
 export const FEATURE_FLAGS = {

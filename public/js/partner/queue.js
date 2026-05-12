@@ -1,4 +1,4 @@
-import { apiFetch } from '../utils/api-client.js';
+﻿import { apiFetch } from '../utils/api-client.js';
 import { storage } from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
@@ -30,8 +30,8 @@ export async function renderQueue(container) {
 
     <!-- Walk-in quick-add bar -->
     <div class="card p-4 mb-5">
-      <div class="flex flex-wrap gap-3 items-end">
-        <div class="relative flex-1 min-w-52">
+      <div class="flex flex-wrap gap-2 sm:gap-3 items-end">
+        <div class="relative flex-1 min-w-0 w-full sm:w-auto sm:min-w-52">
           <label class="input-label">ค้นหาสัตว์เลี้ยง / เจ้าของ / เบอร์โทร</label>
           <input id="wk-search" class="input-field" placeholder="บัดดี้ หรือ 0812345678..." autocomplete="off">
           <div id="wk-dropdown"
@@ -39,7 +39,7 @@ export async function renderQueue(container) {
                       shadow-card-hover border border-slate-100 max-h-60 overflow-y-auto text-sm">
           </div>
         </div>
-        <div class="flex-1 min-w-36">
+        <div class="flex-1 min-w-28">
           <label class="input-label">บริการ</label>
           <select id="wk-service" class="input-field">
             ${SERVICE_TYPES.map(s => `<option value="${s}">${s}</option>`).join('')}
@@ -63,8 +63,15 @@ export async function renderQueue(container) {
       </div>
     </div>
 
-    <!-- Stats row -->
-    <div id="queue-stats" class="grid grid-cols-4 gap-3 mb-5"></div>
+    <!-- Stats row + TV button -->
+    <div class="flex items-center justify-between mb-3">
+      <div id="queue-stats" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 flex-1"></div>
+      <button id="tv-mode-btn"
+        class="ml-3 flex-shrink-0 text-xs border border-slate-200 text-slate-500 px-3 py-2 rounded-lg
+               hover:bg-slate-50 transition-colors font-semibold whitespace-nowrap">
+        📺 TV Mode
+      </button>
+    </div>
 
     <!-- Queue cards -->
     <div id="queue-cards" class="space-y-3"></div>
@@ -73,6 +80,7 @@ export async function renderQueue(container) {
   _selectedPet = null;
   _bindWalkinSearch(container);
   container.querySelector('#wk-submit').addEventListener('click', _handleWalkin);
+  container.querySelector('#tv-mode-btn')?.addEventListener('click', _openTVMode);
   container.querySelector('#wk-new-patient')?.addEventListener('click', () => _openQuickRegister(container));
   await _loadQueue();
 
@@ -537,7 +545,7 @@ async function _handleWalkin() {
 
 function _openQuickRegister(container) {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
       <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 1/2 เจ้าของ</h3>
@@ -595,7 +603,7 @@ function _openQuickRegisterPet(container, owner) {
     { k: 'other', e: '🐾', l: 'อื่นๆ' },
   ];
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
       <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 2/2 สัตว์เลี้ยง</h3>
@@ -675,4 +683,116 @@ function _statusMsg(status) {
     no_show: 'บันทึก: ไม่มา',
   };
   return MAP[status] || 'อัพเดทแล้ว';
+}
+
+// ─── TV Queue Display ─────────────────────────────────────────────────────────
+
+function _openTVMode() {
+  const storeName = storage.get(STORAGE_KEYS.STORE_NAME) || 'คลินิก';
+
+  const win = window.open('', '_blank');
+  if (!win) { showToast('กรุณาอนุญาต Pop-up', 'error'); return; }
+
+  const render = (queue) => {
+    const active   = queue.filter(q => ['waiting','called','in_progress'].includes(q.status));
+    const calling  = queue.filter(q => q.status === 'called');
+    const waiting  = queue.filter(q => q.status === 'waiting');
+    const inProg   = queue.filter(q => q.status === 'in_progress');
+
+    const num = n => n?.queue_number ? `A${String(n.queue_number).padStart(3,'0')}` : '—';
+
+    win.document.body.innerHTML = `
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Sarabun','Tahoma',sans-serif; background:#0a1628; color:#fff;
+               display:flex; flex-direction:column; min-height:100vh; overflow:hidden; }
+        .header { background:#0D9488; padding:16px 40px; display:flex; align-items:center; justify-content:space-between; }
+        .store  { font-size:28px; font-weight:700; }
+        .clock  { font-size:24px; font-weight:600; }
+        .body   { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:24px 40px; flex:1; }
+        .panel  { background:#111d33; border-radius:16px; padding:20px; }
+        .panel-title { font-size:16px; color:#94a3b8; margin-bottom:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; }
+        .calling-num  { font-size:96px; font-weight:900; color:#0D9488; line-height:1; text-align:center; margin:8px 0; }
+        .calling-name { font-size:28px; text-align:center; color:#e2e8f0; margin-bottom:4px; }
+        .calling-svc  { font-size:18px; text-align:center; color:#64748b; }
+        .wait-item { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px;
+                     background:#1e2d4a; margin-bottom:8px; }
+        .wait-num  { font-size:24px; font-weight:700; color:#F59E0B; min-width:60px; }
+        .wait-name { font-size:18px; color:#e2e8f0; flex:1; }
+        .wait-svc  { font-size:14px; color:#64748b; }
+        .footer    { background:#0a1628; padding:10px 40px; text-align:center; color:#334155; font-size:13px; border-top:1px solid #1e293b; }
+        .prog-item { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px;
+                     background:#1e2d4a; margin-bottom:8px; }
+        .prog-num  { font-size:22px; font-weight:700; color:#3B82F6; min-width:60px; }
+      </style>
+      <div class="header">
+        <div class="store">🏥 ${storeName}</div>
+        <div class="clock" id="tv-clock"></div>
+      </div>
+      <div class="body">
+        <!-- Calling now -->
+        <div class="panel">
+          <div class="panel-title">📢 กำลังเรียก</div>
+          ${calling.length ? `
+            <div class="calling-num">${num(calling[0])}</div>
+            <div class="calling-name">🐾 ${calling[0].notes?.split(' - ')[0] || '—'}</div>
+            <div class="calling-svc">${calling[0].service_type || ''}</div>
+          ` : `<div style="text-align:center;color:#334155;font-size:20px;margin-top:24px">—</div>`}
+        </div>
+
+        <!-- Right side: waiting + in progress -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="panel" style="flex:1">
+            <div class="panel-title">⏳ รอเรียก (${waiting.length})</div>
+            ${waiting.slice(0,8).map(q => `
+              <div class="wait-item">
+                <span class="wait-num">${num(q)}</span>
+                <div>
+                  <div class="wait-name">🐾 ${(q.notes||'—').split(' - ')[0]}</div>
+                  <div class="wait-svc">${q.service_type||''}</div>
+                </div>
+              </div>`).join('')}
+            ${waiting.length === 0 ? '<div style="color:#334155;font-size:16px;padding:8px">ไม่มีคิวรอ</div>' : ''}
+          </div>
+          ${inProg.length ? `
+          <div class="panel" style="flex:0 0 auto">
+            <div class="panel-title">🩺 กำลังรักษา (${inProg.length})</div>
+            ${inProg.slice(0,3).map(q => `
+              <div class="prog-item">
+                <span class="prog-num">${num(q)}</span>
+                <div>
+                  <div class="wait-name">🐾 ${(q.notes||'—').split(' - ')[0]}</div>
+                  <div class="wait-svc">${q.service_type||''}</div>
+                </div>
+              </div>`).join('')}
+          </div>` : ''}
+        </div>
+      </div>
+      <div class="footer">FUFU Partner · อัปเดตทุก 30 วินาที</div>`;
+
+    // Clock
+    const updateClock = () => {
+      const el = win.document.getElementById('tv-clock');
+      if (el) el.textContent = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+    updateClock();
+    win._clockInterval = setInterval(updateClock, 1000);
+  };
+
+  // Initial render with current queue data
+  const today = new Date().toISOString().split('T')[0];
+  apiFetch(`/api/queue?store_id=${_storeId}&date=${today}`).then(res => {
+    render(res?.data || []);
+
+    // Auto-refresh every 30s
+    win._refreshInterval = setInterval(async () => {
+      const r = await apiFetch(`/api/queue?store_id=${_storeId}&date=${today}`);
+      render(r?.data || []);
+    }, 30000);
+  });
+
+  win.addEventListener('beforeunload', () => {
+    clearInterval(win._refreshInterval);
+    clearInterval(win._clockInterval);
+  });
 }

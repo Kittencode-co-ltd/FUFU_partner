@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
 
   let q = req.supabase
     .from('medical_records')
-    .select('*')
+    .select('id,store_id,pet_id,pet_name,owner_name,species,record_type,chief_complaint,status,created_at,visit_date,updated_at,deleted_at')
     .eq('store_id', store_id)
     .order('created_at', { ascending: false })
     .limit(parseInt(limit));
@@ -103,6 +103,56 @@ router.patch('/:id', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });
+});
+
+// POST /api/medical-records/:id/images — add base64 image (max 5, each ≤500KB)
+router.post('/:id/images', async (req, res) => {
+  const { name, type, size, label, data: imgData } = req.body;
+  if (!imgData || !name) return res.status(400).json({ error: 'name and data required' });
+  const approxBytes = Math.ceil(imgData.length * 0.75);
+  if (approxBytes > 512 * 1024) return res.status(400).json({ error: 'Image too large (max 500KB)' });
+
+  const { data: record, error: fetchErr } = await req.supabase
+    .from('medical_records').select('medical_images').eq('id', req.params.id).single();
+  if (fetchErr) return res.status(404).json({ error: 'Record not found' });
+
+  const images = Array.isArray(record.medical_images) ? record.medical_images : [];
+  if (images.length >= 5) return res.status(400).json({ error: 'สูงสุด 5 รูปต่อ record' });
+
+  const newImg = {
+    id:          crypto.randomUUID(),
+    name,
+    type:        type || 'image/jpeg',
+    size:        size || 0,
+    label:       label || name,
+    data:        imgData,
+    uploaded_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await req.supabase
+    .from('medical_records')
+    .update({ medical_images: [...images, newImg] })
+    .eq('id', req.params.id)
+    .select('id,medical_images')
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data: { image: newImg, total: data.medical_images.length } });
+});
+
+// DELETE /api/medical-records/:id/images/:imgId
+router.delete('/:id/images/:imgId', async (req, res) => {
+  const { data: record, error: fetchErr } = await req.supabase
+    .from('medical_records').select('medical_images').eq('id', req.params.id).single();
+  if (fetchErr) return res.status(404).json({ error: 'Record not found' });
+
+  const images = (Array.isArray(record.medical_images) ? record.medical_images : [])
+    .filter(img => img.id !== req.params.imgId);
+
+  const { error } = await req.supabase
+    .from('medical_records').update({ medical_images: images }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
 });
 
 // DELETE /api/medical-records/:id  (soft delete)

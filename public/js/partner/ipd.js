@@ -1,8 +1,10 @@
-import { apiFetch }  from '../utils/api-client.js';
+﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { logAudit }  from './audit.js';
+import { formatThaiDateTimeShort } from '../utils/formatters.js';
+import { printDischargeSummary } from '../utils/print-docs.js';
 
 let _storeId = '';
 let _settingsMode = false;
@@ -14,6 +16,12 @@ const STATUS_CFG = {
   reserved:    { color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)',  icon: 'fa-clock',     label: 'จอง'     },
 };
 const TYPE_ICON    = { standard: '🏠', large: '🏡', icu: '🏥', isolation: '⚠️' };
+const VITALS_NORMAL = {
+  temperature:      { min: 37.5, max: 39.2, unit: '°C',   icon: '🌡' },
+  heart_rate:       { min: 60,   max: 140,  unit: 'bpm',  icon: '❤' },
+  respiratory_rate: { min: 10,   max: 30,   unit: '/min', icon: '🫁' },
+  weight_kg:        { min: null, max: null,  unit: 'kg',   icon: '⚖' },
+};
 const SPECIES_OPTS = [
   { v: 'dog',    l: '🐕 สุนัข' }, { v: 'cat',    l: '🐈 แมว' },
   { v: 'rabbit', l: '🐰 กระต่าย' }, { v: 'bird', l: '🐦 นก' },
@@ -63,7 +71,7 @@ async function _render(container) {
       </div>` : ''}
 
       <!-- Stats -->
-      <div class="grid grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         ${[
           { val: stats.total,     label: 'กรงทั้งหมด', color: '#1E293B' },
           { val: stats.occupied,  label: 'มีผู้ป่วย',  color: '#F97316' },
@@ -76,9 +84,9 @@ async function _render(container) {
           </div>`).join('')}
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <!-- Cage map -->
-        <div class="lg:col-span-3 card p-4">
+        <div class="md:col-span-1 lg:col-span-3 card p-4">
           <div class="flex items-center justify-between mb-3">
             <h3 class="font-semibold text-navy">🏥 แผนผัง Ward</h3>
             <div class="flex items-center gap-3">
@@ -114,7 +122,7 @@ async function _render(container) {
         </div>
 
         <!-- Detail panel -->
-        <div class="lg:col-span-2 card p-4 min-h-64" id="ipd-detail">
+        <div class="md:col-span-1 lg:col-span-2 card p-4 min-h-48 md:min-h-64" id="ipd-detail">
           <div class="flex flex-col items-center justify-center h-48 text-center text-slate-400">
             <i class="fas fa-hand-pointer text-4xl mb-3 opacity-40"></i>
             <div class="font-body text-sm">คลิกที่กรงเพื่อดูข้อมูล<br>และ Treatment Sheet</div>
@@ -309,6 +317,9 @@ async function _renderDetail(cage, container) {
           placeholder="อาการ, การกิน, พฤติกรรม...">${adm.daily_notes || ''}</textarea>
       </div>
 
+      <!-- Vital Signs -->
+      <div id="vitals-section"></div>
+
       <!-- Treatments -->
       <div>
         <div class="flex items-center justify-between mb-1.5">
@@ -342,6 +353,9 @@ async function _renderDetail(cage, container) {
 
   panel.querySelector('#add-treatment-btn')?.addEventListener('click',
     () => _openAddTreatmentModal(adm, container, cage));
+
+  // Load and render vitals
+  _renderVitals(adm, panel);
 
   // Remove belonging
   panel.querySelector('#belongings-list')?.addEventListener('click', async e => {
@@ -504,7 +518,7 @@ function _openEditCageModal(cage, container) {
 
 function _deleteCage(cage, container) {
   const m = document.createElement('div');
-  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   m.innerHTML = `
     <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
       <div class="text-center">
@@ -1186,19 +1200,241 @@ async function _deleteTreatment(id, cage, container) {
 
 async function _discharge(admId, container) {
   if (!confirm('ยืนยัน Discharge สัตว์ออกจากกรง?')) return;
+
   const res = await apiFetch(`/api/ipd/admissions/${admId}/discharge`, { method: 'PATCH', body: '{}' });
-  if (res?.success) {
-    const cost = res.data?.total_cost || 0;
-    showToast(`Discharge สำเร็จ${cost ? ` · ค่าบริการรวม ฿${cost.toLocaleString()}` : ''}`);
-    logAudit('update', 'ipd_admissions', admId, null, { status: 'discharged' }, 'discharge patient');
-    await _render(container);
-    const panel = container.querySelector('#ipd-detail');
-    if (panel) panel.innerHTML = `
-      <div class="flex flex-col items-center justify-center h-48 text-center text-slate-400">
-        <i class="fas fa-check-circle text-4xl mb-3" style="color:#10B981"></i>
-        <div class="font-body text-sm">Discharge สำเร็จ<br>เลือกกรงอื่นเพื่อดูข้อมูล</div>
+  if (!res?.success) { showToast(res?.error || 'เกิดข้อผิดพลาด', 'error'); return; }
+
+  // Fetch summary data after confirmed discharge
+  const [treatRes, vitalRes] = await Promise.all([
+    apiFetch(`/api/ipd/treatments/${admId}`),
+    apiFetch(`/api/ipd/vitals/${admId}`),
+  ]);
+
+  const cost    = res.data?.total_cost || 0;
+  const adm     = res.data;
+  const storeName = storage.get(STORAGE_KEYS.STORE_NAME) || 'คลินิก';
+  showToast(`Discharge สำเร็จ${cost ? ` · ฿${cost.toLocaleString()}` : ''}`);
+  logAudit('update', 'ipd_admissions', admId, null, { status: 'discharged' }, 'discharge patient');
+  await _render(container);
+
+  const panel = container.querySelector('#ipd-detail');
+  if (panel) panel.innerHTML = `
+    <div class="flex flex-col items-center justify-center h-48 text-center text-slate-400 space-y-3 p-4">
+      <i class="fas fa-check-circle text-4xl" style="color:#10B981"></i>
+      <div class="font-body text-sm">Discharge สำเร็จ${cost ? `<br>ค่าบริการรวม <span class="font-bold text-navy">฿${cost.toLocaleString()}</span>` : ''}</div>
+      <button id="print-discharge-btn"
+        class="text-sm border border-slate-200 text-slate-500 px-4 py-2 rounded-xl
+               hover:border-primary hover:text-primary transition-colors font-semibold">
+        🖨 พิมพ์ Discharge Summary
+      </button>
+    </div>`;
+
+  panel?.querySelector('#print-discharge-btn')?.addEventListener('click', () => {
+    const tab = printDischargeSummary({
+      storeName,
+      adm,
+      treatments: treatRes?.data || [],
+      vitals:     vitalRes?.data || [],
+      date: adm.discharged_at || new Date().toISOString(),
+    });
+    if (!tab) showToast('กรุณาอนุญาต Pop-up เพื่อพิมพ์', 'error');
+  });
+}
+
+// ─── Vital Signs ─────────────────────────────────────────────────────────────
+
+async function _renderVitals(adm, panel) {
+  const section = panel.querySelector('#vitals-section');
+  if (!section) return;
+
+  const res    = await apiFetch(`/api/ipd/vitals/${adm.id}`);
+  const vitals = res?.data || [];
+  const latest = vitals[vitals.length - 1] || null;
+
+  const _color = (key, val) => {
+    const n = VITALS_NORMAL[key];
+    if (!n || val == null) return 'text-navy';
+    if (n.min != null && val < n.min) return 'text-blue-500';
+    if (n.max != null && val > n.max) return 'text-red-500';
+    return 'text-primary';
+  };
+
+  // Mini chart: last 8 temperature readings
+  const tempReadings = vitals.filter(v => v.temperature != null).slice(-8);
+  const chartHTML = tempReadings.length >= 2 ? (() => {
+    const vals   = tempReadings.map(v => v.temperature);
+    const minVal = Math.min(...vals) - 0.5;
+    const maxVal = Math.max(...vals) + 0.5;
+    const range  = maxVal - minVal || 1;
+    const coords = vals.map((v, i) => ({
+      x: Math.round((i / (vals.length - 1)) * 100),
+      y: Math.round((1 - (v - minVal) / range) * 40),
+      v,
+    }));
+    const pts = coords.map(c => `${c.x},${c.y}`).join(' ');
+    return `
+      <div class="mt-2">
+        <div class="text-xs text-slate-400 font-body mb-1">กราฟอุณหภูมิ (${tempReadings.length} ครั้ง)</div>
+        <svg viewBox="0 0 100 44" class="w-full h-10" preserveAspectRatio="none">
+          <polyline points="${pts}" fill="none" stroke="#0D9488" stroke-width="2" stroke-linejoin="round"/>
+          ${coords.map(({ x, y, v }) => {
+            const col = v < 37.5 ? '#3B82F6' : v > 39.2 ? '#EF4444' : '#0D9488';
+            return `<circle cx="${x}" cy="${y}" r="2.5" fill="${col}"/>`;
+          }).join('')}
+        </svg>
       </div>`;
-  } else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
+  })() : '';
+
+  const latestRow = latest ? Object.entries(VITALS_NORMAL).map(([key, cfg]) => {
+    const val = latest[key];
+    if (val == null) return '';
+    return `<span class="font-body text-xs"><span class="mr-0.5">${cfg.icon}</span><span class="${_color(key, val)} font-semibold">${val}</span><span class="text-slate-400 ml-0.5">${cfg.unit}</span></span>`;
+  }).filter(Boolean).join('<span class="text-slate-200 mx-1">·</span>') : '';
+
+  const vitalsTableRows = [...vitals].reverse().map(v => `
+    <tr class="border-t border-slate-50">
+      <td class="py-1 text-slate-400">${formatThaiDateTimeShort(v.recorded_at)}</td>
+      <td class="text-center ${_color('temperature', v.temperature)}">${v.temperature ?? '—'}</td>
+      <td class="text-center ${_color('heart_rate', v.heart_rate)}">${v.heart_rate ?? '—'}</td>
+      <td class="text-center">${v.weight_kg ?? '—'}</td>
+      <td class="text-center ${_color('respiratory_rate', v.respiratory_rate)}">${v.respiratory_rate ?? '—'}</td>
+      <td class="text-right">
+        <button data-del-vital="${v.id}" class="text-slate-300 hover:text-red-500 transition-colors">×</button>
+      </td>
+    </tr>`).join('');
+
+  section.innerHTML = `
+    <div>
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="font-semibold text-sm text-navy">🩺 Vital Signs
+          <span class="text-xs text-slate-400 font-body">(${vitals.length} ครั้ง)</span>
+        </span>
+        <button id="add-vitals-btn" class="text-xs text-primary hover:underline font-semibold">+ บันทึก</button>
+      </div>
+
+      ${latest ? `
+        <div class="bg-slate-50 rounded-xl px-3 py-2 text-xs flex flex-wrap gap-x-2 gap-y-1 mb-1">
+          ${latestRow}
+          <span class="text-slate-400 font-body w-full mt-0.5">ล่าสุด: ${formatThaiDateTimeShort(latest.recorded_at)}</span>
+        </div>
+        ${chartHTML}` : `
+        <div class="text-center py-3 text-xs text-slate-400 font-body">
+          ยังไม่มีการบันทึก — กด "+ บันทึก" เพื่อเริ่ม
+        </div>`}
+
+      ${vitals.length >= 1 ? `
+        <div id="vitals-table-toggle" class="mt-1">
+          <button class="text-xs text-slate-400 hover:text-primary font-body hover:underline" id="vitals-expand-btn">
+            ${vitals.length === 1 ? 'ประวัติ 1 รายการ ▾' : `ดูทั้งหมด ${vitals.length} รายการ ▾`}
+          </button>
+          <div id="vitals-table" class="hidden mt-2 max-h-40 overflow-y-auto">
+            <table class="w-full text-xs font-body">
+              <thead class="text-slate-400">
+                <tr>
+                  <th class="text-left py-1">เวลา</th>
+                  <th class="text-center">🌡°C</th>
+                  <th class="text-center">❤bpm</th>
+                  <th class="text-center">⚖kg</th>
+                  <th class="text-center">🫁/min</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>${vitalsTableRows}</tbody>
+            </table>
+          </div>
+        </div>` : ''}
+    </div>`;
+
+  section.querySelector('#add-vitals-btn')?.addEventListener('click',
+    () => _openAddVitalsModal(adm, panel));
+
+  section.querySelector('#vitals-expand-btn')?.addEventListener('click', () => {
+    const table   = section.querySelector('#vitals-table');
+    const expandBtn = section.querySelector('#vitals-expand-btn');
+    table?.classList.toggle('hidden');
+    expandBtn.textContent = table?.classList.contains('hidden')
+      ? (vitals.length === 1 ? 'ประวัติ 1 รายการ ▾' : `ดูทั้งหมด ${vitals.length} รายการ ▾`)
+      : 'ย่อ ▴';
+  });
+
+  section.querySelector('#vitals-table')?.addEventListener('click', async e => {
+    const delBtn = e.target.closest('[data-del-vital]');
+    if (!delBtn) return;
+    const delRes = await apiFetch(`/api/ipd/vitals/${delBtn.dataset.delVital}`, { method: 'DELETE' });
+    if (delRes?.success) _renderVitals(adm, panel);
+    else showToast(delRes?.error || 'เกิดข้อผิดพลาด', 'error');
+  });
+}
+
+function _openAddVitalsModal(adm, panel) {
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  const m = _modal('บันทึก Vital Signs', `
+    <div class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="input-label">เวลา</label>
+          <input id="vt-time" class="input-field" type="time" value="${timeStr}"></div>
+        <div></div>
+        <div><label class="input-label">🌡 อุณหภูมิ (°C)</label>
+          <input id="vt-temp" class="input-field" type="number" step="0.1" placeholder="38.5"></div>
+        <div><label class="input-label">❤ ชีพจร (bpm)</label>
+          <input id="vt-hr" class="input-field" type="number" placeholder="80"></div>
+        <div><label class="input-label">⚖ น้ำหนัก (kg)</label>
+          <input id="vt-wt" class="input-field" type="number" step="0.1" placeholder="5.2"></div>
+        <div><label class="input-label">🫁 หายใจ (/min)</label>
+          <input id="vt-rr" class="input-field" type="number" placeholder="20"></div>
+        <div class="col-span-2">
+          <label class="input-label">ความเจ็บปวด 0–10</label>
+          <div class="flex gap-1 mt-1">
+            ${Array.from({length:11}, (_,i) => `
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="pain" value="${i}" class="sr-only peer">
+                <span class="block text-xs py-1 rounded border border-slate-200 peer-checked:border-primary peer-checked:bg-primary-subtle peer-checked:text-primary font-body hover:border-slate-300 transition-colors">${i}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+        <div class="col-span-2"><label class="input-label">หมายเหตุ</label>
+          <input id="vt-notes" class="input-field" placeholder="อาการ, สิ่งที่สังเกตได้..."></div>
+      </div>
+    </div>`);
+
+  m.querySelector('#modal-confirm').addEventListener('click', async () => {
+    const today   = new Date().toISOString().split('T')[0];
+    const timeVal = m.querySelector('#vt-time').value || timeStr;
+    const btn     = m.querySelector('#modal-confirm');
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+    const payload = {
+      admission_id:     adm.id,
+      store_id:         _storeId,
+      recorded_at:      `${today}T${timeVal}:00`,
+    };
+    const temp = parseFloat(m.querySelector('#vt-temp').value);
+    const hr   = parseInt(m.querySelector('#vt-hr').value);
+    const wt   = parseFloat(m.querySelector('#vt-wt').value);
+    const rr   = parseInt(m.querySelector('#vt-rr').value);
+    const pain = m.querySelector('input[name="pain"]:checked')?.value;
+    const notes = m.querySelector('#vt-notes').value.trim();
+
+    const hasMeasurement = !isNaN(temp) || !isNaN(hr) || !isNaN(wt) || !isNaN(rr) || pain != null || Boolean(notes);
+    if (!hasMeasurement) {
+      showToast('กรุณากรอกค่าอย่างน้อย 1 รายการ', 'error');
+      btn.disabled = false; btn.textContent = 'บันทึก';
+      return;
+    }
+
+    if (!isNaN(temp)) payload.temperature      = temp;
+    if (!isNaN(hr))   payload.heart_rate        = hr;
+    if (!isNaN(wt))   payload.weight_kg         = wt;
+    if (!isNaN(rr))   payload.respiratory_rate  = rr;
+    if (pain != null) payload.pain_score        = parseInt(pain);
+    if (notes)        payload.notes             = notes;
+
+    const res = await apiFetch('/api/ipd/vitals', { method: 'POST', body: JSON.stringify(payload) });
+    if (res?.success) { m.remove(); showToast('บันทึก Vital Signs แล้ว'); _renderVitals(adm, panel); }
+    else { showToast(res?.error || 'เกิดข้อผิดพลาด', 'error'); btn.disabled = false; btn.textContent = 'บันทึก'; }
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
