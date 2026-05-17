@@ -61,7 +61,7 @@ const NAV = {
     { id: 'home',      icon: '📊', label: 'ภาพรวม' },
     { id: 'queue',     icon: '📋', label: 'คิวตรวจ' },
     { id: 'pets',      icon: '🐾', label: 'สัตว์เลี้ยง / นัดหมาย' },
-    { id: 'opd',       icon: '🩺', label: 'OPD Card' },
+    { id: 'opd',       icon: '🩺', label: 'ห้องตรวจ' },
     { id: 'ipd',       icon: '🏥', label: 'IPD Ward' },
     { id: 'medical',   icon: '📂', label: 'ประวัติการรักษา' },
     { id: 'inventory', icon: '📦', label: 'สต็อก / ยา' },
@@ -104,7 +104,7 @@ const PAGE_TITLES = {
   queue:        'คิวตรวจ',
   pets:         'สัตว์เลี้ยง & นัดหมาย',
   'pet-profile':'โปรไฟล์สัตว์เลี้ยง',
-  opd:          'OPD Card',
+  opd:          'ห้องตรวจ',
   ipd:          'IPD Ward',
   medical:      'ประวัติการรักษา',
   inventory:    'สต็อก / ยา',
@@ -375,8 +375,8 @@ async function _renderPage(pageId, detail = null) {
     return;
   }
   if (pageId === 'opd') {
-    const { renderOPDCard } = await import('./opd-card.js');
-    renderOPDCard(document.getElementById('page-opd'), detail);
+    const { renderDoctorWorkroom } = await import('./doctor-workroom.js');
+    renderDoctorWorkroom(document.getElementById('doctor-workroom-root'), detail);
     return;
   }
   if (pageId === 'pets') {

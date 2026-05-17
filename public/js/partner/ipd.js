@@ -30,6 +30,37 @@ const SPECIES_OPTS = [
 
 export async function renderIPDWard(container) {
   _storeId = storage.get(STORAGE_KEYS.STORE_ID);
+
+  if (!document.getElementById('ipd-settings-style')) {
+    const s = document.createElement('style');
+    s.id = 'ipd-settings-style';
+    s.textContent = `
+      .cage-card { position: relative; }
+      .cage-edit-overlay {
+        position: absolute; top: 4px; right: 4px;
+        display: none; gap: 4px;
+      }
+      .cage-edit-btn, .cage-delete-btn {
+        width: 24px; height: 24px; border-radius: 4px; border: none;
+        cursor: pointer; font-size: 11px;
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.15s;
+      }
+      .cage-edit-btn   { background: #EFF6FF; color: #2563EB; }
+      .cage-edit-btn:hover   { background: #DBEAFE; }
+      .cage-delete-btn { background: #FEF2F2; color: #DC2626; }
+      .cage-delete-btn:hover { background: #FEE2E2; }
+      .ipd-settings-mode .cage-edit-overlay { display: flex; }
+      .ipd-settings-mode .cage-card {
+        border-style: dashed !important;
+        border-color: #FCD34D !important;
+        cursor: default;
+      }
+      .ipd-settings-mode .cage-card:hover { box-shadow: none !important; }
+    `;
+    document.head.appendChild(s);
+  }
+
   await _render(container);
 }
 
@@ -37,7 +68,8 @@ export async function renderIPDWard(container) {
 
 async function _render(container) {
   const staffRole = storage.get(STORAGE_KEYS.STAFF_ROLE);
-  const canSettings = staffRole === 'owner' || staffRole === 'vet';
+  // null/empty = owner (ไม่ใช่ staff) → เข้าได้เสมอ
+  const canSettings = !staffRole || staffRole === 'owner' || staffRole === 'vet';
 
   const [cagesRes, admRes] = await Promise.all([
     apiFetch(`/api/ipd/cages?store_id=${_storeId}`),
@@ -67,7 +99,7 @@ async function _render(container) {
       ${_settingsMode ? `
       <div class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold font-body"
            style="background:#FEF3C7;color:#92400E;border:1px solid #FCD34D">
-        ⚙️ โหมดตั้งค่ากรง — กดปุ่มอีกครั้งเพื่อออก
+        ⚙️ <strong>Settings Mode</strong> — กดที่กรงเพื่อแก้ไข · ปุ่ม 🗑 เพื่อลบ · "+ เพิ่มกรง" เพื่อเพิ่มใหม่
       </div>` : ''}
 
       <!-- Stats -->
@@ -102,21 +134,26 @@ async function _render(container) {
                        ${_settingsMode
                          ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
                          : 'border border-slate-300 text-slate-500 hover:border-primary hover:text-primary'}">
-                ${_settingsMode ? '✓ ออกจากตั้งค่า' : '⚙️ ตั้งค่ากรง'}
+                ${_settingsMode ? '✕ ออกจาก Settings' : '⚙️ จัดการกรง'}
               </button>` : ''}
               <button id="add-cage-btn"
                 class="text-xs border border-primary text-primary px-3 py-1.5 rounded-lg
-                       hover:bg-primary-subtle transition-colors font-semibold whitespace-nowrap
-                       ${_settingsMode ? '' : 'hidden'}">
+                       hover:bg-primary-subtle transition-colors font-semibold whitespace-nowrap">
                 + เพิ่มกรง
               </button>
             </div>
           </div>
           ${cages.length === 0
-            ? `<div class="py-16 text-center text-slate-400 font-body text-sm">
-                ยังไม่มีกรง — กด "+ เพิ่มกรง" เพื่อเริ่มต้น
+            ? `<div class="py-12 text-center space-y-3">
+                <div class="text-4xl">🏠</div>
+                <div class="text-slate-400 font-body text-sm">ยังไม่มีกรง</div>
+                <button id="add-first-cage-btn"
+                  class="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold
+                         px-5 py-2.5 rounded-xl hover:bg-primary-dark transition-colors shadow-sm">
+                  + เพิ่มกรงแรก
+                </button>
                </div>`
-            : `<div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3" id="cage-grid">
+            : `<div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3${_settingsMode ? ' ipd-settings-mode' : ''}" id="cage-grid">
                 ${cages.map(_cageCard).join('')}
                </div>`}
         </div>
@@ -137,24 +174,44 @@ async function _render(container) {
   });
 
   container.querySelector('#add-cage-btn')?.addEventListener('click', () => _openAddCageModal(container));
+  container.querySelector('#add-first-cage-btn')?.addEventListener('click', () => _openAddCageModal(container));
 
-  const grid = container.querySelector('#cage-grid');
-  if (!grid) return;
+  _reattachCageListeners(container, cages);
+}
 
-  grid.addEventListener('click', e => {
-    // Edit/delete buttons
-    const editBtn   = e.target.closest('[data-edit-cage]');
-    const deleteBtn = e.target.closest('[data-delete-cage]');
-    if (editBtn)   { e.stopPropagation(); const c = cages.find(x => x.id === editBtn.dataset.editCage);   if (c) _openEditCageModal(c, container); return; }
-    if (deleteBtn) { e.stopPropagation(); const c = cages.find(x => x.id === deleteBtn.dataset.deleteCage); if (c) _deleteCage(c, container); return; }
+// ─── Cage listener wiring (called after every render / partial re-render) ─────
 
-    // Cage card click
-    const card = e.target.closest('.cage-card');
-    if (!card) return;
-    grid.querySelectorAll('.cage-card').forEach(c => c.style.outline = '');
-    card.style.outline = '2px solid #0D9488';
-    const cage = cages.find(c => c.id === card.dataset.cageId);
-    if (cage) _renderDetail(cage, container);
+function _reattachCageListeners(container, cages) {
+  // Cage card body — normal mode opens treatment sheet; settings mode does nothing
+  container.querySelectorAll('.cage-card').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('[data-cage-action]')) return; // buttons handle themselves
+      if (_settingsMode) return;
+      container.querySelector('#cage-grid')
+        ?.querySelectorAll('.cage-card')
+        .forEach(c => c.style.outline = '');
+      card.style.outline = '2px solid #0D9488';
+      const cage = cages.find(c => c.id === card.dataset.cageId);
+      if (cage) _renderDetail(cage, container);
+    });
+  });
+
+  // Edit buttons (✏️)
+  container.querySelectorAll('[data-cage-action="edit"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const cage = cages.find(c => c.id === btn.dataset.cageId);
+      if (cage) _openEditCageModal(cage, container);
+    });
+  });
+
+  // Delete buttons (🗑)
+  container.querySelectorAll('[data-cage-action="delete"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const cage = cages.find(c => c.id === btn.dataset.cageId);
+      if (cage) _deleteCage(cage, container);
+    });
   });
 }
 
@@ -168,25 +225,17 @@ function _cageCard(cage) {
   return `
     <div class="cage-card rounded-xl p-3 cursor-pointer transition-all hover:shadow-md border-2 border-transparent"
          data-cage-id="${cage.id}" style="background:${cfg.bg}">
+      <div class="cage-edit-overlay">
+        <button class="cage-edit-btn" data-cage-action="edit" data-cage-id="${cage.id}" title="แก้ไข">
+          <i class="fas fa-pen"></i>
+        </button>
+        ${!isOcc ? `<button class="cage-delete-btn" data-cage-action="delete" data-cage-id="${cage.id}" title="ลบ">
+          <i class="fas fa-trash"></i>
+        </button>` : ''}
+      </div>
       <div class="flex items-center justify-between mb-2">
         <span class="text-sm font-bold text-navy truncate mr-1">${TYPE_ICON[cage.cage_type] || '🏠'} ${cage.cage_number}</span>
-        <div class="flex items-center gap-0.5 flex-shrink-0">
-          <button data-edit-cage="${cage.id}"
-            class="w-6 h-6 flex items-center justify-center rounded-md bg-white/80 text-slate-400
-                   hover:text-primary hover:bg-white transition-colors shadow-sm
-                   ${_settingsMode ? '' : 'hidden'}"
-            title="แก้ไขกรง">
-            <i class="fas fa-pen text-[10px]"></i>
-          </button>
-          ${!isOcc ? `<button data-delete-cage="${cage.id}"
-            class="w-6 h-6 flex items-center justify-center rounded-md bg-white/80 text-slate-400
-                   hover:text-red-500 hover:bg-white transition-colors shadow-sm
-                   ${_settingsMode ? '' : 'hidden'}"
-            title="ลบกรง">
-            <i class="fas fa-trash text-[10px]"></i>
-          </button>` : ''}
-          <span class="w-2.5 h-2.5 rounded-full ml-1 flex-shrink-0" style="background:${cfg.color}"></span>
-        </div>
+        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${cfg.color}"></span>
       </div>
       ${adm ? `
         <div class="text-xs font-semibold text-navy truncate">${adm.pet_name}</div>
