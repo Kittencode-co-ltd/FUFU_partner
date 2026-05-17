@@ -78,18 +78,18 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
   // Skeleton while loading
   const tabsHTML = _tabsHTML(rangeId);
   container.innerHTML = `
-    <div class="space-y-5 max-w-6xl">
+    <div class="space-y-4 sm:space-y-5 max-w-6xl">
       ${tabsHTML}
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="kpi-row">
-        ${[1,2,3,4].map(() => `<div class="card p-5 animate-pulse"><div class="h-7 bg-slate-100 rounded mb-2 w-3/4"></div><div class="h-4 bg-slate-50 rounded w-1/2"></div></div>`).join('')}
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4" id="kpi-row">
+        ${[1,2,3,4].map(() => `<div class="card p-3 sm:p-5 animate-pulse"><div class="h-6 sm:h-7 bg-slate-100 rounded mb-2 w-3/4"></div><div class="h-4 bg-slate-50 rounded w-1/2"></div></div>`).join('')}
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="card p-5 h-52 animate-pulse"></div>
-        <div class="card p-5 h-52 animate-pulse"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div class="card p-4 sm:p-5 h-44 sm:h-52 animate-pulse"></div>
+        <div class="card p-4 sm:p-5 h-44 sm:h-52 animate-pulse"></div>
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="card p-5 h-40 animate-pulse"></div>
-        <div class="card p-5 h-40 animate-pulse"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div class="card p-4 sm:p-5 h-36 sm:h-40 animate-pulse"></div>
+        <div class="card p-4 sm:p-5 h-36 sm:h-40 animate-pulse"></div>
       </div>
     </div>`;
 
@@ -109,13 +109,13 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
     : preset.label;
 
   container.innerHTML = `
-    <div class="space-y-5 max-w-6xl">
+    <div class="space-y-4 sm:space-y-5 max-w-6xl">
 
       <!-- ── Date range tabs ── -->
       ${tabsHTML}
 
       <!-- ── KPI Cards ── -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         ${_kpi('💰', 'รายได้รวม',       `฿${_fmt(fin.total)}`,        `จาก ${fin.count||0} รายการ`,  'text-primary')}
         ${_kpi('🐾', 'ผู้ป่วย/ลูกค้า',  `${q.total||0} ราย`,          `เสร็จ ${q.completed||0} ราย`, 'text-blue-500')}
         ${_kpi('📊', 'รายได้เฉลี่ย/วัน',`฿${_fmt(fin.avg_per_day)}`, label,                           'text-amber-600')}
@@ -123,16 +123,16 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
       </div>
 
       <!-- ── Charts row ── -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-4">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div class="card p-4 sm:p-5">
+          <div class="flex items-start justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
             <h3 class="font-semibold text-navy text-sm">📈 รายได้รายวัน</h3>
             <span class="text-xs text-slate-400 font-body">สูงสุด ฿${_fmt(Math.max(...(fin.by_day||[]).map(d=>d.total), 0))}</span>
           </div>
           ${_barChart(fin.by_day || [], d => d.total, d => `฿${_fmt(d.total)}`, d => _shortDate(d.date), '#0D9488')}
         </div>
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-4">
+        <div class="card p-4 sm:p-5">
+          <div class="flex items-start justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
             <h3 class="font-semibold text-navy text-sm">🐾 จำนวนผู้ป่วย/ลูกค้ารายวัน</h3>
             <span class="text-xs text-slate-400 font-body">สูงสุด ${Math.max(...(q.by_day||[]).map(d=>d.count), 0)} ราย</span>
           </div>
@@ -141,10 +141,10 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
       </div>
 
       <!-- ── Bottom row: payment breakdown + today's queue ── -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
 
         <!-- Payment method breakdown -->
-        <div class="card p-5">
+        <div class="card p-4 sm:p-5">
           <h3 class="font-semibold text-navy text-sm mb-4">💳 รายได้แบ่งตามช่องทางชำระ</h3>
           ${_paymentBars(fin.by_method || {}, fin.total || 0)}
           ${(q.by_service && Object.keys(q.by_service).length > 0) ? `
@@ -155,10 +155,10 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
         </div>
 
         <!-- Today's queue -->
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold text-navy text-sm">📋 คิววันนี้</h3>
-            <div class="flex gap-3 text-xs font-body text-slate-400">
+        <div class="card p-4 sm:p-5">
+          <div class="flex items-start justify-between mb-3 gap-2 flex-wrap">
+            <h3 class="font-semibold text-navy text-sm flex-shrink-0">📋 คิววันนี้</h3>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs font-body text-slate-400">
               <span>รอ <strong class="text-amber-500">${todayQ.filter(q=>q.status==='waiting').length}</strong></span>
               <span>กำลังรักษา <strong class="text-blue-500">${todayQ.filter(q=>q.status==='in_progress').length}</strong></span>
               <span>เสร็จ <strong class="text-primary">${todayQ.filter(q=>q.status==='completed').length}</strong></span>
@@ -213,7 +213,7 @@ function _tabsHTML(activeId) {
     <div class="flex flex-wrap items-center gap-2">
       ${RANGES.map(r => `
         <button data-range="${r.id}"
-          class="text-sm px-4 py-2 rounded-lg border font-semibold transition-colors font-body"
+          class="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border font-semibold transition-colors font-body"
           style="${r.id === activeId ? 'background:#0D9488;color:#fff;border-color:#0D9488;' : 'background:#fff;color:#64748B;border-color:#E2E8F0;'}">
           ${r.label}
         </button>`).join('')}
@@ -235,10 +235,10 @@ function _updateTabs(container, activeId) {
 
 function _kpi(icon, label, value, sub, valueClass) {
   return `
-    <div class="card p-5">
-      <div class="text-2xl mb-2">${icon}</div>
-      <div class="text-xs text-slate-400 font-body">${label}</div>
-      <div class="text-2xl font-bold ${valueClass} mt-1">${value}</div>
+    <div class="card p-3 sm:p-5">
+      <div class="text-xl sm:text-2xl mb-1.5">${icon}</div>
+      <div class="text-xs text-slate-400 font-body leading-tight">${label}</div>
+      <div class="text-lg sm:text-2xl font-bold ${valueClass} mt-1 leading-tight break-all">${value}</div>
       <div class="text-xs text-slate-400 font-body mt-0.5">${sub}</div>
     </div>`;
 }
