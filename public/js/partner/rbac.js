@@ -45,7 +45,7 @@ export function renderUserManagement(container) {
   ];
 
   container.innerHTML = `
-    <div class="space-y-4 max-w-4xl">
+    <div class="space-y-4 w-full">
       <div class="card p-5">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-semibold text-navy">👥 จัดการพนักงาน</h3>

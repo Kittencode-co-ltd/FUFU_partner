@@ -22,7 +22,7 @@ export async function renderMedicalRecords(container) {
   _container = container;
 
   container.innerHTML = `
-    <div class="space-y-4 max-w-4xl">
+    <div class="space-y-4 w-full">
       <div class="card p-3 sm:p-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
         <input id="med-search" class="input-field flex-1" placeholder="🔍 ค้นหาชื่อสัตว์เลี้ยง / เจ้าของ">
         <select id="med-filter" class="input-field w-44">

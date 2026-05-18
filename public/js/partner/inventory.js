@@ -28,7 +28,7 @@ export async function renderInventory(container) {
 
 function _shellHTML() {
   return `
-    <div class="space-y-4 max-w-5xl">
+    <div class="space-y-4 w-full">
       <!-- Tabs -->
       <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         ${[

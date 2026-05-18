@@ -38,7 +38,7 @@ async function _render(container) {
   _docs = res?.data || [];
 
   container.innerHTML = `
-    <div class="space-y-4 max-w-4xl">
+    <div class="space-y-4 w-full">
       <div class="flex items-center justify-between">
         <h2 class="font-bold text-navy text-lg">📄 ศูนย์เอกสาร</h2>
       </div>

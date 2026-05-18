@@ -64,7 +64,7 @@ export async function renderPets(container) {
 
 function _shellHTML() {
   return `
-    <div class="space-y-4 max-w-5xl">
+    <div class="space-y-4 w-full">
       <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         ${[
           { id: 'appointments', label: '📅 นัดหมาย' },
@@ -537,7 +537,7 @@ export function renderPetProfile(container, pet) {
   const age   = pet.dob ? _calcAge(pet.dob) : null;
 
   container.innerHTML = `
-    <div class="space-y-4 max-w-4xl mx-auto">
+    <div class="space-y-4 w-full">
       <!-- Header -->
       <div class="card p-5 flex items-center gap-4">
         <div class="w-16 h-16 rounded-xl bg-primary-subtle flex items-center justify-center text-3xl flex-shrink-0">

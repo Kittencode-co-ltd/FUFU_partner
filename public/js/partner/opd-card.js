@@ -131,7 +131,7 @@ function _buildHTML() {
   const v = r.vitals || {};
 
   return `
-  <div class="space-y-5 max-w-6xl mx-auto">
+  <div class="space-y-5 w-full">
 
     <!-- Allergies warning banner (shown by _loadPetProfile if pet has allergies) -->
     <div id="opd-allergy-banner" class="hidden card border-2 border-red-300 bg-red-50 p-3 flex items-center gap-3">

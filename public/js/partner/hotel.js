@@ -28,7 +28,7 @@ export async function renderHotel(container) {
 
 function _renderShell(container) {
   container.innerHTML = `
-    <div class="space-y-4 max-w-5xl">
+    <div class="space-y-4 w-full">
       <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         <button data-hotel-tab="rooms"
           class="hotel-tab px-4 py-2 rounded-lg text-sm font-semibold transition-colors
@@ -71,7 +71,7 @@ async function _renderRooms(container) {
   rooms.forEach(r => { if (stats[r.status] !== undefined) stats[r.status]++; });
 
   container.innerHTML = `
-    <div class="space-y-5 max-w-5xl">
+    <div class="space-y-5 w-full">
       <!-- Stats -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         ${[['🟢','ว่าง',stats.available,'text-primary'],['🐾','มีผู้เข้าพัก',stats.occupied,'text-orange-500'],

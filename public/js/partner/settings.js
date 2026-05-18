@@ -27,7 +27,7 @@ export async function renderSettings(container) {
   if (store?.id) localStorage.setItem(STORAGE_KEYS.STORE_INFO, JSON.stringify(store));
 
   container.innerHTML = `
-    <div class="space-y-5 max-w-2xl">
+    <div class="space-y-5 w-full">
 
       <!-- ── ข้อมูลร้านค้า ── -->
       ${canManage ? `

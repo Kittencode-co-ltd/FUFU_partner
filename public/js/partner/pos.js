@@ -20,7 +20,7 @@ export function renderPOS(container, context = {}) {
   const lineItems = _buildLineItems(medicalRecord);
 
   container.innerHTML = `
-    <div class="max-w-3xl mx-auto space-y-4">
+    <div class="space-y-4 w-full">
 
       <!-- Header -->
       <div class="flex items-center gap-3">

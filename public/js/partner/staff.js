@@ -40,7 +40,7 @@ async function _render(container) {
   const inactive = _staff.filter(s => !s.is_active);
 
   container.innerHTML = `
-    <div class="space-y-5 max-w-3xl">
+    <div class="space-y-5 w-full">
 
       <!-- Header -->
       <div class="flex items-center justify-between">

@@ -38,7 +38,7 @@ async function _render(container) {
   const done    = sessions.filter(s => s.status === 'done').length;
 
   container.innerHTML = `
-    <div class="space-y-5 max-w-4xl">
+    <div class="space-y-5 w-full">
 
       <!-- Walk-in bar -->
       <div class="card p-4">

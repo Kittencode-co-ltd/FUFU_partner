@@ -53,7 +53,7 @@ export async function renderFinancePage(container) {
   ];
 
   container.innerHTML = `
-    <div class="space-y-5 max-w-5xl">
+    <div class="space-y-5 w-full">
 
       <!-- Date range -->
       <div class="card p-4">
