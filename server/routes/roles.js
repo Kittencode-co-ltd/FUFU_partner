@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -14,7 +15,7 @@ const DEFAULT_PERMISSIONS = {
 };
 
 // GET /api/roles?store_id=UUID
-router.get('/', async (req, res) => {
+router.get('/', requireRole('owner'), async (req, res) => {
   const { store_id } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
@@ -29,7 +30,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/roles
-router.post('/', async (req, res) => {
+router.post('/', requireRole('owner'), async (req, res) => {
   const { store_id, name, color, permissions } = req.body;
   if (!store_id || !name) return res.status(400).json({ error: 'store_id and name required' });
 
@@ -49,7 +50,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/roles/:id
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', resolveStoreId('roles'), requireRole('owner'), async (req, res) => {
   const { name, color, permissions } = req.body;
   const updates = {};
   if (name !== undefined)        updates.name        = name;
@@ -70,7 +71,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // DELETE /api/roles/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', resolveStoreId('roles'), requireRole('owner'), async (req, res) => {
   const { error } = await req.supabase
     .from('roles')
     .delete()

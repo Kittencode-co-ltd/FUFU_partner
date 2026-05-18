@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -70,7 +71,7 @@ router.get('/range', async (req, res) => {
 });
 
 // POST /api/queue
-router.post('/', async (req, res) => {
+router.post('/', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), async (req, res) => {
   const { store_id, pet_id, pet_name, owner_name, service_type, priority, notes, estimated_time } = req.body;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
@@ -108,8 +109,8 @@ router.post('/', async (req, res) => {
   res.json({ success: true, data });
 });
 
-// PATCH /api/queue/:id
-router.patch('/:id', async (req, res) => {
+// PATCH /api/queue/:id  — store_id must be included in body for role check
+router.patch('/:id', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), async (req, res) => {
   const updates = { ...req.body };
   delete updates.id;
 

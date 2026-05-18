@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -30,7 +31,7 @@ router.get('/rooms', async (req, res) => {
 });
 
 // POST /api/hotel/rooms — create room
-router.post('/rooms', async (req, res) => {
+router.post('/rooms', requireRole('owner'), async (req, res) => {
   const { store_id, room_number, room_type = 'standard', floor = 1, price_per_night } = req.body;
   if (!store_id || !room_number) return res.status(400).json({ error: 'store_id and room_number required' });
 
@@ -43,7 +44,7 @@ router.post('/rooms', async (req, res) => {
 });
 
 // POST /api/hotel/checkin
-router.post('/checkin', async (req, res) => {
+router.post('/checkin', requireRole('owner', 'reception', 'staff'), async (req, res) => {
   const {
     store_id, room_id, pet_id,
     pet_name, owner_name, owner_phone, species,
@@ -80,7 +81,7 @@ router.post('/checkin', async (req, res) => {
 });
 
 // POST /api/hotel/checkout/:booking_id
-router.post('/checkout/:id', async (req, res) => {
+router.post('/checkout/:id', requireRole('owner', 'reception', 'staff'), async (req, res) => {
   const { data: booking, error: bErr } = await req.supabase
     .from('hotel_bookings').select('*').eq('id', req.params.id).single();
   if (bErr) return res.status(404).json({ error: 'Booking not found' });

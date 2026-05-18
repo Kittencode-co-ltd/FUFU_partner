@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -8,7 +9,7 @@ const VALID_TYPES    = new Set(['consent', 'lab_report', 'referral', 'prescripti
 const VALID_STATUSES = new Set(['draft', 'signed', 'archived']);
 
 // GET /api/documents?store_id=UUID&type=consent&status=draft
-router.get('/', async (req, res) => {
+router.get('/', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { store_id, type, status, limit = 50 } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
@@ -23,7 +24,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/documents
-router.post('/', async (req, res) => {
+router.post('/', requireRole('owner', 'vet'), async (req, res) => {
   const { store_id, doc_type, title, content, pet_name, owner_name, ref_type, ref_id } = req.body;
   if (!store_id || !doc_type || !title) {
     return res.status(400).json({ error: 'store_id, doc_type, title required' });
@@ -54,7 +55,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/documents/:id
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', resolveStoreId('documents'), requireRole('owner', 'vet'), async (req, res) => {
   const allowed = ['title', 'content', 'status', 'pet_name', 'owner_name'];
   const updates = { updated_at: new Date().toISOString() };
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -79,7 +80,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // DELETE /api/documents/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', resolveStoreId('documents'), requireRole('owner'), async (req, res) => {
   const { error } = await req.supabase.from('documents').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });

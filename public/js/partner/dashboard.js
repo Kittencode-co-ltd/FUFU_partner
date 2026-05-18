@@ -175,16 +175,17 @@ export async function initDashboard() {
   const myStaff  = staffRes?.data;
 
   if (myStaff) {
-    // Staff member — auto-set mode from their primary role, hide staff management
+    // Staff member — set primary role as the authoritative staff role
     const primaryRole = (myStaff.roles || ['counter'])[0];
     _currentMode = storage.get(MODE_KEY) || primaryRole;
-    // Restrict mode switcher to only assigned roles
-    storage.set('fufu_staff_roles', JSON.stringify(myStaff.roles));
-    storage.set('fufu_staff_name',  myStaff.name);
+    storage.set(STORAGE_KEYS.STAFF_ROLE, primaryRole);
+    storage.set('fufu_staff_roles',      JSON.stringify(myStaff.roles));
+    storage.set('fufu_staff_name',       myStaff.name);
     if (q('sb-user-role')) q('sb-user-role').textContent = myStaff.roles.join(', ');
   } else {
     // Owner — full access
     _currentMode = storage.get(MODE_KEY) || 'all';
+    storage.set(STORAGE_KEYS.STAFF_ROLE, 'owner');
     storage.remove('fufu_staff_roles');
   }
 

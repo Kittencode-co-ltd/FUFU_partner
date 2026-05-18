@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -28,7 +29,7 @@ function sanitize(body) {
 }
 
 // GET /api/medical-records
-router.get('/', async (req, res) => {
+router.get('/', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { store_id, record_type, status, pet_id, limit = 50 } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
@@ -61,7 +62,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/medical-records
-router.post('/', async (req, res) => {
+router.post('/', requireRole('owner', 'vet'), async (req, res) => {
   const record = sanitize(req.body);
 
   // Require pet_name — OPD ไม่ควรบันทึกโดยไม่รู้ว่าเป็นสัตว์ตัวไหน
@@ -86,7 +87,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/medical-records/:id
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', resolveStoreId('medical_records'), requireRole('owner', 'vet'), async (req, res) => {
   const updates = sanitize(req.body);
   delete updates.store_id; // ห้ามเปลี่ยน store
 
@@ -156,7 +157,7 @@ router.delete('/:id/images/:imgId', async (req, res) => {
 });
 
 // DELETE /api/medical-records/:id  (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', resolveStoreId('medical_records'), requireRole('owner', 'vet'), async (req, res) => {
   const { data, error } = await req.supabase
     .from('medical_records')
     .update({ deleted_at: new Date().toISOString(), deleted_by: req.user?.id || null })

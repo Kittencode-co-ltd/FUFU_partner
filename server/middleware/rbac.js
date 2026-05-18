@@ -2,7 +2,7 @@
  * RBAC middleware — role-based access control at the API level.
  *
  * Staff roles (stored in store_staff.role):
- *   owner | vet | reception | staff | accountant
+ *   owner | vet | reception | staff | accountant | counter
  *
  * Store owners are stored in stores.owner_id (not in store_staff).
  */
@@ -68,4 +68,35 @@ export function requireRole(...allowed) {
       next();
     },
   ];
+}
+
+/**
+ * Middleware that looks up store_id from a DB record and injects it into the request
+ * so that requireRole() can resolve the user's role for that store.
+ *
+ * Usage (for PATCH/DELETE /:id routes where store_id is not in the body):
+ *   router.patch('/:id', resolveStoreId('medical_records'), requireRole('owner','vet'), handler);
+ *
+ * @param {string} table - Supabase table name that has a store_id column
+ * @param {string} [idParam='id'] - req.params key for the record ID
+ */
+export function resolveStoreId(table, idParam = 'id') {
+  return async (req, res, next) => {
+    const recordId = req.params[idParam];
+    if (!recordId) return next();
+
+    try {
+      const { data, error } = await req.supabase
+        .from(table).select('store_id').eq('id', recordId).single();
+
+      if (error || !data?.store_id) return next(); // let requireRole handle the null case
+
+      req.body        = req.body        || {};
+      req.body.store_id  = data.store_id;
+      req.query.store_id = data.store_id;
+      next();
+    } catch {
+      next();
+    }
+  };
 }

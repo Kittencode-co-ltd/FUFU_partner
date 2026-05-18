@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -22,7 +23,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/tasks
-router.post('/', async (req, res) => {
+router.post('/', requireRole('owner', 'vet', 'reception', 'staff'), async (req, res) => {
   const { store_id, title, description, priority, assigned_to, due_date, tags } = req.body;
   if (!store_id || !title) return res.status(400).json({ error: 'store_id and title required' });
 
@@ -68,7 +69,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // DELETE /api/tasks/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', resolveStoreId('tasks'), requireRole('owner', 'vet', 'reception', 'staff'), async (req, res) => {
   const { error } = await req.supabase.from('tasks').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });

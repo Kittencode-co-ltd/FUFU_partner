@@ -54,12 +54,9 @@ export function selectStore(store) {
   storage.set(STORAGE_KEYS.STORE_CATEGORY, store.category);
   storage.set(STORAGE_KEYS.ROLE,           catInfo.role || 'vet');
 
-  // If staff member — save their roles for mode restriction
-  if (store.is_staff && store.staff_roles?.length) {
-    storage.set('fufu_staff_roles', JSON.stringify(store.staff_roles));
-  } else {
-    localStorage.removeItem('fufu_staff_roles');
-  }
+  // Clear per-store staff role — initDashboard will re-fetch from /api/staff/me
+  storage.remove(STORAGE_KEYS.STAFF_ROLE);
+  localStorage.removeItem('fufu_staff_roles');
 
   const redirect = new URLSearchParams(location.search).get('redirect') || '/dashboard.html';
   window.location.href = redirect;

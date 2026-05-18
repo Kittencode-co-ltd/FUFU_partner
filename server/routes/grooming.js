@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -23,7 +24,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/grooming — create session
-router.post('/', async (req, res) => {
+router.post('/', requireRole('owner', 'reception', 'staff'), async (req, res) => {
   const { store_id, pet_id, pet_name, owner_name, species, services, groomer_name, estimated_minutes, notes } = req.body;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
@@ -44,7 +45,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/grooming/:id/start
-router.patch('/:id/start', async (req, res) => {
+router.patch('/:id/start', requireRole('owner', 'staff'), async (req, res) => {
   const { data, error } = await req.supabase
     .from('grooming_sessions')
     .update({ status: 'in_progress', start_time: new Date().toISOString(), progress: 0 })
@@ -54,7 +55,7 @@ router.patch('/:id/start', async (req, res) => {
 });
 
 // PATCH /api/grooming/:id/complete
-router.patch('/:id/complete', async (req, res) => {
+router.patch('/:id/complete', requireRole('owner', 'staff'), async (req, res) => {
   const { health_report } = req.body;
   const { data, error } = await req.supabase
     .from('grooming_sessions')

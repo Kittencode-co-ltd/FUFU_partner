@@ -1,30 +1,35 @@
-import { showToast } from '../utils/toast.js';
-import { STORAGE_KEYS } from '../utils/config.js';
+import { showToast }  from '../utils/toast.js';
+import { STORAGE_KEYS, CATEGORY_MAP } from '../utils/config.js';
 
 export const ROLES = {
-  owner:      { key: 'owner',      label: 'เจ้าของ (Owner)',          icon: 'fa-crown',      color: '#D4AF37', desc: 'เข้าถึงได้ทุกส่วน รวมถึงจัดการพนักงานและการเงิน' },
-  vet:        { key: 'vet',        label: 'สัตว์แพทย์ (Vet)',         icon: 'fa-user-doctor', color: '#0D9488', desc: 'จัดการเวชระเบียน คิวนัดหมาย บันทึกการรักษา' },
-  reception:  { key: 'reception',  label: 'พนักงานต้อนรับ (Reception)', icon: 'fa-headset',    color: '#3B82F6', desc: 'จัดการคิว นัดหมาย และรับชำระเงิน' },
-  staff:      { key: 'staff',      label: 'พนักงาน (Staff)',           icon: 'fa-user',       color: '#8B5CF6', desc: 'ดูข้อมูลทั่วไป จัดการสินค้าคงคลัง' },
-  accountant: { key: 'accountant', label: 'บัญชี (Accountant)',        icon: 'fa-calculator', color: '#F59E0B', desc: 'จัดการรายรับ-รายจ่าย ออกใบกำกับภาษี' },
+  owner:      { key: 'owner',      label: 'เจ้าของ (Owner)',          icon: 'fa-crown',        color: '#D4AF37', desc: 'เข้าถึงได้ทุกส่วน รวมถึงจัดการพนักงานและการเงิน' },
+  vet:        { key: 'vet',        label: 'สัตว์แพทย์ (Vet)',         icon: 'fa-user-doctor',  color: '#0D9488', desc: 'จัดการเวชระเบียน คิวนัดหมาย บันทึกการรักษา' },
+  reception:  { key: 'reception',  label: 'พนักงานต้อนรับ (Reception)', icon: 'fa-headset',      color: '#3B82F6', desc: 'จัดการคิว นัดหมาย และรับชำระเงิน' },
+  staff:      { key: 'staff',      label: 'พนักงาน (Staff)',           icon: 'fa-user',         color: '#8B5CF6', desc: 'ดูข้อมูลทั่วไป จัดการสินค้าคงคลัง' },
+  accountant: { key: 'accountant', label: 'บัญชี (Accountant)',        icon: 'fa-calculator',   color: '#F59E0B', desc: 'จัดการรายรับ-รายจ่าย ออกใบกำกับภาษี' },
+  counter:    { key: 'counter',    label: 'เคาน์เตอร์ (Counter)',      icon: 'fa-cash-register', color: '#10B981', desc: 'รับคิว Walk-in ชำระเงิน ออกใบเสร็จ' },
 };
 
 const PERMISSIONS = {
-  'page:queue':    { owner: true, vet: true, reception: true,  staff: false, accountant: false },
-  'page:records':  { owner: true, vet: true, reception: false, staff: false, accountant: false },
-  'page:income':   { owner: true, vet: false, reception: false, staff: false, accountant: true },
-  'page:products': { owner: true, vet: true, reception: true,  staff: true,  accountant: false },
-  'page:users':    { owner: true, vet: false, reception: false, staff: false, accountant: false },
-  'page:settings': { owner: true, vet: false, reception: false, staff: false, accountant: false },
-  'action:create_record':   { owner: true, vet: true,  reception: false, staff: false, accountant: false },
-  'action:manage_finance':  { owner: true, vet: false, reception: false, staff: false, accountant: true  },
-  'action:issue_invoice':   { owner: true, vet: false, reception: true,  staff: false, accountant: true  },
-  'action:manage_users':    { owner: true, vet: false, reception: false, staff: false, accountant: false },
-  'action:export_data':     { owner: true, vet: false, reception: false, staff: false, accountant: true  },
+  'page:queue':    { owner: true, vet: true, reception: true,  staff: false, accountant: false, counter: true  },
+  'page:records':  { owner: true, vet: true, reception: false, staff: false, accountant: false, counter: false },
+  'page:income':   { owner: true, vet: false, reception: false, staff: false, accountant: true,  counter: false },
+  'page:products': { owner: true, vet: true, reception: true,  staff: true,  accountant: false, counter: false },
+  'page:users':    { owner: true, vet: false, reception: false, staff: false, accountant: false, counter: false },
+  'page:settings': { owner: true, vet: false, reception: false, staff: false, accountant: false, counter: false },
+  'action:create_record':   { owner: true, vet: true,  reception: false, staff: false, accountant: false, counter: false },
+  'action:manage_finance':  { owner: true, vet: false, reception: false, staff: false, accountant: true,  counter: false },
+  'action:issue_invoice':   { owner: true, vet: false, reception: true,  staff: false, accountant: true,  counter: true  },
+  'action:manage_users':    { owner: true, vet: false, reception: false, staff: false, accountant: false, counter: false },
+  'action:export_data':     { owner: true, vet: false, reception: false, staff: false, accountant: true,  counter: false },
 };
 
 export function getStaffRole() {
-  return localStorage.getItem('fufu_staff_role') || 'owner';
+  // STAFF_ROLE is set by initDashboard after fetching /api/staff/me for the current store.
+  // Falls back to store category role (System A) if staff record not yet loaded.
+  const staffRole    = localStorage.getItem(STORAGE_KEYS.STAFF_ROLE);
+  const categoryRole = localStorage.getItem(STORAGE_KEYS.ROLE);
+  return staffRole || categoryRole || 'owner';
 }
 
 export function hasPermission(permission, role) {

@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -71,7 +72,7 @@ router.get('/owners/search', async (req, res) => {
 });
 
 // POST /api/pets/owners
-router.post('/owners', async (req, res) => {
+router.post('/owners', requireRole('owner', 'vet', 'reception', 'staff'), async (req, res) => {
   const { name, phone, line_id, address, notes } = req.body;
   const email = req.body.email?.trim().toLowerCase() || null;
   if (!name) return res.status(400).json({ error: 'name required' });
@@ -166,7 +167,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/pets
-router.post('/', async (req, res) => {
+router.post('/', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { owner_id, store_id, name, breed, gender, dob, color, weight_kg, microchip_no, is_neutered, allergies, notes } = req.body;
   const species = req.body.species || 'dog';
   if (!name || !owner_id) return res.status(400).json({ error: 'name and owner_id required' });
@@ -192,7 +193,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/pets/:id
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', resolveStoreId('pets'), requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const updates = { ...req.body, updated_at: new Date().toISOString() };
   delete updates.id;
   if (updates.note !== undefined && updates.notes === undefined) {
@@ -214,7 +215,7 @@ router.patch('/:id', async (req, res) => {
 // ─── Vaccinations ─────────────────────────────────────────────────────────────
 
 // POST /api/pets/vaccinations
-router.post('/vaccinations', async (req, res) => {
+router.post('/vaccinations', requireRole('owner', 'vet'), async (req, res) => {
   const { pet_id, store_id, vaccine_name, given_date, next_due_date, batch_no, vet_name, notes } = req.body;
   if (!pet_id || !vaccine_name) return res.status(400).json({ error: 'pet_id and vaccine_name required' });
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
@@ -254,7 +255,7 @@ router.get('/appointments/list', async (req, res) => {
 });
 
 // POST /api/pets/appointments
-router.post('/appointments', async (req, res) => {
+router.post('/appointments', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { pet_id, store_id, appt_date, appt_time, service_type, notes } = req.body;
   if (!store_id || !appt_date) return res.status(400).json({ error: 'store_id and appt_date required' });
 

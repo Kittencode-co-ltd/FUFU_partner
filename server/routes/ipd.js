@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -20,7 +21,7 @@ router.get('/cages', async (req, res) => {
 
 const VALID_CAGE_TYPES = new Set(['standard', 'large', 'icu', 'isolation']);
 
-router.post('/cages', async (req, res) => {
+router.post('/cages', requireRole('owner', 'vet'), async (req, res) => {
   const { store_id, cage_number, cage_type = 'standard', floor = 1, daily_rate = 500, notes } = req.body;
   if (!store_id || !cage_number) return res.status(400).json({ error: 'store_id and cage_number required' });
   if (!VALID_CAGE_TYPES.has(cage_type)) {
@@ -46,7 +47,7 @@ router.patch('/cages/:id', async (req, res) => {
   res.json({ success: true, data });
 });
 
-router.delete('/cages/:id', async (req, res) => {
+router.delete('/cages/:id', resolveStoreId('ipd_cages'), requireRole('owner', 'vet'), async (req, res) => {
   const { data: cage, error: findErr } = await req.supabase
     .from('ipd_cages').select('status, cage_number').eq('id', req.params.id).single();
   if (findErr) return res.status(404).json({ error: 'Cage not found' });
@@ -74,7 +75,7 @@ router.get('/admissions', async (req, res) => {
   res.json({ success: true, data: data || [] });
 });
 
-router.post('/admissions', async (req, res) => {
+router.post('/admissions', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { store_id, cage_id, pet_id, pet_name, owner_name, species, admission_reason, daily_rate, notes } = req.body;
   if (!store_id || !cage_id || !pet_name) {
     return res.status(400).json({ error: 'store_id, cage_id, pet_name required' });
@@ -144,7 +145,7 @@ router.get('/treatments/:admission_id', async (req, res) => {
   res.json({ success: true, data: data || [] });
 });
 
-router.post('/treatments', async (req, res) => {
+router.post('/treatments', requireRole('owner', 'vet'), async (req, res) => {
   const { admission_id, store_id, treatment_time, treatment_type, description, dosage, notes } = req.body;
   if (!admission_id || !treatment_time || !store_id) {
     return res.status(400).json({ error: 'admission_id, store_id, and treatment_time required' });

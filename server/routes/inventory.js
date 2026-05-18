@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -52,7 +53,7 @@ router.get('/', async (req, res) => {
 const VALID_CATEGORIES = new Set(['medicine', 'vaccine', 'food', 'accessory', 'service', 'grooming']);
 
 // POST /api/inventory/products — create product
-router.post('/products', async (req, res) => {
+router.post('/products', requireRole('owner', 'vet', 'staff'), async (req, res) => {
   const { store_id, name, category, unit, cost_price, sell_price, reorder_point, reorder_qty } = req.body;
   if (!store_id || !name) return res.status(400).json({ error: 'store_id and name required' });
 
@@ -83,7 +84,7 @@ router.post('/products', async (req, res) => {
 });
 
 // PATCH /api/inventory/products/:id
-router.patch('/products/:id', async (req, res) => {
+router.patch('/products/:id', resolveStoreId('products'), requireRole('owner', 'vet', 'staff'), async (req, res) => {
   // Accept legacy field names from older clients
   if (req.body.price !== undefined && req.body.sell_price === undefined) req.body.sell_price = req.body.price;
   if (req.body.min_stock !== undefined && req.body.reorder_point === undefined) req.body.reorder_point = req.body.min_stock;
@@ -113,7 +114,7 @@ router.patch('/products/:id', async (req, res) => {
 // ─── Stock Receive ────────────────────────────────────────────────────────────
 
 // POST /api/inventory/receive
-router.post('/receive', async (req, res) => {
+router.post('/receive', requireRole('owner', 'vet', 'staff'), async (req, res) => {
   const { store_id, product_id, lot_number, quantity, expiry_date, cost_price, supplier_id, notes } = req.body;
   if (!store_id || !product_id || !quantity) {
     return res.status(400).json({ error: 'store_id, product_id, quantity required' });
@@ -153,8 +154,8 @@ router.post('/receive', async (req, res) => {
 
 // ─── FEFO Dispense ────────────────────────────────────────────────────────────
 
-// POST /api/inventory/dispense
-router.post('/dispense', async (req, res) => {
+// POST /api/inventory/dispense — vet เท่านั้นที่จ่ายยา/dispense ได้
+router.post('/dispense', requireRole('owner', 'vet'), async (req, res) => {
   const { store_id, product_id, quantity, reference_type, reference_id, reason, performed_by } = req.body;
   if (!store_id || !product_id || !quantity) {
     return res.status(400).json({ error: 'store_id, product_id, quantity required' });
