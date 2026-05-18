@@ -44,7 +44,7 @@ async function _render(container) {
       </div>
 
       <!-- Template shortcuts -->
-      <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         ${Object.entries(TEMPLATES).map(([k, v]) => `
           <button class="doc-tmpl card p-3 flex flex-col items-center gap-1.5 hover:shadow-md transition-shadow cursor-pointer" data-type="${k}">
             <span class="text-2xl">${v.icon}</span>

@@ -149,22 +149,27 @@ router.post('/transactions', requireRole('owner', 'accountant', 'reception', 'st
   const COMMISSION_RATE = 0.05;
   const commission_amount = Math.round(total * COMMISSION_RATE * 100) / 100;
 
-  const { data, error } = await req.supabase
-    .from('transactions')
-    .insert([{
-      store_id,
-      description:       description || null,
-      subtotal:          subtotal || total,
-      discount:          discount || 0,
-      total:             Math.round(total),
-      commission_rate:   COMMISSION_RATE,
-      commission_amount: Math.round(commission_amount),
-      payment_method,
-      payment_status:    'paid',
-    }])
-    .select()
-    .single();
+  const row = {
+    store_id,
+    subtotal:          subtotal || total,
+    discount:          discount || 0,
+    total:             Math.round(total),
+    commission_rate:   COMMISSION_RATE,
+    commission_amount: Math.round(commission_amount),
+    payment_method,
+    payment_status:    'paid',
+  };
+  if (description) row.description = description;
 
+  const { data, error } = await req.supabase
+    .from('transactions').insert([row]).select().single();
+
+  if (error && error.message.includes('description')) {
+    delete row.description;
+    const { data: d2, error: e2 } = await req.supabase.from('transactions').insert([row]).select().single();
+    if (e2) return res.status(500).json({ error: e2.message });
+    return res.json({ success: true, data: d2, migration_needed: true });
+  }
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });
 });

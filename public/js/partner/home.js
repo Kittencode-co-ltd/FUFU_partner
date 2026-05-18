@@ -78,7 +78,7 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
   // Skeleton while loading
   const tabsHTML = _tabsHTML(rangeId);
   container.innerHTML = `
-    <div class="space-y-4 sm:space-y-5 max-w-6xl">
+    <div class="space-y-4 sm:space-y-5 w-full">
       ${tabsHTML}
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4" id="kpi-row">
         ${[1,2,3,4].map(() => `<div class="card p-3 sm:p-5 animate-pulse"><div class="h-6 sm:h-7 bg-slate-100 rounded mb-2 w-3/4"></div><div class="h-4 bg-slate-50 rounded w-1/2"></div></div>`).join('')}
@@ -109,7 +109,7 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
     : preset.label;
 
   container.innerHTML = `
-    <div class="space-y-4 sm:space-y-5 max-w-6xl">
+    <div class="space-y-4 sm:space-y-5 w-full">
 
       <!-- ── Date range tabs ── -->
       ${tabsHTML}

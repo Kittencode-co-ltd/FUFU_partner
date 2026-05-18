@@ -76,7 +76,7 @@ export async function renderFinancePage(container) {
       </div>
 
       <!-- KPIs -->
-      <div id="finance-stats" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div id="finance-stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
         ${_skeletonCards(4)}
       </div>
 
@@ -369,7 +369,7 @@ function _renderTable(container, rows) {
   }
   el.innerHTML = `
     <div class="-mx-1 overflow-x-auto">
-      <table class="w-full text-sm min-w-[480px]">
+      <table class="w-full text-sm min-w-[340px]">
         <thead>
           <tr class="border-b border-slate-100">
             <th class="text-left py-3 text-xs font-semibold text-slate-400 pr-4">วันที่</th>
@@ -445,7 +445,7 @@ function _renderExpenses(container, rows, total) {
   el.innerHTML = `
     <div class="space-y-2 mb-4">${catSummary}</div>
     <div class="-mx-1 overflow-x-auto">
-      <table class="w-full text-sm min-w-[520px]">
+      <table class="w-full text-sm min-w-[360px]">
         <thead>
           <tr class="border-b border-slate-100">
             <th class="text-left py-2 text-xs font-semibold text-slate-400 pr-3">วันที่</th>

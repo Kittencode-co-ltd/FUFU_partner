@@ -4,7 +4,8 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
-const VALID_TYPES = new Set(['consent', 'lab_report', 'referral', 'prescription', 'receipt', 'certificate']);
+const VALID_TYPES    = new Set(['consent', 'lab_report', 'referral', 'prescription', 'receipt', 'certificate']);
+const VALID_STATUSES = new Set(['draft', 'signed', 'archived']);
 
 // GET /api/documents?store_id=UUID&type=consent&status=draft
 router.get('/', async (req, res) => {
@@ -58,6 +59,9 @@ router.patch('/:id', async (req, res) => {
   const updates = { updated_at: new Date().toISOString() };
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
 
+  if (updates.status && !VALID_STATUSES.has(updates.status)) {
+    return res.status(400).json({ error: `status must be one of: ${[...VALID_STATUSES].join(', ')}` });
+  }
   if (updates.status === 'signed') updates.signed_at = new Date().toISOString();
 
   const { data, error } = await req.supabase

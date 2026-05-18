@@ -57,37 +57,54 @@
 
         <div class="hero-mockup-wrapper" data-aos="fade-left" data-aos-delay="200">
             <div class="smartphone">
-                <div class="screen-content">
-                    <!-- App UI Mockup Elements -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <span style="font-weight:700; color:var(--text-main); font-size:1.2rem;">Good Morning,
-                            Dr.</span>
-                        <img src="https://i.pravatar.cc/100?img=3" alt="Avatar"
-                            style="width:40px; height:40px; border-radius:50%;">
-                    </div>
+                <div class="screen-content" style="
+                    background:#ffffff;
+                    display:flex;
+                    flex-direction:column;
+                    align-items:center;
+                    justify-content:center;
+                    padding:32px 24px;
+                    gap:0;
+                ">
+                    <!-- Splash screen -->
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;width:100%">
 
-                    <div class="glass-card-ui">
-                        <i class="fas fa-calendar-check"></i>
-                        <div class="lines">
-                            <div></div>
-                            <div class="short" style="width: 60px;"></div>
+                        <!-- Logo circle -->
+                        <div style="
+                            width:140px;height:140px;border-radius:50%;
+                            background:radial-gradient(circle at 50% 40%,#f0fdf9 60%,#e0f2f1 100%);
+                            display:flex;align-items:center;justify-content:center;
+                            box-shadow:0 0 0 18px rgba(13,148,136,0.06),0 0 0 36px rgba(13,148,136,0.03);
+                        ">
+                            <div style="
+                                width:110px;height:110px;border-radius:22px;
+                                background:#fff;
+                                display:flex;align-items:center;justify-content:center;
+                                box-shadow:0 4px 20px rgba(13,148,136,0.15);
+                            ">
+                                <img src="/img/fufu_logo.png" alt="FUFU Logo"
+                                    style="width:90px;height:90px;object-fit:contain;border-radius:16px;">
+                            </div>
+                        </div>
+
+                        <!-- Tagline -->
+                        <div style="text-align:center">
+                            <div style="font-size:11px;font-weight:700;letter-spacing:3px;color:#1e293b;line-height:1.6">
+                                PREMIUM AI PET<br>MEDICAL CENTER
+                            </div>
+                        </div>
+
+                        <!-- Dots indicator -->
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <div style="width:7px;height:7px;border-radius:50%;background:#CBD5E1"></div>
+                            <div style="width:7px;height:7px;border-radius:50%;background:#0D9488"></div>
+                            <div style="width:7px;height:7px;border-radius:50%;background:#CBD5E1"></div>
                         </div>
                     </div>
 
-                    <div class="glass-card-ui">
-                        <i class="fas fa-chart-line" style="background:#38BDF8;"></i>
-                        <div class="lines">
-                            <div></div>
-                            <div class="short" style="width: 80px;"></div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card-ui">
-                        <i class="fas fa-comment-medical" style="background:#F43F5E;"></i>
-                        <div class="lines">
-                            <div></div>
-                            <div class="short" style="width: 50px;"></div>
-                        </div>
+                    <!-- Powered by -->
+                    <div style="font-size:9px;color:#94A3B8;letter-spacing:1px;padding-bottom:8px">
+                        Powered by <span style="font-weight:700;color:#0D9488">KITTEN CODE</span>
                     </div>
                 </div>
             </div>

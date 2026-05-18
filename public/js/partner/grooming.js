@@ -68,9 +68,9 @@ async function _render(container) {
       </div>
 
       <!-- Stats -->
-      <div class="grid grid-cols-3 gap-2 sm:gap-3">
+      <div class="grid grid-cols-3 gap-2">
         ${[['⏳','รอ',waiting,'text-amber-500'],['✂️','กำลังทำ',inProg,'text-primary'],['✅','เสร็จ',done,'text-slate-400']]
-          .map(([i,l,v,c])=>`<div class="card p-3 text-center"><div class="text-2xl">${i}</div><div class="text-xs text-slate-400 font-body mt-0.5">${l}</div><div class="text-2xl font-bold ${c} mt-1">${v}</div></div>`).join('')}
+          .map(([i,l,v,c])=>`<div class="card p-2 sm:p-3 text-center"><div class="text-xl sm:text-2xl">${i}</div><div class="text-xs text-slate-400 font-body mt-0.5 truncate">${l}</div><div class="text-xl sm:text-2xl font-bold ${c} mt-1">${v}</div></div>`).join('')}
       </div>
 
       <!-- Sessions -->

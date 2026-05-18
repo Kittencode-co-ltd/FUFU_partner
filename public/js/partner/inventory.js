@@ -273,8 +273,8 @@ async function _renderMovements(el) {
   };
 
   el.innerHTML = `
-    <div class="card overflow-hidden">
-      <table class="w-full text-sm">
+    <div class="card overflow-x-auto">
+      <table class="w-full text-sm min-w-[420px]">
         <thead class="border-b border-slate-100">
           <tr>
             <th class="text-left py-3 px-4 text-xs font-semibold text-slate-400">วันที่</th>

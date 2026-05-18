@@ -195,6 +195,10 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   const updates = { ...req.body, updated_at: new Date().toISOString() };
   delete updates.id;
+  if (updates.note !== undefined && updates.notes === undefined) {
+    updates.notes = updates.note;
+    delete updates.note;
+  }
 
   const { data, error } = await req.supabase
     .from('pets')

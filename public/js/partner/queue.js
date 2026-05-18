@@ -70,17 +70,6 @@ export async function renderQueue(container) {
       </div>
     </div>
 
-    <!-- Stats row + TV button -->
-    <div class="flex items-center gap-2 mb-3">
-      <div id="queue-stats" class="grid grid-cols-4 gap-2 sm:gap-3 flex-1 min-w-0"></div>
-      <button id="tv-mode-btn"
-        class="flex-shrink-0 text-xs border border-slate-200 text-slate-500 px-2.5 py-2 rounded-lg
-               hover:bg-slate-50 transition-colors font-semibold">
-        <span class="hidden sm:inline">📺 TV Mode</span>
-        <span class="sm:hidden">📺</span>
-      </button>
-    </div>
-
     <!-- Queue kanban board -->
     <div id="queue-cards"></div>
   `;
@@ -260,7 +249,7 @@ function _renderCards(queue) {
   });
 
   el.innerHTML = `
-    <div class="flex gap-3 overflow-x-auto pb-3 snap-x -mx-3 sm:mx-0 px-3 sm:px-0">
+    <div style="display:flex;gap:12px;width:100%">
       ${KANBAN_COLS.map(col => {
         const items = sorted.filter(q => col.statuses.includes(q.status));
         return _kanbanColumn(col, items);
@@ -273,7 +262,7 @@ function _kanbanColumn(col, items) {
     ? `<div class="rounded-lg border-2 border-dashed border-slate-300 py-6 text-center text-slate-400 text-xs font-body">ว่าง</div>`
     : items.map(_kanbanCard).join('');
   return `
-    <div class="flex-shrink-0 w-[78vw] sm:w-72 flex flex-col rounded-xl bg-slate-100 border border-slate-200 p-3 snap-start">
+    <div style="flex:1;min-width:0" class="flex flex-col rounded-xl bg-slate-100 border border-slate-200 p-3">
       <div class="flex items-center justify-between px-0.5 mb-2.5">
         <span class="font-bold text-sm ${col.hdrCls}">${col.icon} ${col.label}</span>
         <span class="text-xs font-bold px-2 py-0.5 rounded-full ${col.countCls}">${items.length}</span>
@@ -286,14 +275,13 @@ function _kanbanCard(q) {
   const cfg = STATUS_CFG[q.status] || STATUS_CFG.waiting;
   const num = String(q.queue_number).padStart(3, '0');
   const isEmergency = q.priority === 'emergency';
-  const isVIP = q.priority === 'vip';
   const isDone = q.status === 'completed' || q.status === 'no_show';
 
   const [petName, ownerName] = (q.notes || '').includes(' - ')
     ? (q.notes || '').split(' - ').map(s => s.trim())
     : [q.notes || '', ''];
 
-  const elapsed = _elapsed(new Date(q.called_at || q.created_at));
+  const primaryBtn = _primaryAction(q);
 
   return `
     <div class="card border-l-4 ${cfg.border} p-3 ${isDone ? 'opacity-60' : ''}"
@@ -302,44 +290,39 @@ function _kanbanCard(q) {
         <div class="flex items-center gap-1.5">
           <span class="font-mono font-bold text-primary text-sm">A${num}</span>
           ${isEmergency ? '<span class="text-xs text-red-500 font-bold">🚨</span>' : ''}
-          ${isVIP ? '<span class="text-xs text-amber-500">⭐</span>' : ''}
         </div>
-        <span class="text-xs text-slate-400 font-body">${elapsed}</span>
+        ${q.status === 'called' ? _moreMenu(q) : ''}
       </div>
       <div class="font-semibold text-navy text-sm truncate">${petName || '—'}</div>
       ${ownerName ? `<div class="text-xs text-slate-400 font-body truncate">${ownerName}</div>` : ''}
-      <div class="text-xs text-slate-500 font-body mt-0.5 truncate">${q.service_type || ''}</div>
-      <div class="flex flex-wrap gap-1.5 mt-2.5">${_kanbanActions(q)}</div>
+      ${primaryBtn ? `<div class="mt-2.5">${primaryBtn}</div>` : ''}
     </div>`;
 }
 
-function _kanbanActions(q) {
+function _primaryAction(q) {
   const btn = (action, label, cls) =>
     `<button data-action="${action}" data-id="${q.id}" data-queue='${JSON.stringify(q)}'
-             class="${cls} text-xs px-2.5 py-1 rounded-lg transition-all font-semibold">${label}</button>`;
+             class="${cls} w-full text-xs py-1.5 rounded-lg transition-all font-semibold text-center">${label}</button>`;
 
-  if (q.status === 'waiting') return `
-    ${btn('call', '📢 เรียก', 'bg-primary text-white hover:bg-primary-dark')}
-    ${btn('opd', '📋', 'border border-primary text-primary hover:bg-primary-subtle')}`;
-
-  if (q.status === 'called') return `
-    ${btn('start', '▶ เริ่ม', 'bg-blue-500 text-white hover:bg-blue-600')}
-    ${btn('noshow', '❌', 'border border-slate-300 text-slate-500 hover:bg-slate-50')}
-    ${btn('opd', '📋', 'border border-primary text-primary hover:bg-primary-subtle')}`;
-
-  if (q.status === 'in_progress') return `
-    ${btn('complete', '✓ เสร็จ', 'bg-primary text-white hover:bg-primary-dark')}
-    ${btn('opd', '📋', 'border border-primary text-primary hover:bg-primary-subtle')}
-    ${btn('pos', '💳', 'border border-amber-400 text-amber-600 hover:bg-amber-50')}`;
-
-  if (q.status === 'completed') return `
-    ${btn('opd', '📋 OPD', 'border border-slate-200 text-slate-400')}
-    ${btn('pos', '🧾', 'border border-slate-200 text-slate-400')}`;
-
-  if (q.status === 'no_show') return `
-    ${btn('opd', '📋 OPD', 'border border-slate-200 text-slate-400')}`;
-
+  if (q.status === 'waiting')     return btn('call',     '📢 เรียก',    'bg-primary text-white hover:bg-primary-dark');
+  if (q.status === 'called')      return btn('start',    '▶ เริ่มรักษา', 'bg-blue-500 text-white hover:bg-blue-600');
+  if (q.status === 'in_progress') return btn('complete', '✓ เสร็จ',     'bg-primary text-white hover:bg-primary-dark');
   return '';
+}
+
+function _moreMenu(q) {
+  const menuBtn = (action, label, cls) =>
+    `<button data-action="${action}" data-id="${q.id}" data-queue='${JSON.stringify(q)}'
+             class="${cls} w-full text-left text-xs px-3 py-1.5 rounded-lg font-body">${label}</button>`;
+  return `
+    <details class="relative">
+      <summary class="list-none w-7 h-7 flex items-center justify-center rounded-lg
+                      text-slate-400 hover:bg-slate-200 cursor-pointer select-none text-base leading-none">⋯</summary>
+      <div class="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 space-y-0.5 min-w-32">
+        ${menuBtn('recall',  '🔁 เรียกซ้ำ', 'hover:bg-slate-50 text-slate-600')}
+        ${menuBtn('noshow',  '❌ ไม่มา',    'hover:bg-red-50 text-red-500')}
+      </div>
+    </details>`;
 }
 
 function _queueCard(q) {
@@ -422,19 +405,12 @@ async function _handleCardAction(e) {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
 
+  // Close any open ⋯ menus
+  _container?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open'));
+
   const { action, id } = btn.dataset;
-  const queueItem = btn.dataset.queue ? JSON.parse(btn.dataset.queue) : null;
 
-  if (action === 'opd') {
-    document.dispatchEvent(new CustomEvent('fufu:openOPD', { detail: queueItem }));
-    return;
-  }
-  if (action === 'pos') {
-    document.dispatchEvent(new CustomEvent('fufu:openPOS', { detail: { queueItem } }));
-    return;
-  }
-
-  const STATUS_MAP = { call: 'called', start: 'in_progress', complete: 'completed', noshow: 'no_show' };
+  const STATUS_MAP = { call: 'called', recall: 'called', start: 'in_progress', complete: 'completed', noshow: 'no_show' };
   const newStatus = STATUS_MAP[action];
   if (!newStatus) return;
 
@@ -448,7 +424,7 @@ async function _handleCardAction(e) {
 
   if (res?.success) {
     await _loadQueue();
-    showToast(_statusMsg(newStatus));
+    showToast(action === 'recall' ? '🔁 เรียกซ้ำแล้ว' : _statusMsg(newStatus));
   } else {
     showToast('เกิดข้อผิดพลาด', 'error');
     btn.disabled = false;

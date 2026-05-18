@@ -440,7 +440,7 @@ async function _openAddItemModal(storeId, items, container) {
       </div>
       <div>
         <label class="input-label">จำนวน</label>
-        <input id="mi-qty" class="input-field" type="number" value="1" min="1" style="max-width:100px">
+        <input id="mi-qty" class="input-field max-w-24" type="number" value="1" min="1">
       </div>
 
       <div class="flex gap-3">

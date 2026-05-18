@@ -84,9 +84,16 @@ router.post('/products', async (req, res) => {
 
 // PATCH /api/inventory/products/:id
 router.patch('/products/:id', async (req, res) => {
+  // Accept legacy field names from older clients
+  if (req.body.price !== undefined && req.body.sell_price === undefined) req.body.sell_price = req.body.price;
+  if (req.body.min_stock !== undefined && req.body.reorder_point === undefined) req.body.reorder_point = req.body.min_stock;
+
   const allowed = ['name', 'category', 'unit', 'cost_price', 'sell_price', 'reorder_point', 'reorder_qty', 'is_active'];
   const updates = {};
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update. Valid: name, category, unit, cost_price, sell_price, reorder_point, reorder_qty, is_active' });
+  }
 
   const { data, error } = await req.supabase
     .from('products').update(updates).eq('id', req.params.id).select().single();

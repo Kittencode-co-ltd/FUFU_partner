@@ -18,9 +18,14 @@ router.get('/cages', async (req, res) => {
   res.json({ success: true, data: data || [] });
 });
 
+const VALID_CAGE_TYPES = new Set(['standard', 'large', 'icu', 'isolation']);
+
 router.post('/cages', async (req, res) => {
   const { store_id, cage_number, cage_type = 'standard', floor = 1, daily_rate = 500, notes } = req.body;
   if (!store_id || !cage_number) return res.status(400).json({ error: 'store_id and cage_number required' });
+  if (!VALID_CAGE_TYPES.has(cage_type)) {
+    return res.status(400).json({ error: `cage_type must be one of: ${[...VALID_CAGE_TYPES].join(', ')}` });
+  }
 
   const row = { store_id, cage_number, cage_type, floor: parseInt(floor) || 1, daily_rate: parseFloat(daily_rate) || 500, status: 'available' };
   if (notes) row.notes = notes;
@@ -141,15 +146,17 @@ router.get('/treatments/:admission_id', async (req, res) => {
 
 router.post('/treatments', async (req, res) => {
   const { admission_id, store_id, treatment_time, treatment_type, description, dosage, notes } = req.body;
-  if (!admission_id || !treatment_time) return res.status(400).json({ error: 'admission_id and treatment_time required' });
+  if (!admission_id || !treatment_time || !store_id) {
+    return res.status(400).json({ error: 'admission_id, store_id, and treatment_time required' });
+  }
 
   const tRow = {
     admission_id,
+    store_id,
     treatment_time,
     treatment_type: treatment_type || 'medication',
     status: 'pending',
   };
-  if (store_id)   tRow.store_id   = store_id;
   if (description) tRow.description = description;
   if (dosage)     tRow.dosage     = dosage;
   if (notes)      tRow.notes      = notes;

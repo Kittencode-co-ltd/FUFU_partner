@@ -68,6 +68,10 @@ router.patch('/:id/complete', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   const updates = { ...req.body };
   delete updates.id;
+  if (updates.note !== undefined && updates.notes === undefined) {
+    updates.notes = updates.note;
+    delete updates.note;
+  }
   const { data, error } = await req.supabase
     .from('grooming_sessions').update(updates).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
