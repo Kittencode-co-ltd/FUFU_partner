@@ -1,6 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 import { createClient } from '@supabase/supabase-js';
 
 const router = Router();
@@ -83,7 +83,7 @@ router.post('/', requireRole('owner'), async (req, res) => {
 });
 
 // PATCH /api/staff/:id — update name, roles, status, extra fields
-router.patch('/:id', requireRole('owner'), async (req, res) => {
+router.patch('/:id', resolveStoreId('store_staff'), requireRole('owner'), async (req, res) => {
   const extraCols  = ['phone', 'position', 'start_date', 'notes'];
   const baseCols   = ['name', 'roles', 'is_active', 'pin'];
 
@@ -111,7 +111,7 @@ router.patch('/:id', requireRole('owner'), async (req, res) => {
 });
 
 // PATCH /api/staff/:id/reset-password — generate new temp password
-router.patch('/:id/reset-password', requireRole('owner'), async (req, res) => {
+router.patch('/:id/reset-password', resolveStoreId('store_staff'), requireRole('owner'), async (req, res) => {
   // 1. Get staff record
   const { data: member, error: findErr } = await req.supabase
     .from('store_staff')
@@ -163,7 +163,7 @@ router.patch('/:id/reset-password', requireRole('owner'), async (req, res) => {
 });
 
 // DELETE /api/staff/:id — deactivate (not delete)
-router.delete('/:id', requireRole('owner'), async (req, res) => {
+router.delete('/:id', resolveStoreId('store_staff'), requireRole('owner'), async (req, res) => {
   const { data, error } = await req.supabase
     .from('store_staff')
     .update({ is_active: false })

@@ -1,6 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -45,7 +45,7 @@ router.post('/', requireRole('owner', 'reception', 'staff'), async (req, res) =>
 });
 
 // PATCH /api/grooming/:id/start
-router.patch('/:id/start', requireRole('owner', 'staff'), async (req, res) => {
+router.patch('/:id/start', resolveStoreId('grooming_sessions'), requireRole('owner', 'staff'), async (req, res) => {
   const { data, error } = await req.supabase
     .from('grooming_sessions')
     .update({ status: 'in_progress', start_time: new Date().toISOString(), progress: 0 })
@@ -55,7 +55,7 @@ router.patch('/:id/start', requireRole('owner', 'staff'), async (req, res) => {
 });
 
 // PATCH /api/grooming/:id/complete
-router.patch('/:id/complete', requireRole('owner', 'staff'), async (req, res) => {
+router.patch('/:id/complete', resolveStoreId('grooming_sessions'), requireRole('owner', 'staff'), async (req, res) => {
   const { health_report } = req.body;
   const { data, error } = await req.supabase
     .from('grooming_sessions')
@@ -66,7 +66,7 @@ router.patch('/:id/complete', requireRole('owner', 'staff'), async (req, res) =>
 });
 
 // PATCH /api/grooming/:id — general update (progress, services, etc.)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', resolveStoreId('grooming_sessions'), requireRole('owner', 'reception', 'staff'), async (req, res) => {
   const updates = { ...req.body };
   delete updates.id;
   if (updates.note !== undefined && updates.notes === undefined) {

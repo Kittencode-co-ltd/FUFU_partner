@@ -35,6 +35,40 @@ async function sql(query, label) {
 // ─── Migrations ───────────────────────────────────────────────────────────────
 
 await sql(`
+  CREATE TABLE IF NOT EXISTS inventory_batches (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id      UUID NOT NULL,
+    product_id    UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    lot_number    TEXT NOT NULL,
+    quantity      INT  NOT NULL DEFAULT 0,
+    initial_qty   INT  NOT NULL DEFAULT 0,
+    expiry_date   DATE,
+    received_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    cost_price    NUMERIC(10,2),
+    supplier_id   UUID,
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    notes         TEXT,
+    created_at    TIMESTAMPTZ DEFAULT NOW()
+  )`, 'CREATE inventory_batches');
+
+await sql(`
+  CREATE INDEX IF NOT EXISTS idx_batches_fefo
+    ON inventory_batches (product_id, is_active, expiry_date ASC NULLS LAST)
+`, 'CREATE idx_batches_fefo');
+
+await sql(`ALTER TABLE inventory_batches ENABLE ROW LEVEL SECURITY`, 'RLS inventory_batches');
+await sql(`
+  DO $$ BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policies
+      WHERE tablename = 'inventory_batches' AND policyname = 'auth_users_all_inventory_batches'
+    ) THEN
+      CREATE POLICY auth_users_all_inventory_batches ON inventory_batches
+        FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    END IF;
+  END $$`, 'RLS policy inventory_batches');
+
+await sql(`
   CREATE TABLE IF NOT EXISTS suppliers (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_id   UUID NOT NULL,
@@ -62,18 +96,13 @@ await sql(`
   )`, 'CREATE stock_movements');
 
 await sql(`
-  CREATE INDEX IF NOT EXISTS idx_batches_fefo
-    ON inventory_batches (product_id, is_active, expiry_date ASC NULLS LAST)
-`, 'CREATE idx_batches_fefo');
-
-await sql(`
   CREATE INDEX IF NOT EXISTS idx_appointments_store_date
     ON appointments (store_id, appt_date)
 `, 'CREATE idx_appointments_store_date');
 
 // ─── RLS Policies ─────────────────────────────────────────────────────────────
 
-const tables = ['suppliers', 'stock_movements', 'inventory_batches', 'pet_owners', 'pets', 'pet_vaccinations', 'appointments'];
+const tables = ['suppliers', 'stock_movements', 'pet_owners', 'pets', 'pet_vaccinations', 'appointments'];
 
 for (const t of tables) {
   await sql(`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY`, `RLS enable: ${t}`);

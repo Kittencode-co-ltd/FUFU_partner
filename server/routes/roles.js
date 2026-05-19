@@ -82,7 +82,7 @@ router.delete('/:id', resolveStoreId('roles'), requireRole('owner'), async (req,
 });
 
 // GET /api/roles/staff/:staff_id — get roles for a staff member
-router.get('/staff/:staff_id', async (req, res) => {
+router.get('/staff/:staff_id', requireRole('owner'), async (req, res) => {
   const { data, error } = await req.supabase
     .from('staff_roles')
     .select('role_id, roles(*)')
@@ -93,7 +93,7 @@ router.get('/staff/:staff_id', async (req, res) => {
 });
 
 // POST /api/roles/staff — assign role to staff
-router.post('/staff', async (req, res) => {
+router.post('/staff', requireRole('owner'), async (req, res) => {
   const { staff_id, role_id } = req.body;
   if (!staff_id || !role_id) return res.status(400).json({ error: 'staff_id and role_id required' });
 
@@ -107,7 +107,7 @@ router.post('/staff', async (req, res) => {
 });
 
 // DELETE /api/roles/staff — remove role from staff
-router.delete('/staff', async (req, res) => {
+router.delete('/staff', requireRole('owner'), async (req, res) => {
   const { staff_id, role_id } = req.body;
   if (!staff_id || !role_id) return res.status(400).json({ error: 'staff_id and role_id required' });
 

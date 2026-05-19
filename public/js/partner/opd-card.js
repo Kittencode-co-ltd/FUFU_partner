@@ -129,9 +129,49 @@ function _buildHTML() {
   const num = q?.queue_number ? `A${String(q.queue_number).padStart(3, '0')}` : '';
   const sp = r.species || 'dog';
   const v = r.vitals || {};
+  // Search panel is shown when no patient has been linked yet
+  const hasPatient = !!(r.pet_id || q?.pet_id || r.id);
 
   return `
   <div class="space-y-5 w-full">
+
+    <!-- ══ Patient Search Panel ══════════════════════════════════════════════ -->
+    <div id="opd-search-panel" class="${hasPatient ? 'hidden' : ''} card p-5 border-2 border-dashed border-primary/40">
+      <div class="flex items-center gap-2 mb-3 flex-wrap">
+        <span class="text-xl leading-none">🔍</span>
+        <h3 class="font-semibold text-navy">ค้นหาผู้ป่วย</h3>
+        <span class="text-xs text-slate-400 font-body">— HN, ชื่อสัตว์เลี้ยง, ชื่อเจ้าของ หรือเบอร์โทร</span>
+      </div>
+
+      <!-- Search input -->
+      <div class="relative">
+        <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50
+                    focus-within:bg-white focus-within:border-primary transition-colors px-3 py-2.5">
+          <i class="fas fa-search text-slate-400 text-sm flex-shrink-0"></i>
+          <input id="opd-main-search"
+            class="flex-1 bg-transparent outline-none text-sm text-navy placeholder:text-slate-400 font-body"
+            placeholder="พิมพ์ HN-00001, ชื่อสัตว์ หรือชื่อเจ้าของ..."
+            autocomplete="off" spellcheck="false">
+          <button id="opd-main-search-clear" class="hidden text-slate-400 hover:text-slate-600 text-lg leading-none">×</button>
+        </div>
+        <!-- Results dropdown -->
+        <div id="opd-main-search-results"
+          class="hidden absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl
+                 shadow-card-hover border border-slate-100 z-50 max-h-72 overflow-y-auto">
+        </div>
+      </div>
+
+      <!-- Quick tips + walk-in -->
+      <div class="flex items-center gap-3 mt-3 flex-wrap">
+        <button id="opd-walkin-btn"
+          class="btn-outline text-sm px-4 py-2 flex items-center gap-1.5">
+          🚶 Walk-in / ไม่มีประวัติ
+        </button>
+        <span class="text-xs text-slate-400 font-body">
+          เคล็ดลับ: พิมพ์ <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-</kbd> แล้วตามด้วยตัวเลข เช่น <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-00042</kbd>
+        </span>
+      </div>
+    </div>
 
     <!-- Allergies warning banner (shown by _loadPetProfile if pet has allergies) -->
     <div id="opd-allergy-banner" class="hidden card border-2 border-red-300 bg-red-50 p-3 flex items-center gap-3">
@@ -152,7 +192,7 @@ function _buildHTML() {
           <input id="opd-pet-name" value="${r.pet_name || ''}"
             class="font-bold text-navy text-lg bg-transparent border-b border-transparent
                    hover:border-slate-200 focus:border-primary outline-none transition-colors min-w-32"
-            placeholder="ชื่อสัตว์เลี้ยง (ค้นหา...)" autocomplete="off">
+            placeholder="${hasPatient ? 'ชื่อสัตว์เลี้ยง' : '— ยังไม่ได้เลือกผู้ป่วย —'}" autocomplete="off">
           <div id="opd-pet-dropdown" class="hidden absolute top-full left-0 mt-1 w-72 max-h-60 overflow-y-auto bg-white rounded-xl shadow-card-hover border border-slate-100 z-50"></div>
           <select id="opd-species"
             class="text-sm text-slate-500 bg-transparent border border-slate-200 rounded-lg px-2 py-1
@@ -175,6 +215,7 @@ function _buildHTML() {
       </div>
       <div class="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end w-full sm:w-auto">
         <span id="save-status" class="text-xs text-slate-400 font-body"></span>
+        ${!r.id ? `<button id="opd-change-patient" class="${hasPatient ? '' : 'hidden'} btn-outline text-sm px-3 py-2" title="เลือกผู้ป่วยใหม่">🔄 เปลี่ยน</button>` : ''}
         <button id="opd-back-btn"     class="btn-outline text-sm px-3 py-2">← กลับ</button>
         <button id="opd-referral-btn" class="btn-outline text-sm px-4 py-2">📋 ส่งตัว</button>
         <button id="opd-save-btn"     class="btn-outline text-sm px-4 py-2">💾 บันทึก</button>
@@ -388,13 +429,185 @@ function _bindEvents() {
     _saveDraft();
   });
 
-  // Bind pet search autocomplete
+  // ── Main patient search panel ──────────────────────────────────────────────
+  _bindMainSearch(c);
+
+  // "เปลี่ยนผู้ป่วย" button — shows search panel again
+  c.querySelector('#opd-change-patient')?.addEventListener('click', () => {
+    const panel = c.querySelector('#opd-search-panel');
+    if (panel) {
+      panel.classList.remove('hidden');
+      // Clear previous search state
+      const inp = panel.querySelector('#opd-main-search');
+      if (inp) { inp.value = ''; inp.focus(); }
+      panel.querySelector('#opd-main-search-results')?.classList.add('hidden');
+      panel.querySelector('#opd-main-search-clear')?.classList.add('hidden');
+      // Scroll panel into view
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  // Bind pet search autocomplete (secondary — for name correction after selection)
   _bindPetSearch(c);
 
   // Medical images
   _bindImageUpload(c);
   if (_currentRecord?.medical_images?.length) _renderImages(c, _currentRecord.medical_images);
 }
+
+// ─── Main patient search (search panel at top) ────────────────────────────────
+
+function _bindMainSearch(c) {
+  const inp        = c.querySelector('#opd-main-search');
+  const results    = c.querySelector('#opd-main-search-results');
+  const clearBtn   = c.querySelector('#opd-main-search-clear');
+  const walkinBtn  = c.querySelector('#opd-walkin-btn');
+  if (!inp) return;
+
+  const storeId = storage.get(STORAGE_KEYS.STORE_ID);
+  let timer = null;
+
+  async function _doSearch(q) {
+    const url = `/api/pets/owners/search?store_id=${storeId}${q ? '&q=' + encodeURIComponent(q) : ''}`;
+    const res = await apiFetch(url);
+    const owners = res?.data || [];
+
+    // Flatten owners → [{pet_id, pet_name, hn, species, breed, owner_name, owner_phone}]
+    const rows = [];
+    for (const owner of owners) {
+      for (const pet of owner.pets || []) {
+        rows.push({
+          pet_id:      pet.id,
+          pet_name:    pet.name,
+          species:     pet.species || 'dog',
+          hn:          pet.hn,
+          breed:       pet.breed  || '',
+          allergies:   pet.allergies || '',
+          owner_name:  owner.name,
+          owner_phone: owner.phone || '',
+        });
+      }
+    }
+
+    if (!rows.length) {
+      results.innerHTML = `
+        <div class="px-4 py-4 text-center">
+          <div class="text-slate-400 font-body text-sm">${q ? `ไม่พบผลลัพธ์สำหรับ "${q}"` : 'ยังไม่มีข้อมูลผู้ป่วยในระบบ'}</div>
+          ${q ? `<div class="text-xs text-slate-300 font-body mt-1">ลองค้นหาด้วยชื่ออื่น หรือกด Walk-in</div>` : ''}
+        </div>`;
+      results.classList.remove('hidden');
+      return;
+    }
+
+    results.innerHTML = rows.map((r, i) => {
+      const emoji  = SPECIES_EMOJI[r.species] || '🐾';
+      const hnTag  = r.hn
+        ? `<span class="text-xs bg-teal-100 text-teal-700 rounded px-1.5 py-0.5 font-mono font-semibold">HN-${String(r.hn).padStart(5, '0')}</span>`
+        : '';
+      const breedTxt = r.breed ? `<span class="text-xs text-slate-400 font-body">${r.breed}</span>` : '';
+      const allergyBadge = r.allergies
+        ? `<span class="text-xs bg-red-100 text-red-600 rounded px-1.5 py-0.5 font-body">⚠ แพ้ยา</span>`
+        : '';
+      return `
+        <div class="flex items-center gap-3 px-4 py-3 hover:bg-primary-subtle cursor-pointer
+                    transition-colors border-b border-slate-50 last:border-0 group"
+             data-ridx="${i}">
+          <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">${emoji}</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-semibold text-navy">${r.pet_name}</span>
+              ${hnTag}${breedTxt}${allergyBadge}
+            </div>
+            <div class="text-xs text-slate-400 font-body mt-0.5">
+              เจ้าของ: <span class="text-slate-600">${r.owner_name}</span>${r.owner_phone ? ' · ' + r.owner_phone : ''}
+            </div>
+          </div>
+          <i class="fas fa-chevron-right text-slate-200 group-hover:text-primary text-xs flex-shrink-0 transition-colors"></i>
+        </div>`;
+    }).join('');
+
+    results.querySelectorAll('[data-ridx]').forEach(el => {
+      el.addEventListener('click', () => {
+        _selectPatient(rows[parseInt(el.dataset.ridx)], c);
+        results.classList.add('hidden');
+      });
+    });
+
+    results.classList.remove('hidden');
+  }
+
+  // Input events
+  inp.addEventListener('focus', () => _doSearch(inp.value.trim()));
+  inp.addEventListener('input', e => {
+    const q = e.target.value.trim();
+    clearBtn?.classList.toggle('hidden', !q);
+    clearTimeout(timer);
+    timer = setTimeout(() => _doSearch(q), 300);
+  });
+
+  // Clear button
+  clearBtn?.addEventListener('click', () => {
+    inp.value = '';
+    clearBtn.classList.add('hidden');
+    _doSearch('');
+    inp.focus();
+  });
+
+  // Close results on outside click
+  document.addEventListener('click', e => {
+    if (!inp.closest('#opd-search-panel')?.contains(e.target)) {
+      results.classList.add('hidden');
+    }
+  }, { signal: _bindAbort.signal });
+
+  // Walk-in: dismiss search panel, use manual entry
+  walkinBtn?.addEventListener('click', () => {
+    _selectPatient(null, c);
+  });
+}
+
+function _selectPatient(row, c) {
+  // Update _currentRecord with selected patient (or clear for walk-in)
+  if (row) {
+    _currentRecord = {
+      id:         null,
+      pet_id:     row.pet_id,
+      pet_name:   row.pet_name,
+      owner_name: row.owner_name,
+      species:    row.species || 'dog',
+    };
+  } else {
+    // Walk-in: keep existing values (or blank) but mark as no-pet
+    if (_currentRecord) {
+      _currentRecord.pet_id = null;
+    } else {
+      _currentRecord = { id: null, pet_name: '', owner_name: '', species: 'dog' };
+    }
+  }
+
+  // Update patient bar inputs
+  const petNameInp = c.querySelector('#opd-pet-name');
+  const ownerInp   = c.querySelector('#opd-owner');
+  const speciesSel = c.querySelector('#opd-species');
+  if (petNameInp) petNameInp.value = row?.pet_name   || '';
+  if (ownerInp)   ownerInp.value   = row?.owner_name || '';
+  if (speciesSel && row?.species) speciesSel.value = row.species;
+
+  // Hide search panel
+  c.querySelector('#opd-search-panel')?.classList.add('hidden');
+
+  // Show "เปลี่ยน" button (only exists for new/unsaved records)
+  const changeBtn = c.querySelector('#opd-change-patient');
+  changeBtn?.classList.remove('hidden');
+
+  _isDirty = true;
+  _saveDraft();
+
+  // Load full pet profile for allergy banner & extra chips
+  if (row?.pet_id) _loadPetProfile(row.pet_id);
+}
+
+// ─── Pet name autocomplete (in patient bar, secondary) ────────────────────────
 
 function _bindPetSearch(container) {
   const input = container.querySelector('#opd-pet-name');

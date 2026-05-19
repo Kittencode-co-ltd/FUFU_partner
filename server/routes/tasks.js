@@ -9,7 +9,7 @@ const VALID_STATUS   = new Set(['todo', 'in_progress', 'done']);
 const VALID_PRIORITY = new Set(['low', 'normal', 'high', 'urgent']);
 
 // GET /api/tasks?store_id=UUID&status=todo
-router.get('/', async (req, res) => {
+router.get('/', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), async (req, res) => {
   const { store_id, status } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
@@ -40,7 +40,7 @@ router.post('/', requireRole('owner', 'vet', 'reception', 'staff'), async (req, 
 });
 
 // PATCH /api/tasks/:id
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', resolveStoreId('tasks'), requireRole('owner', 'vet', 'reception', 'staff'), async (req, res) => {
   const allowed = ['title', 'description', 'status', 'priority', 'assigned_to', 'due_date', 'tags'];
   const updates = {};
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];

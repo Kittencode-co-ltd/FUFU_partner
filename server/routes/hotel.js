@@ -1,6 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -81,7 +81,7 @@ router.post('/checkin', requireRole('owner', 'reception', 'staff'), async (req, 
 });
 
 // POST /api/hotel/checkout/:booking_id
-router.post('/checkout/:id', requireRole('owner', 'reception', 'staff'), async (req, res) => {
+router.post('/checkout/:id', resolveStoreId('hotel_bookings'), requireRole('owner', 'reception', 'staff'), async (req, res) => {
   const { data: booking, error: bErr } = await req.supabase
     .from('hotel_bookings').select('*').eq('id', req.params.id).single();
   if (bErr) return res.status(404).json({ error: 'Booking not found' });
@@ -96,7 +96,7 @@ router.post('/checkout/:id', requireRole('owner', 'reception', 'staff'), async (
 });
 
 // PATCH /api/hotel/rooms/:id — update room status
-router.patch('/rooms/:id', async (req, res) => {
+router.patch('/rooms/:id', resolveStoreId('hotel_rooms'), requireRole('owner', 'reception', 'staff'), async (req, res) => {
   const { data, error } = await req.supabase
     .from('hotel_rooms').update(req.body).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });

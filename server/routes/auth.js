@@ -8,7 +8,21 @@ const supabase = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } },
 );
 
-// POST /api/auth/login
+// Lazy admin client (needs SERVICE_ROLE_KEY — bypass RLS + email confirm)
+let _adminSb = null;
+function adminSb() {
+  if (!_adminSb) {
+    _adminSb = createClient(
+      process.env.Project_URL,
+      process.env.SERVICE_ROLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+  }
+  return _adminSb;
+}
+
+// ─── POST /api/auth/login ─────────────────────────────────────────────────────
+
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -20,21 +34,17 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ success: false, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
   }
 
-  // Verify partner access via RPC (optional — skip if RPC not found)
+  // Optional partner-access RPC gate — skip if function doesn't exist yet.
+  // If it exists and returns false → user is purely a mobile app user, still allowed
+  // to login but will get needs_onboarding: true (handled below).
   const { data: isStaff, error: rpcErr } = await supabase
     .rpc('is_fufu_staff', { user_id: data.user.id });
 
-  const rpcMissing = rpcErr?.code === 'PGRST202' || rpcErr?.message?.includes('Could not find');
-  if (!rpcMissing && (rpcErr || isStaff === false)) {
-    console.warn('[Auth] is_fufu_staff check failed:', rpcErr?.message);
-    return res.status(403).json({
-      success: false,
-      error: 'บัญชีนี้ไม่มีสิทธิ์เข้าถึง Partner Portal',
-    });
-  }
+  const rpcMissing  = rpcErr?.code === 'PGRST202' || rpcErr?.message?.includes('Could not find');
+  const isConfirmed = rpcMissing || isStaff !== false; // default allow if RPC missing
 
-  // Use user-scoped client so RLS policies allow reading own stores
-  const userSupabase = createClient(
+  // Use user-scoped client (respects RLS)
+  const userSb = createClient(
     process.env.Project_URL,
     process.env.publishable_key,
     {
@@ -43,24 +53,24 @@ router.post('/login', async (req, res) => {
     },
   );
 
-  // 1. Try as owner (owner_id or owner_email)
-  let { data: stores } = await userSupabase
+  // 1. Look up owned stores (by owner_id, then by owner_email fallback)
+  let { data: stores } = await userSb
     .from('stores')
     .select('id, name, category')
     .eq('owner_id', data.user.id);
 
   if (!stores?.length) {
-    const { data: byEmail } = await userSupabase
+    const { data: byEmail } = await userSb
       .from('stores')
       .select('id, name, category')
       .eq('owner_email', data.user.email);
     stores = byEmail;
   }
 
-  // 2. If not owner → check store_staff (staff member)
+  // 2. If not owner → check store_staff membership
   let isStaffMember = false;
   if (!stores?.length) {
-    const { data: staffRows } = await userSupabase
+    const { data: staffRows } = await userSb
       .from('store_staff')
       .select('store_id, roles, name')
       .eq('user_email', data.user.email)
@@ -68,9 +78,8 @@ router.post('/login', async (req, res) => {
 
     if (staffRows?.length) {
       isStaffMember = true;
-      // Fetch the stores they belong to
       const storeIds = [...new Set(staffRows.map(s => s.store_id))];
-      const { data: staffStores } = await userSupabase
+      const { data: staffStores } = await userSb
         .from('stores')
         .select('id, name, category')
         .in('id', storeIds);
@@ -81,11 +90,15 @@ router.post('/login', async (req, res) => {
     }
   }
 
+  // 3. No store and not staff → user is a mobile-only account, needs onboarding
+  const needs_onboarding = !stores?.length && !isStaffMember;
+
   res.json({
-    success:        true,
-    is_staff:       isStaffMember,
-    token:          data.session.access_token,
-    refresh_token: data.session.refresh_token,
+    success:          true,
+    is_staff:         isStaffMember,
+    needs_onboarding, // frontend will show create-store form when true
+    token:            data.session.access_token,
+    refresh_token:    data.session.refresh_token,
     user: {
       id:    data.user.id,
       email: data.user.email,
@@ -94,65 +107,129 @@ router.post('/login', async (req, res) => {
   });
 });
 
-// POST /api/auth/register
+// ─── POST /api/auth/register ──────────────────────────────────────────────────
+// Creates auth account + first store in one step.
+// Uses SERVICE_ROLE_KEY so email confirmation is skipped — no email needed.
+
 router.post('/register', async (req, res) => {
-  const { email, password, name, phone, partnerType } = req.body;
-  if (!email || !password || !name) {
-    return res.status(400).json({ success: false, error: 'ข้อมูลไม่ครบถ้วน' });
+  const { email, password, name, phone, store_name, store_category } = req.body;
+
+  if (!email || !password || !name || !store_name) {
+    return res.status(400).json({
+      success: false,
+      error: 'กรุณากรอกข้อมูลให้ครบ: ชื่อ, อีเมล, รหัสผ่าน, และชื่อร้าน',
+    });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
   }
 
-  const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
-  if (authErr) {
-    return res.status(400).json({ success: false, error: authErr.message });
-  }
-  if (!authData.user) {
-    return res.status(400).json({ success: false, error: 'ไม่สามารถสร้างบัญชีได้' });
+  // Step 1: Create auth account via admin API (email_confirm: true = skip email verification)
+  const { data: newUser, error: createErr } = await adminSb().auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name, phone: phone || null, is_partner: true },
+  });
+
+  if (createErr) {
+    // Handle "User already registered" gracefully
+    if (createErr.message?.includes('already') || createErr.status === 422) {
+      return res.status(409).json({
+        success:        false,
+        already_exists: true,
+        error:          'อีเมลนี้มีบัญชีอยู่แล้ว — กรุณาเข้าสู่ระบบแทน',
+      });
+    }
+    return res.status(400).json({ success: false, error: createErr.message });
   }
 
-  const { error: partnerErr } = await supabase
-    .from('partners')
-    .insert([{ user_id: authData.user.id, name, email, phone, type: partnerType || 'vet_clinic' }]);
-
-  if (partnerErr) {
-    console.error('[Register] partner insert:', partnerErr.message);
+  // Step 2: Sign in immediately to get a valid session token
+  const { data: session, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+  if (signInErr || !session?.session) {
+    // Account created but can't sign in — shouldn't happen but handle gracefully
+    return res.status(500).json({
+      success: false,
+      error:   'สร้างบัญชีสำเร็จ แต่เข้าสู่ระบบไม่ได้ กรุณาลอง login ใหม่',
+    });
   }
 
-  res.json({ success: true, user: { id: authData.user.id, email } });
+  const token    = session.session.access_token;
+  const userId   = newUser.user.id;
+  const userEmail = email.toLowerCase().trim();
+
+  // Step 3: Create first store for this partner
+  const userSb = createClient(
+    process.env.Project_URL,
+    process.env.publishable_key,
+    {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth:   { persistSession: false, autoRefreshToken: false },
+    },
+  );
+
+  const { data: store, error: storeErr } = await userSb
+    .from('stores')
+    .insert([{
+      name:        store_name.trim(),
+      category:    store_category || 'vet_clinic',
+      owner_id:    userId,
+      owner_email: userEmail,
+      is_active:   true,
+    }])
+    .select('id, name, category')
+    .single();
+
+  if (storeErr) {
+    console.error('[Register] store insert failed:', storeErr.message);
+    // Account is created — return token so user can create store manually
+    return res.json({
+      success: true,
+      needs_onboarding: true,
+      token,
+      refresh_token: session.session.refresh_token,
+      user: { id: userId, email: userEmail },
+      stores: [],
+      warning: 'สร้างบัญชีสำเร็จแต่สร้างร้านไม่ได้ กรุณาสร้างร้านในหน้า Dashboard',
+    });
+  }
+
+  res.json({
+    success:       true,
+    token,
+    refresh_token: session.session.refresh_token,
+    user:  { id: userId, email: userEmail },
+    stores: [store],
+  });
 });
 
-// POST /api/auth/change-password  (authenticated)
+// ─── POST /api/auth/change-password ──────────────────────────────────────────
+
 router.post('/change-password', async (req, res) => {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, error: 'Missing token' });
   }
-  const token      = header.split(' ')[1];
+  const token        = header.split(' ')[1];
   const { new_password } = req.body;
 
   if (!new_password || new_password.length < 8) {
     return res.status(400).json({ success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
   }
 
-  // Use admin client to update user password
-  const adminSb = createClient(
-    process.env.Project_URL,
-    process.env.SERVICE_ROLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
-
-  // Verify current token to get user
   const { data: { user }, error: verifyErr } = await supabase.auth.getUser(token);
   if (verifyErr || !user) {
     return res.status(401).json({ success: false, error: 'Token ไม่ถูกต้อง' });
   }
 
-  const { error } = await adminSb.auth.admin.updateUserById(user.id, { password: new_password });
+  const { error } = await adminSb().auth.admin.updateUserById(user.id, { password: new_password });
   if (error) return res.status(500).json({ success: false, error: error.message });
 
   res.json({ success: true });
 });
 
-// POST /api/auth/refresh  — exchange refresh_token for a new access_token
+// ─── POST /api/auth/refresh ───────────────────────────────────────────────────
+
 router.post('/refresh', async (req, res) => {
   const { refresh_token } = req.body;
   if (!refresh_token) {
@@ -171,7 +248,8 @@ router.post('/refresh', async (req, res) => {
   });
 });
 
-// POST /api/auth/logout  (client-side clears token, this just confirms)
+// ─── POST /api/auth/logout ────────────────────────────────────────────────────
+
 router.post('/logout', (_req, res) => {
   res.json({ success: true });
 });

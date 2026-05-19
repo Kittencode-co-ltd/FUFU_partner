@@ -1,6 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -84,7 +84,7 @@ router.post('/checkout', requireRole('owner', 'vet', 'reception', 'staff'), asyn
 });
 
 // GET /api/pos/invoice/:id
-router.get('/invoice/:id', async (req, res) => {
+router.get('/invoice/:id', resolveStoreId('invoices'), requireRole('owner', 'vet', 'reception', 'accountant', 'counter'), async (req, res) => {
   const { data, error } = await req.supabase
     .from('invoices').select('*').eq('id', req.params.id).single();
   if (error) return res.status(404).json({ error: 'Invoice not found' });

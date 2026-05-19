@@ -36,7 +36,7 @@ router.post('/cages', requireRole('owner', 'vet'), async (req, res) => {
   res.json({ success: true, data });
 });
 
-router.patch('/cages/:id', async (req, res) => {
+router.patch('/cages/:id', resolveStoreId('ipd_cages'), requireRole('owner', 'vet'), async (req, res) => {
   const allowed = ['cage_number', 'status', 'cage_type', 'floor', 'daily_rate', 'notes'];
   const updates = {};
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -102,7 +102,7 @@ router.post('/admissions', requireRole('owner', 'vet', 'reception'), async (req,
   res.json({ success: true, data });
 });
 
-router.patch('/admissions/:id', async (req, res) => {
+router.patch('/admissions/:id', resolveStoreId('ipd_admissions'), requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const allowed = ['pet_name', 'owner_name', 'species', 'admission_reason', 'daily_notes', 'belongings_log', 'daily_rate'];
   const updates = { updated_at: new Date().toISOString() };
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -113,7 +113,7 @@ router.patch('/admissions/:id', async (req, res) => {
   res.json({ success: true, data });
 });
 
-router.patch('/admissions/:id/discharge', async (req, res) => {
+router.patch('/admissions/:id/discharge', resolveStoreId('ipd_admissions'), requireRole('owner', 'vet'), async (req, res) => {
   const { data: adm, error: findErr } = await req.supabase
     .from('ipd_admissions').select('cage_id, admitted_at, daily_rate').eq('id', req.params.id).single();
   if (findErr) return res.status(404).json({ error: 'Admission not found' });
@@ -167,7 +167,7 @@ router.post('/treatments', requireRole('owner', 'vet'), async (req, res) => {
   res.json({ success: true, data });
 });
 
-router.patch('/treatments/:id/done', async (req, res) => {
+router.patch('/treatments/:id/done', resolveStoreId('ipd_treatments'), requireRole('owner', 'vet', 'staff'), async (req, res) => {
   const { completed_by, eat_status, poop_status, pee_status, notes } = req.body;
   const updates = {
     status:       'done',
@@ -185,7 +185,7 @@ router.patch('/treatments/:id/done', async (req, res) => {
   res.json({ success: true, data });
 });
 
-router.delete('/treatments/:id', async (req, res) => {
+router.delete('/treatments/:id', resolveStoreId('ipd_treatments'), requireRole('owner', 'vet'), async (req, res) => {
   const { error } = await req.supabase.from('ipd_treatments').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });
@@ -204,7 +204,7 @@ router.get('/vitals/:admission_id', async (req, res) => {
   res.json({ success: true, data: data || [] });
 });
 
-router.post('/vitals', async (req, res) => {
+router.post('/vitals', requireRole('owner', 'vet', 'staff'), async (req, res) => {
   const { admission_id, store_id, recorded_at, temperature, heart_rate, weight_kg, respiratory_rate, pain_score, notes } = req.body;
   if (!admission_id) return res.status(400).json({ error: 'admission_id required' });
 
@@ -226,7 +226,7 @@ router.post('/vitals', async (req, res) => {
   res.json({ success: true, data });
 });
 
-router.delete('/vitals/:id', async (req, res) => {
+router.delete('/vitals/:id', resolveStoreId('ipd_vitals'), requireRole('owner', 'vet'), async (req, res) => {
   const { error } = await req.supabase.from('ipd_vitals').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });

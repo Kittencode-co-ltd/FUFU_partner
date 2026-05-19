@@ -1,6 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -109,8 +109,8 @@ router.post('/', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), a
   res.json({ success: true, data });
 });
 
-// PATCH /api/queue/:id  — store_id must be included in body for role check
-router.patch('/:id', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), async (req, res) => {
+// PATCH /api/queue/:id
+router.patch('/:id', resolveStoreId('queue_entries'), requireRole('owner', 'vet', 'reception', 'staff', 'counter'), async (req, res) => {
   const updates = { ...req.body };
   delete updates.id;
 

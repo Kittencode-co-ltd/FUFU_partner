@@ -1,7 +1,7 @@
 import { Router }      from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -24,12 +24,12 @@ const STORE_TO_APPT_CAT = {
 
 // ─── GET /api/appointments/inbox?store_id=UUID ────────────────────────────────
 // การจองที่รอการยืนยันจากแอปลูกค้า
-router.get('/inbox', async (req, res) => {
+router.get('/inbox', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { store_id, days_ahead = 7 } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
-  // Get store category
-  const { data: store, error: storeErr } = await req.supabase
+  // Get store category — use adminSb to bypass RLS (stores table may have no policies)
+  const { data: store, error: storeErr } = await adminSb
     .from('stores').select('category').eq('id', store_id).single();
   if (storeErr || !store) return res.status(404).json({ error: 'Store not found' });
 
@@ -115,7 +115,7 @@ router.patch('/:id/confirm', requireRole('owner', 'vet', 'reception'), async (re
 });
 
 // ─── PATCH /api/appointments/:id/reject ──────────────────────────────────────
-router.patch('/:id/reject', requireRole('owner', 'vet', 'reception'), async (req, res) => {
+router.patch('/:id/reject', resolveStoreId('appointments'), requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { reason } = req.body;
 
   const { error } = await adminSb
@@ -129,7 +129,7 @@ router.patch('/:id/reject', requireRole('owner', 'vet', 'reception'), async (req
 
 // ─── GET /api/appointments/count?store_id=UUID ────────────────────────────────
 // จำนวน pending สำหรับแสดง badge
-router.get('/count', async (req, res) => {
+router.get('/count', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), async (req, res) => {
   const { store_id } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 

@@ -50,7 +50,7 @@ router.get('/', requireRole('owner', 'vet', 'reception'), async (req, res) => {
 });
 
 // GET /api/medical-records/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', resolveStoreId('medical_records'), requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { data, error } = await req.supabase
     .from('medical_records')
     .select('*')
@@ -107,7 +107,7 @@ router.patch('/:id', resolveStoreId('medical_records'), requireRole('owner', 've
 });
 
 // POST /api/medical-records/:id/images — add base64 image (max 5, each ≤500KB)
-router.post('/:id/images', async (req, res) => {
+router.post('/:id/images', resolveStoreId('medical_records'), requireRole('owner', 'vet'), async (req, res) => {
   const { name, type, size, label, data: imgData } = req.body;
   if (!imgData || !name) return res.status(400).json({ error: 'name and data required' });
   const approxBytes = Math.ceil(imgData.length * 0.75);
@@ -142,7 +142,7 @@ router.post('/:id/images', async (req, res) => {
 });
 
 // DELETE /api/medical-records/:id/images/:imgId
-router.delete('/:id/images/:imgId', async (req, res) => {
+router.delete('/:id/images/:imgId', resolveStoreId('medical_records'), requireRole('owner', 'vet'), async (req, res) => {
   const { data: record, error: fetchErr } = await req.supabase
     .from('medical_records').select('medical_images').eq('id', req.params.id).single();
   if (fetchErr) return res.status(404).json({ error: 'Record not found' });

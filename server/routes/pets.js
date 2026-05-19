@@ -1,6 +1,7 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole, resolveStoreId } from '../middleware/rbac.js';
+// Note: GET /:id uses resolveStoreId to enforce store-scoped access
 
 const router = Router();
 router.use(requireAuth);
@@ -121,7 +122,7 @@ router.patch('/owners/:id', async (req, res) => {
 // ─── Pets ─────────────────────────────────────────────────────────────────────
 
 // GET /api/pets/:id — full profile with history
-router.get('/:id', async (req, res) => {
+router.get('/:id', resolveStoreId('pets'), requireRole('owner', 'vet', 'reception', 'staff'), async (req, res) => {
   const { data: pet, error } = await req.supabase
     .from('pets')
     .select('*, pet_owners(*)')

@@ -1,6 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -52,7 +52,7 @@ router.post('/', requireRole('owner', 'vet'), async (req, res) => {
 });
 
 // PATCH /api/soap-templates/:id
-router.patch('/:id', requireRole('owner', 'vet'), async (req, res) => {
+router.patch('/:id', resolveStoreId('soap_templates'), requireRole('owner', 'vet'), async (req, res) => {
   const allowed = ['name', 'category', 'subjective_template', 'objective_template', 'assessment_template', 'plan_template', 'preset_prescriptions', 'is_active'];
   const updates = { updated_at: new Date().toISOString() };
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -64,7 +64,7 @@ router.patch('/:id', requireRole('owner', 'vet'), async (req, res) => {
 });
 
 // DELETE /api/soap-templates/:id — soft delete
-router.delete('/:id', requireRole('owner', 'vet'), async (req, res) => {
+router.delete('/:id', resolveStoreId('soap_templates'), requireRole('owner', 'vet'), async (req, res) => {
   const { error } = await req.supabase
     .from('soap_templates')
     .update({ is_active: false, updated_at: new Date().toISOString() })

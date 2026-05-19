@@ -212,13 +212,14 @@ function _bindDoneButton() {
 }
 
 async function _handleDone() {
-  if (!_queueItem) return;
+  if (!_queueItem) return; // no patient selected at all
   const btn = _container?.querySelector('#wr-done-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
 
   clearTimeout(_autosaveTimer);
   await _saveRecord('completed');
 
+  // Only update queue status if this came from an actual queue entry (id is set)
   if (_queueItem.id) {
     await apiFetch(`/api/queue/${_queueItem.id}`, {
       method: 'PATCH',
@@ -226,8 +227,45 @@ async function _handleDone() {
     }).catch(() => {});
   }
 
-  showToast('✅ เสร็จสิ้นการรักษา');
-  renderDoctorWorkroom(_container, null);
+  // ── ไม่ reset workroom — แสดง "บันทึกแล้ว" และเปิดปุ่มส่งชำระเงิน ──────────
+  if (btn) {
+    btn.textContent = '✅ บันทึกเสร็จสิ้น';
+    btn.style.background = '#dcfce7';
+    btn.style.color      = '#166534';
+    btn.style.border     = '1px solid #86efac';
+    btn.disabled = true;
+  }
+
+  // แสดงปุ่ม "ส่งชำระเงิน" ในแถบบน (ถัดจากปุ่มเสร็จสิ้น)
+  const topbar = _container?.querySelector('.wr-topbar');
+  if (topbar && !topbar.querySelector('#wr-send-pay-top')) {
+    const payTopBtn = document.createElement('button');
+    payTopBtn.id        = 'wr-send-pay-top';
+    payTopBtn.className = 'wr-btn-done';
+    payTopBtn.style.cssText = 'background:#0369a1;';
+    payTopBtn.textContent   = '📤 ส่งชำระเงิน';
+    payTopBtn.addEventListener('click', _sendToPayment);
+    topbar.appendChild(payTopBtn);
+  }
+
+  // อัปเดต Invoice tab ถ้ากำลังแสดงอยู่
+  if (_activeTab === 'invoice') {
+    const c = _container?.querySelector('#wr-tab-content');
+    if (c) _renderInvoiceTab(c);
+  }
+
+  showToast('✅ บันทึก OPD เสร็จสิ้น — กด "ส่งชำระเงิน" เพื่อส่งไปเคาน์เตอร์');
+}
+
+// ── ส่งรายการไปชำระที่เคาน์เตอร์ ─────────────────────────────────────────────
+
+function _sendToPayment() {
+  document.dispatchEvent(new CustomEvent('fufu:openPOS', {
+    detail: {
+      queueItem:     _queueItem,
+      medicalRecord: { ...(_currentRecord || {}), prescriptions: _prescriptions },
+    },
+  }));
 }
 
 // ── Left panel — Pet info ─────────────────────────────────────────────────────
@@ -347,17 +385,227 @@ function _renderEmptyPetPanel() {
   const panel = _container?.querySelector('#wr-pet-panel');
   if (!panel) return;
   panel.innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;padding:30px 0;gap:8px;text-align:center;">
-      <span style="font-size:36px;">🐾</span>
-      <span style="font-size:12px;color:#94a3b8;">เลือกผู้ป่วยจากคิว</span>
-    </div>`;
+    <div class="wr-section-label" style="margin-top:0;">🔍 ค้นหาผู้ป่วย</div>
+
+    <!-- Search input -->
+    <div style="position:relative;margin-bottom:8px;">
+      <div id="wr-search-wrap"
+        style="display:flex;align-items:center;gap:6px;border:1px solid #e2e8f0;border-radius:8px;
+               padding:7px 10px;background:#f8fafc;transition:border-color .2s;cursor:text;"
+        onclick="this.querySelector('input').focus()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" style="flex-shrink:0;">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input id="wr-patient-search" autocomplete="off" spellcheck="false"
+          placeholder="HN-00001, ชื่อสัตว์ หรือชื่อเจ้าของ..."
+          style="flex:1;border:none;outline:none;background:transparent;font-size:12px;
+                 color:#334155;font-family:inherit;min-width:0;">
+        <button id="wr-search-clear"
+          style="display:none;background:none;border:none;color:#94a3b8;cursor:pointer;
+                 font-size:18px;line-height:1;padding:0;flex-shrink:0;">×</button>
+      </div>
+      <!-- Results dropdown -->
+      <div id="wr-search-results"
+        style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);
+               background:#fff;border:1px solid #e2e8f0;border-radius:10px;
+               box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:50;
+               max-height:280px;overflow-y:auto;">
+      </div>
+    </div>
+
+    <!-- Walk-in -->
+    <button id="wr-walkin-btn"
+      style="width:100%;background:transparent;border:1px dashed #cbd5e1;border-radius:8px;
+             padding:7px;font-size:12px;color:#64748b;cursor:pointer;
+             font-family:inherit;transition:all .15s;text-align:center;"
+      onmouseover="this.style.borderColor='#0d9488';this.style.color='#0d9488';"
+      onmouseout="this.style.borderColor='#cbd5e1';this.style.color='#64748b';">
+      🚶 Walk-in / ไม่มีประวัติ
+    </button>
+
+    <p style="font-size:11px;color:#cbd5e1;text-align:center;margin-top:10px;margin-bottom:0;">
+      หรือรอเลือกผู้ป่วยจากหน้าคิว
+    </p>`;
+
+  _bindPanelSearch(panel);
+}
+
+// ── Patient search in sidebar ─────────────────────────────────────────────────
+
+function _bindPanelSearch(panel) {
+  const inp      = panel.querySelector('#wr-patient-search');
+  const results  = panel.querySelector('#wr-search-results');
+  const clearBtn = panel.querySelector('#wr-search-clear');
+  const walkin   = panel.querySelector('#wr-walkin-btn');
+  const storeId  = storage.get(STORAGE_KEYS.STORE_ID);
+  let timer = null;
+
+  async function _doSearch(q) {
+    const url = `/api/pets/owners/search?store_id=${encodeURIComponent(storeId)}${q ? '&q=' + encodeURIComponent(q) : ''}`;
+    const res  = await apiFetch(url);
+    const owners = res?.data || [];
+
+    const rows = [];
+    for (const owner of owners) {
+      for (const pet of owner.pets || []) {
+        rows.push({ pet, owner });
+      }
+    }
+
+    if (!rows.length) {
+      results.innerHTML = `
+        <div style="padding:16px;text-align:center;font-size:12px;color:#94a3b8;">
+          ${q ? `ไม่พบผลลัพธ์สำหรับ "${_esc(q)}"` : 'ยังไม่มีผู้ป่วยในระบบ'}
+        </div>`;
+      results.style.display = 'block';
+      return;
+    }
+
+    results.innerHTML = rows.map((r, i) => {
+      const emoji    = SPECIES_EMOJI[r.pet.species] || '🐾';
+      const hnBadge  = r.pet.hn
+        ? `<span style="background:#ccfbf1;color:#0f766e;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;font-family:monospace;">HN-${String(r.pet.hn).padStart(5,'0')}</span>`
+        : '';
+      const allBadge = r.pet.allergies
+        ? `<span style="background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-size:10px;">⚠ แพ้ยา</span>`
+        : '';
+      return `
+        <div data-ridx="${i}"
+          style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;
+                 border-bottom:1px solid #f1f5f9;transition:background .12s;"
+          onmouseover="this.style.background='#f0fdfa'"
+          onmouseout="this.style.background=''">
+          <span style="font-size:22px;flex-shrink:0;">${emoji}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:2px;">
+              <span style="font-size:13px;font-weight:600;color:#1e293b;">${_esc(r.pet.name)}</span>
+              ${hnBadge}${allBadge}
+            </div>
+            <div style="font-size:11px;color:#94a3b8;">
+              เจ้าของ: ${_esc(r.owner.name)}${r.owner.phone ? ' · ' + _esc(r.owner.phone) : ''}
+            </div>
+          </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" style="flex-shrink:0;">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </div>`;
+    }).join('');
+
+    results.querySelectorAll('[data-ridx]').forEach(el => {
+      el.addEventListener('mousedown', e => {
+        e.preventDefault(); // keep input focused so blur doesn't close first
+        const { pet, owner } = rows[parseInt(el.dataset.ridx)];
+        _selectPatientFromSearch(pet, owner);
+        results.style.display = 'none';
+      });
+    });
+
+    results.style.display = 'block';
+  }
+
+  inp.addEventListener('focus', () => _doSearch(inp.value.trim()));
+  inp.addEventListener('input', e => {
+    const q = e.target.value.trim();
+    clearBtn.style.display = q ? '' : 'none';
+    clearTimeout(timer);
+    timer = setTimeout(() => _doSearch(q), 280);
+  });
+  inp.addEventListener('blur', () => {
+    setTimeout(() => { results.style.display = 'none'; }, 200);
+  });
+  clearBtn?.addEventListener('click', () => {
+    inp.value = '';
+    clearBtn.style.display = 'none';
+    _doSearch('');
+    inp.focus();
+  });
+  walkin?.addEventListener('click', () => _selectPatientFromSearch(null, null));
+
+  setTimeout(() => inp?.focus(), 80);
+}
+
+// ── Select patient from search result ────────────────────────────────────────
+
+function _selectPatientFromSearch(pet, owner) {
+  if (pet) {
+    _petData   = { ...pet, owner_name: owner?.name || '', owner_phone: owner?.phone || '' };
+    _queueItem = {
+      id:          null,          // synthetic — no queue entry, skip queue PATCH in _handleDone
+      pet_id:      pet.id,
+      pet_name:    pet.name,
+      owner_name:  owner?.name  || '',
+      owner_phone: owner?.phone || '',
+    };
+  } else {
+    // Walk-in: no pet record
+    _petData   = { name: '', species: 'other', owner_name: '', owner_phone: '' };
+    _queueItem = { id: null, pet_name: '', owner_name: '', owner_phone: '' };
+  }
+
+  // Update topbar chip
+  const chip = _container?.querySelector('.wr-patient-chip');
+  if (chip) {
+    chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:#0f766e;white-space:nowrap;';
+    chip.textContent   = `🐾 ${pet ? pet.name : 'Walk-in'}${owner?.name ? ' · ' + owner.name : ''}`;
+  }
+
+  // Enable done button
+  const doneBtn = _container?.querySelector('#wr-done-btn');
+  if (doneBtn) doneBtn.disabled = false;
+
+  // Re-render left panel with patient data + "เปลี่ยน" button
+  _renderPetPanel();
+  const panel = _container?.querySelector('#wr-pet-panel');
+  if (panel) {
+    const changeWrap = document.createElement('div');
+    changeWrap.style.cssText = 'margin-bottom:10px;text-align:center;';
+    changeWrap.innerHTML = `
+      <button id="wr-change-patient"
+        style="background:transparent;border:1px solid #e2e8f0;border-radius:8px;
+               padding:5px 14px;font-size:11px;color:#64748b;cursor:pointer;
+               font-family:inherit;transition:all .15s;"
+        onmouseover="this.style.borderColor='#0d9488';this.style.color='#0d9488';"
+        onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b';">
+        🔄 เปลี่ยนผู้ป่วย
+      </button>`;
+    panel.prepend(changeWrap);
+    changeWrap.querySelector('#wr-change-patient')?.addEventListener('click', () => {
+      _queueItem    = null;
+      _currentRecord = null;
+      _prescriptions = [];
+      _petData      = null;
+      _renderEmptyPetPanel();
+      _renderActiveTab();
+      // Reset topbar chip
+      const c = _container?.querySelector('.wr-patient-chip');
+      if (c) {
+        c.style.cssText = 'display:flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;white-space:nowrap;';
+        c.textContent = '🔍 ยังไม่มีผู้ป่วย';
+      }
+      const db = _container?.querySelector('#wr-done-btn');
+      if (db) db.disabled = true;
+    });
+  }
+
+  if (pet?.id) _loadVaccinations(pet.id);
+  _renderActiveTab();
 }
 
 // ── OPD Tab ───────────────────────────────────────────────────────────────────
 
 function _renderOPDTab(content) {
   if (!_queueItem) {
-    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:48px;">🩺</span><span>เลือกผู้ป่วยจากคิวเพื่อเริ่มบันทึก OPD</span></div>`;
+    content.innerHTML = `
+      <div class="wr-empty-state" style="cursor:default;">
+        <span style="font-size:48px;">🩺</span>
+        <span>ค้นหาผู้ป่วยในช่องค้นหาทางซ้าย</span>
+        <button onclick="document.querySelector('#wr-patient-search')?.focus()"
+          style="margin-top:4px;background:var(--primary,#0d9488);color:#fff;border:none;
+                 border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;
+                 cursor:pointer;font-family:inherit;">
+          🔍 ค้นหาผู้ป่วย
+        </button>
+      </div>`;
     return;
   }
 
@@ -491,8 +739,8 @@ async function _loadExistingRecord() {
 
 async function _renderHistoryTab(content) {
   const petName = _queueItem?.pet_name;
-  if (!petName) {
-    content.innerHTML = `<div class="wr-empty-state"><span>เลือกผู้ป่วยจากคิวก่อน</span></div>`;
+  if (!_queueItem) {
+    content.innerHTML = `<div class="wr-empty-state"><span>กรุณาค้นหาผู้ป่วยก่อน</span></div>`;
     return;
   }
 
@@ -553,7 +801,7 @@ async function _renderHistoryTab(content) {
 
 async function _renderInvoiceTab(content) {
   if (!_queueItem) {
-    content.innerHTML = `<div class="wr-empty-state"><span>เลือกผู้ป่วยจากคิวก่อน</span></div>`;
+    content.innerHTML = `<div class="wr-empty-state"><span>กรุณาค้นหาผู้ป่วยก่อน</span></div>`;
     return;
   }
 
@@ -565,24 +813,39 @@ async function _renderInvoiceTab(content) {
   }
 
   const rxItems = _prescriptions.map(rx => {
-    const inv = _invCache.find(p => p.id === rx.product_id || p.name === rx.drug);
-    const price = inv?.price || 0;
+    const inv   = _invCache.find(p => p.id === rx.product_id || p.name === rx.drug);
+    const price = inv?.sell_price || inv?.price || 0;
     const qty   = rx.qty || 1;
     return { ...rx, price, subtotal: price * qty };
   });
 
   const rxTotal = rxItems.reduce((s, r) => s + r.subtotal, 0);
 
+  // ตรวจว่า OPD บันทึกเสร็จสิ้นแล้วหรือยัง
+  const isDone = _currentRecord?.status === 'completed';
+
   content.innerHTML = `
     <div style="max-width:480px;margin:0 auto;">
+
+      ${isDone ? '' : `
+      <div style="display:flex;align-items:center;gap:8px;background:#fffbeb;border:1px solid #fde68a;
+                  border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;">
+        ⚠️ <span>กรุณากด <strong>เสร็จสิ้น</strong> ที่มุมขวาบนก่อน เพื่อบันทึก OPD ให้เรียบร้อย</span>
+      </div>`}
+
       <div class="wr-card" style="margin-bottom:12px;">
-        <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:12px;">ใบสั่งยา / Invoice</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-weight:700;font-size:14px;color:#1e293b;">ใบสั่งยา / Invoice</span>
+          ${isDone ? `<span style="background:#dcfce7;color:#166534;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">✅ บันทึกแล้ว</span>` : ''}
+        </div>
 
         ${rxItems.length ? rxItems.map(rx => `
           <div class="wr-invoice-row">
             <div>
               <div style="font-weight:500;">${_esc(rx.drug)}</div>
-              <div style="font-size:11px;color:#94a3b8;">${rx.dose || ''} ${rx.freq || ''}${rx.days ? ' ' + rx.days + 'วัน' : ''} ${rx.route || ''}</div>
+              <div style="font-size:11px;color:#94a3b8;">
+                ${[rx.dose, rx.freq, rx.days ? rx.days + 'วัน' : '', rx.route].filter(Boolean).join(' ')}
+              </div>
             </div>
             <div style="text-align:right;">
               <div style="color:#64748b;">${rx.qty || 1} × ฿${rx.price.toLocaleString()}</div>
@@ -601,27 +864,34 @@ async function _renderInvoiceTab(content) {
       </div>
 
       <div style="display:flex;gap:10px;">
-        <button id="wr-print-rx" style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;">🖨 พิมพ์ใบสั่งยา</button>
-        <button id="wr-pay-btn" style="flex:1;background:var(--primary,#0d9488);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">💳 ชำระเงิน</button>
+        <button id="wr-print-rx"
+          style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;
+                 padding:10px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;">
+          🖨 พิมพ์ใบสั่งยา
+        </button>
+        <button id="wr-send-pay"
+          style="flex:2;background:${isDone ? '#0369a1' : '#94a3b8'};color:#fff;border:none;
+                 border-radius:8px;padding:10px;font-size:13px;font-weight:600;
+                 cursor:${isDone ? 'pointer' : 'not-allowed'};opacity:${isDone ? '1' : '.6'};"
+          ${isDone ? '' : 'disabled title="กด เสร็จสิ้น ก่อน"'}>
+          📤 ส่งไปชำระที่เคาน์เตอร์
+        </button>
       </div>
+
+      ${!isDone ? `<p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px;">
+        ปุ่มจะเปิดใช้งานหลังจากกด <strong>เสร็จสิ้น</strong>
+      </p>` : ''}
     </div>`;
 
   content.querySelector('#wr-print-rx')?.addEventListener('click', () => window.print());
-  content.querySelector('#wr-pay-btn')?.addEventListener('click', () => {
-    document.dispatchEvent(new CustomEvent('fufu:openPOS', {
-      detail: {
-        queueItem:     _queueItem,
-        medicalRecord: { ...(_currentRecord || {}), prescriptions: _prescriptions },
-      },
-    }));
-  });
+  content.querySelector('#wr-send-pay')?.addEventListener('click', _sendToPayment);
 }
 
 // ── Appointment Tab ───────────────────────────────────────────────────────────
 
 async function _renderApptTab(content) {
   if (!_queueItem) {
-    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;">📅</span><span>เลือกผู้ป่วยจากคิวก่อน</span></div>`;
+    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;">📅</span><span>กรุณาค้นหาผู้ป่วยก่อน</span></div>`;
     return;
   }
 

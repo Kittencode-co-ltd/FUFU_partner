@@ -1,6 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -71,7 +71,7 @@ router.post('/', requireRole('owner', 'accountant'), async (req, res) => {
 });
 
 // PATCH /api/expenses/:id
-router.patch('/:id', requireRole('owner', 'accountant'), async (req, res) => {
+router.patch('/:id', resolveStoreId('expenses'), requireRole('owner', 'accountant'), async (req, res) => {
   const allowed = [
     'expense_date', 'category', 'amount', 'description', 'receipt_note',
     'withholding_tax_rate', 'withholding_tax_amount', 'vat_included', 'vat_amount',
@@ -93,7 +93,7 @@ router.patch('/:id', requireRole('owner', 'accountant'), async (req, res) => {
 });
 
 // DELETE /api/expenses/:id
-router.delete('/:id', requireRole('owner', 'accountant'), async (req, res) => {
+router.delete('/:id', resolveStoreId('expenses'), requireRole('owner', 'accountant'), async (req, res) => {
   const { error } = await req.supabase.from('expenses').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });

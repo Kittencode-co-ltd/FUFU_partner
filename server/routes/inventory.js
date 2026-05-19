@@ -218,9 +218,9 @@ router.post('/dispense', requireRole('owner', 'vet'), async (req, res) => {
 
 // ─── Movement Log ─────────────────────────────────────────────────────────────
 
-// GET /api/inventory/movements?store_id=UUID&product_id=UUID
+// GET /api/inventory/movements?store_id=UUID&product_id=UUID&from=DATE&to=DATE
 router.get('/movements', async (req, res) => {
-  const { store_id, product_id, limit = 100 } = req.query;
+  const { store_id, product_id, from, to, limit = 200 } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
   let query = req.supabase
@@ -229,6 +229,9 @@ router.get('/movements', async (req, res) => {
     .eq('store_id', store_id)
     .order('created_at', { ascending: false })
     .limit(parseInt(limit));
+
+  if (from) query = query.gte('created_at', `${from}T00:00:00`);
+  if (to)   query = query.lte('created_at', `${to}T23:59:59`);
 
   if (product_id) query = query.eq('product_id', product_id);
 
@@ -311,7 +314,7 @@ router.get('/suppliers', async (req, res) => {
   res.json({ success: true, data: data || [] });
 });
 
-router.post('/suppliers', async (req, res) => {
+router.post('/suppliers', requireRole('owner', 'vet', 'staff'), async (req, res) => {
   const { store_id, name, contact, phone, email, notes } = req.body;
   if (!store_id || !name) return res.status(400).json({ error: 'store_id and name required' });
 
@@ -323,6 +326,111 @@ router.post('/suppliers', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });
+});
+
+router.patch('/suppliers/:id', resolveStoreId('suppliers'), requireRole('owner', 'vet', 'staff'), async (req, res) => {
+  const allowed = ['name', 'contact', 'phone', 'email', 'notes'];
+  const updates = {};
+  for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
+  if (!Object.keys(updates).length) return res.status(400).json({ error: 'no fields to update' });
+
+  const { data, error } = await req.supabase
+    .from('suppliers').update(updates).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data });
+});
+
+router.delete('/suppliers/:id', resolveStoreId('suppliers'), requireRole('owner'), async (req, res) => {
+  const { error } = await req.supabase.from('suppliers').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// ─── Stock Adjustment ─────────────────────────────────────────────────────────
+
+// POST /api/inventory/adjust — correct stock count with an audited reason
+router.post('/adjust', requireRole('owner', 'vet', 'staff'), async (req, res) => {
+  const { store_id, product_id, batch_id, quantity_delta, reason } = req.body;
+  if (!store_id || !product_id || quantity_delta === undefined) {
+    return res.status(400).json({ error: 'store_id, product_id, quantity_delta required' });
+  }
+  const delta = parseInt(quantity_delta);
+  if (isNaN(delta) || delta === 0) return res.status(400).json({ error: 'quantity_delta must be a non-zero integer' });
+
+  // Update batch quantity if batch_id provided, else update newest active batch
+  let targetBatchId = batch_id;
+  if (!targetBatchId) {
+    const { data: batches } = await req.supabase
+      .from('inventory_batches')
+      .select('id, quantity')
+      .eq('store_id', store_id)
+      .eq('product_id', product_id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (!batches?.length) return res.status(400).json({ error: 'ไม่พบ batch ที่ active' });
+    targetBatchId = batches[0].id;
+    const newQty = batches[0].quantity + delta;
+    if (newQty < 0) return res.status(400).json({ error: `ไม่สามารถปรับยอดติดลบได้ (มี ${batches[0].quantity})` });
+    await req.supabase.from('inventory_batches')
+      .update({ quantity: newQty, is_active: newQty > 0 })
+      .eq('id', targetBatchId);
+  } else {
+    const { data: batch } = await req.supabase
+      .from('inventory_batches').select('quantity').eq('id', targetBatchId).single();
+    if (!batch) return res.status(404).json({ error: 'batch not found' });
+    const newQty = batch.quantity + delta;
+    if (newQty < 0) return res.status(400).json({ error: `ไม่สามารถปรับยอดติดลบได้ (มี ${batch.quantity})` });
+    await req.supabase.from('inventory_batches')
+      .update({ quantity: newQty, is_active: newQty > 0 })
+      .eq('id', targetBatchId);
+  }
+
+  const { data, error } = await req.supabase.from('stock_movements').insert([{
+    store_id, product_id,
+    batch_id:       targetBatchId,
+    movement_type:  'ADJUST',
+    quantity:       delta,
+    reference_type: 'adjustment',
+    reason:         reason || 'ปรับยอดสต็อก',
+    performed_by:   req.user.email || 'staff',
+  }]).select().single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data });
+});
+
+// ─── Expire Batch ─────────────────────────────────────────────────────────────
+
+// POST /api/inventory/expire-batch — mark expired batch as inactive and log it
+router.post('/expire-batch', requireRole('owner', 'vet', 'staff'), async (req, res) => {
+  const { store_id, batch_id } = req.body;
+  if (!store_id || !batch_id) return res.status(400).json({ error: 'store_id and batch_id required' });
+
+  const { data: batch, error: fetchErr } = await req.supabase
+    .from('inventory_batches').select('*').eq('id', batch_id).single();
+  if (fetchErr || !batch) return res.status(404).json({ error: 'batch not found' });
+
+  const remaining = batch.quantity;
+
+  await req.supabase.from('inventory_batches')
+    .update({ quantity: 0, is_active: false })
+    .eq('id', batch_id);
+
+  if (remaining > 0) {
+    await req.supabase.from('stock_movements').insert([{
+      store_id,
+      product_id:     batch.product_id,
+      batch_id,
+      movement_type:  'EXPIRED',
+      quantity:       -remaining,
+      reference_type: 'expiry_check',
+      reason:         `ตัดสต็อกหมดอายุ Lot: ${batch.lot_number}`,
+      performed_by:   req.user.email || 'staff',
+    }]);
+  }
+
+  res.json({ success: true, expired_qty: remaining, lot_number: batch.lot_number });
 });
 
 // ─── Batches for a product ────────────────────────────────────────────────────
