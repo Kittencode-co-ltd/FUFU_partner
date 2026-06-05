@@ -22,6 +22,20 @@ if (path.includes('login')) {
 async function bootLogin() {
   const { isAuthenticated, doLogin, renderStoreList, selectStore } = await import('./auth.js');
   const { showToast } = await import('./utils/toast.js');
+  const { storage }   = await import('./utils/storage.js');
+  const { STORAGE_KEYS, REMEMBER_EMAIL_KEY } = await import('./utils/config.js');
+
+  // ── "Remember me" auto-login ──────────────────────────────────────────────
+  // If the user opted to stay signed in and a session + store are still present,
+  // skip the form entirely. If the token has expired, the dashboard's auth guard
+  // / apiFetch refresh handles it — and on refresh failure it clears the session
+  // and bounces back here, so there's no redirect loop (no token = no auto-login).
+  if (storage.get(STORAGE_KEYS.REMEMBER) === '1'
+      && isAuthenticated()
+      && storage.get(STORAGE_KEYS.STORE_ID)) {
+    window.location.replace('/dashboard.html');
+    return;
+  }
 
   if (isAuthenticated()) {
     // Already logged in — show a resume banner instead of hard redirect
@@ -47,8 +61,15 @@ async function bootLogin() {
   const storePanel  = document.getElementById('store-panel');
   const storeList   = document.getElementById('store-list');
   const backBtn     = document.getElementById('back-btn');
+  const rememberEl  = document.getElementById('remember-me');
 
   if (!form) return;
+
+  // Pre-fill the remembered email and restore the checkbox state.
+  const rememberedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
+  if (rememberedEmail && emailEl) emailEl.value = rememberedEmail;
+  if (rememberEl) rememberEl.checked = storage.get(STORAGE_KEYS.REMEMBER) === '1'
+                                       || !!rememberedEmail;
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -75,6 +96,15 @@ async function bootLogin() {
     if (!result.success) {
       showToast(result.error, 'error');
       return;
+    }
+
+    // Persist "remember me" intent + email so the next visit can auto-login.
+    if (rememberEl?.checked) {
+      storage.set(STORAGE_KEYS.REMEMBER, '1');
+      localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+    } else {
+      storage.remove(STORAGE_KEYS.REMEMBER);
+      localStorage.removeItem(REMEMBER_EMAIL_KEY);
     }
 
     if (result.needs_onboarding || result.stores.length === 0) {

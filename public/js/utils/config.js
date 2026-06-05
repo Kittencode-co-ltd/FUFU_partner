@@ -16,7 +16,12 @@ export const STORAGE_KEYS = {
   STAFF_ROLE:     'fufu_staff_role',
   PROMPTPAY_ID:   'fufu_promptpay_id',
   STORE_INFO:     'fufu_store_info',
+  REMEMBER:       'fufu_remember',       // '1' = keep me signed in (cleared on explicit logout)
 };
+
+// Remembered login email — kept OUTSIDE STORAGE_KEYS so it survives logout
+// (clearSession wipes every STORAGE_KEYS entry) and can pre-fill the email field.
+export const REMEMBER_EMAIL_KEY = 'fufu_remember_email';
 
 export const FEATURE_FLAGS = {
   ENABLE_RBAC:              true,
