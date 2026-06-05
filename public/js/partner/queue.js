@@ -2,8 +2,26 @@
 import { storage } from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
+import { escapeHtml } from '../utils/formatters.js';
 
 const SERVICE_TYPES = ['ตรวจทั่วไป', 'วัคซีน', 'ผ่าตัด', 'ทำฟัน', 'ตรวจเลือด', 'อาบน้ำ-ตัดขน', 'อื่นๆ'];
+
+// SVG icon helpers (Heroicons-style, stroke-width 2)
+const IC = {
+  clock:      `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>`,
+  megaphone:  `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>`,
+  pulse:      `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l3-3 3 6 3-6 3 3 3-3"/></svg>`,
+  check:      `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+  alert:      `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>`,
+  clipboard:  `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/></svg>`,
+  card:       `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"/></svg>`,
+  receipt:    `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185zM9.75 9h.008v.008H9.75V9zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 4.5h.008v.008h-.008V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>`,
+  refresh:    `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>`,
+  xmark:      `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>`,
+  star:       `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
+  phone:      `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/></svg>`,
+  play:       `<svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`,
+};
 
 const STATUS_CFG = {
   waiting:     { label: 'รอ',          badge: 'badge-gold',                 border: 'border-l-amber-400' },
@@ -14,10 +32,10 @@ const STATUS_CFG = {
 };
 
 const KANBAN_COLS = [
-  { key: 'waiting',     label: 'รอคิว',    icon: '⏳', statuses: ['waiting'],              hdrCls: 'text-amber-600', countCls: 'bg-amber-100 text-amber-700' },
-  { key: 'called',      label: 'เรียกอยู่', icon: '📢', statuses: ['called'],               hdrCls: 'text-teal-600',  countCls: 'bg-teal-100 text-teal-700'   },
-  { key: 'in_progress', label: 'ตรวจอยู่',  icon: '🔬', statuses: ['in_progress'],          hdrCls: 'text-blue-600',  countCls: 'bg-blue-100 text-blue-700'   },
-  { key: 'done',        label: 'เสร็จสิ้น', icon: '✅', statuses: ['completed', 'no_show'], hdrCls: 'text-slate-500', countCls: 'bg-slate-100 text-slate-600'  },
+  { key: 'waiting',     label: 'รอคิว',    icon: IC.clock,     statuses: ['waiting'],              hdrCls: 'text-amber-600', countCls: 'bg-amber-100 text-amber-700' },
+  { key: 'called',      label: 'เรียกอยู่', icon: IC.megaphone, statuses: ['called'],               hdrCls: 'text-teal-600',  countCls: 'bg-teal-100 text-teal-700'   },
+  { key: 'in_progress', label: 'ตรวจอยู่',  icon: IC.pulse,     statuses: ['in_progress'],          hdrCls: 'text-blue-600',  countCls: 'bg-blue-100 text-blue-700'   },
+  { key: 'done',        label: 'เสร็จสิ้น', icon: IC.check,     statuses: ['completed', 'no_show'], hdrCls: 'text-slate-500', countCls: 'bg-slate-100 text-slate-600'  },
 ];
 
 let _storeId = '';
@@ -118,7 +136,7 @@ function _renderInbox(appointments) {
       <div class="flex items-center justify-between px-4 py-2.5 cursor-pointer select-none"
            id="inbox-toggle">
         <div class="flex items-center gap-2">
-          <span>📱</span>
+          <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/></svg>
           <span class="font-semibold text-navy text-sm">การจองจากแอป</span>
           <span class="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold text-white"
                 style="background:#F97316">${appointments.length}</span>
@@ -130,7 +148,7 @@ function _renderInbox(appointments) {
           <button data-appt-action="confirm-all"
             class="text-xs px-3 py-1 rounded-lg font-semibold transition-colors hidden"
             id="inbox-confirm-all"
-            style="background:#0D9488;color:#fff;">✓ ยืนยันทั้งหมด</button>
+            class="text-xs px-3 py-1 rounded-lg font-semibold transition-colors bg-primary text-white hover:bg-primary-dark">ยืนยันทั้งหมด</button>
           <span class="text-xs text-slate-400" id="inbox-hint">แตะเพื่อดู ▼</span>
           <i class="fas fa-chevron-right text-slate-400 text-xs transition-transform duration-200" id="inbox-chevron"></i>
         </div>
@@ -221,19 +239,19 @@ function _apptRow(a, today) {
 
       <!-- Pet + service -->
       <div class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-        <span class="text-sm font-semibold text-navy truncate">🐾 ${a.pet_name || '—'}</span>
-        <span class="text-xs text-slate-500 truncate">${service}${dropoff}</span>
+        <span class="text-sm font-semibold text-navy truncate">🐾 ${escapeHtml(a.pet_name) || '—'}</span>
+        <span class="text-xs text-slate-500 truncate">${escapeHtml(service)}${escapeHtml(dropoff)}</span>
         ${isToday ? '<span class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">วันนี้</span>' : ''}
       </div>
 
       <!-- Actions -->
       <div class="flex gap-1.5 flex-shrink-0">
         <button data-appt-action="confirm" data-appt-id="${a.id}"
-          class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors"
-          style="background:#0D9488;color:#fff;">✓ ยืนยัน</button>
+          class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors bg-primary text-white hover:bg-primary-dark flex items-center gap-1">
+          ${IC.check} ยืนยัน</button>
         <button data-appt-action="reject" data-appt-id="${a.id}"
-          class="text-xs px-2.5 py-1 rounded-lg font-semibold border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-          ✕</button>
+          class="text-xs px-2.5 py-1 rounded-lg font-semibold border border-red-200 text-red-500 hover:bg-red-50 transition-colors flex items-center gap-1">
+          ${IC.xmark}</button>
       </div>
     </div>`;
 }
@@ -282,15 +300,15 @@ function _renderCards(queue) {
 
 function _kanbanColumn(col, items) {
   const cards = items.length === 0
-    ? `<div class="rounded-lg border-2 border-dashed border-slate-300 py-6 text-center text-slate-400 text-xs font-body">ว่าง</div>`
+    ? `<div class="rounded-lg border-2 border-dashed border-slate-200 py-8 text-center text-slate-300 text-xs font-body">ว่าง</div>`
     : items.map(_kanbanCard).join('');
   return `
-    <div style="flex:1;min-width:0" class="flex flex-col rounded-xl bg-slate-100 border border-slate-200 p-3">
-      <div class="flex items-center justify-between px-0.5 mb-2.5">
-        <span class="font-bold text-sm ${col.hdrCls}">${col.icon} ${col.label}</span>
+    <div style="flex:1;min-width:0" class="flex flex-col rounded-xl bg-slate-50 border border-slate-200 overflow-hidden">
+      <div class="flex items-center justify-between px-3 py-2.5 bg-white border-b border-slate-100">
+        <span class="flex items-center gap-1.5 font-bold text-sm ${col.hdrCls}">${col.icon} ${col.label}</span>
         <span class="text-xs font-bold px-2 py-0.5 rounded-full ${col.countCls}">${items.length}</span>
       </div>
-      <div class="flex flex-col gap-2">${cards}</div>
+      <div class="flex flex-col gap-2 p-2.5">${cards}</div>
     </div>`;
 }
 
@@ -312,12 +330,12 @@ function _kanbanCard(q) {
       <div class="flex items-center justify-between gap-1 mb-1.5">
         <div class="flex items-center gap-1.5">
           <span class="font-mono font-bold text-primary text-sm">A${num}</span>
-          ${isEmergency ? '<span class="text-xs text-red-500 font-bold">🚨</span>' : ''}
+          ${isEmergency ? `<span class="text-red-500 font-bold" title="ด่วน">${IC.alert}</span>` : ''}
         </div>
         ${q.status === 'called' ? _moreMenu(q) : ''}
       </div>
-      <div class="font-semibold text-navy text-sm truncate">${petName || '—'}</div>
-      ${ownerName ? `<div class="text-xs text-slate-400 font-body truncate">${ownerName}</div>` : ''}
+      <div class="font-semibold text-navy text-sm truncate">${escapeHtml(petName) || '—'}</div>
+      ${ownerName ? `<div class="text-xs text-slate-400 font-body truncate">${escapeHtml(ownerName)}</div>` : ''}
       ${primaryBtn ? `<div class="mt-2.5">${primaryBtn}</div>` : ''}
     </div>`;
 }
@@ -327,9 +345,9 @@ function _primaryAction(q) {
     `<button data-action="${action}" data-id="${q.id}" data-queue='${JSON.stringify(q)}'
              class="${cls} w-full text-xs py-1.5 rounded-lg transition-all font-semibold text-center">${label}</button>`;
 
-  if (q.status === 'waiting')     return btn('call',     '📢 เรียก',    'bg-primary text-white hover:bg-primary-dark');
-  if (q.status === 'called')      return btn('start',    '▶ เริ่มรักษา', 'bg-blue-500 text-white hover:bg-blue-600');
-  if (q.status === 'in_progress') return btn('complete', '✓ เสร็จ',     'bg-primary text-white hover:bg-primary-dark');
+  if (q.status === 'waiting')     return btn('call',     `<span class="flex items-center justify-center gap-1">${IC.megaphone} เรียก</span>`,     'bg-primary text-white hover:bg-primary-dark');
+  if (q.status === 'called')      return btn('start',    `<span class="flex items-center justify-center gap-1">${IC.play} เริ่มรักษา</span>`,  'bg-blue-500 text-white hover:bg-blue-600');
+  if (q.status === 'in_progress') return btn('complete', `<span class="flex items-center justify-center gap-1">${IC.check} เสร็จ</span>`,       'bg-primary text-white hover:bg-primary-dark');
   return '';
 }
 
@@ -342,8 +360,8 @@ function _moreMenu(q) {
       <summary class="list-none w-7 h-7 flex items-center justify-center rounded-lg
                       text-slate-400 hover:bg-slate-200 cursor-pointer select-none text-base leading-none">⋯</summary>
       <div class="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 space-y-0.5 min-w-32">
-        ${menuBtn('recall',  '🔁 เรียกซ้ำ', 'hover:bg-slate-50 text-slate-600')}
-        ${menuBtn('noshow',  '❌ ไม่มา',    'hover:bg-red-50 text-red-500')}
+        ${menuBtn('recall', `<span class="flex items-center gap-1.5">${IC.refresh} เรียกซ้ำ</span>`, 'hover:bg-slate-50 text-slate-600')}
+        ${menuBtn('noshow', `<span class="flex items-center gap-1.5">${IC.xmark} ไม่มา</span>`,    'hover:bg-red-50 text-red-500')}
       </div>
     </details>`;
 }
@@ -372,18 +390,18 @@ function _queueCard(q) {
         <!-- Queue number -->
         <div class="flex-shrink-0 text-center">
           <div class="font-mono font-bold text-primary text-lg leading-none">A${num}</div>
-          ${isEmergency ? '<div class="text-xs text-red-500 font-semibold mt-0.5">🚨 ด่วน</div>' : ''}
+          ${isEmergency ? `<div class="flex items-center gap-0.5 text-xs text-red-500 font-semibold mt-0.5">${IC.alert} ด่วน</div>` : ''}
         </div>
 
         <!-- Info -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-semibold text-navy">${petName || '—'}</span>
+            <span class="font-semibold text-navy">${escapeHtml(petName) || '—'}</span>
             <span class="badge ${cfg.badge}">${cfg.label}</span>
-            ${q.priority === 'vip' ? '<span class="badge badge-gold">⭐ VIP</span>' : ''}
+            ${q.priority === 'vip' ? `<span class="badge badge-gold flex items-center gap-1">${IC.star} VIP</span>` : ''}
           </div>
           <div class="text-sm text-slate-500 font-body mt-0.5">
-            ${ownerName ? `เจ้าของ: ${ownerName} · ` : ''}${q.service_type || ''}
+            ${ownerName ? `เจ้าของ: ${escapeHtml(ownerName)} · ` : ''}${escapeHtml(q.service_type) || ''}
           </div>
           <div class="text-xs text-slate-400 font-body mt-1">${elapsed}</div>
         </div>
@@ -401,23 +419,24 @@ function _cardActions(q) {
     `<button data-action="${action}" data-id="${q.id}" data-queue='${JSON.stringify(q)}'
              class="${cls} rounded-lg transition-all">${label}</button>`;
 
+  const icoBtn = (icon, label) => `<span class="inline-flex items-center gap-1">${icon} ${label}</span>`;
   if (q.status === 'waiting') return `
-    ${btn('call', '📢 เรียก', 'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
-    ${btn('opd', '📋 OPD', 'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
+    ${btn('call',  icoBtn(IC.megaphone, 'เรียก'), 'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
+    ${btn('opd',   icoBtn(IC.clipboard, 'OPD'),   'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
 
   if (q.status === 'called') return `
-    ${btn('start', '▶ เริ่มรักษา', 'bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-colors')}
-    ${btn('noshow', '❌ ไม่มา', 'border border-slate-300 text-slate-500 text-xs px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors')}
-    ${btn('opd', '📋 OPD', 'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
+    ${btn('start',  icoBtn(IC.play,  'เริ่มรักษา'), 'bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-colors')}
+    ${btn('noshow', icoBtn(IC.xmark, 'ไม่มา'),      'border border-slate-300 text-slate-500 text-xs px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors')}
+    ${btn('opd',    icoBtn(IC.clipboard, 'OPD'),    'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
 
   if (q.status === 'in_progress') return `
-    ${btn('complete', '✓ เสร็จ', 'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
-    ${btn('opd', '📋 OPD', 'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}
-    ${btn('pos', '💳 ชำระ', 'border border-amber-400 text-amber-600 text-xs px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-colors')}`;
+    ${btn('complete', icoBtn(IC.check,     'เสร็จ'),  'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
+    ${btn('opd',      icoBtn(IC.clipboard, 'OPD'),    'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}
+    ${btn('pos',      icoBtn(IC.card,      'ชำระ'),   'border border-amber-400 text-amber-600 text-xs px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-colors')}`;
 
   if (q.status === 'completed') return `
-    ${btn('opd', '📋 ดู OPD', 'border border-slate-200 text-slate-400 text-xs px-3 py-1.5 rounded-lg')}
-    ${btn('pos', '🧾 ใบเสร็จ', 'border border-slate-200 text-slate-400 text-xs px-3 py-1.5 rounded-lg')}`;
+    ${btn('opd', icoBtn(IC.clipboard, 'ดู OPD'),   'border border-slate-200 text-slate-400 text-xs px-3 py-1.5 rounded-lg')}
+    ${btn('pos', icoBtn(IC.receipt,   'ใบเสร็จ'),  'border border-slate-200 text-slate-400 text-xs px-3 py-1.5 rounded-lg')}`;
 
   return '';
 }
@@ -501,8 +520,8 @@ function _bindWalkinSearch(container) {
 
     dropdown.innerHTML = header + rows.map((r, i) => {
       const emoji = r.pet_id ? (EMOJI[r.species] || '🐾') : '👤';
-      const main = r.pet_id ? `${emoji} ${r.pet_name}` : `${emoji} ${r.owner_name} (ยังไม่มีสัตว์)`;
-      const sub = r.pet_id ? `เจ้าของ: ${r.owner_name}${r.owner_phone ? ' · ' + r.owner_phone : ''}` : r.owner_phone;
+      const main = r.pet_id ? `${emoji} ${escapeHtml(r.pet_name)}` : `${emoji} ${escapeHtml(r.owner_name)} (ยังไม่มีสัตว์)`;
+      const sub = r.pet_id ? `เจ้าของ: ${escapeHtml(r.owner_name)}${r.owner_phone ? ' · ' + escapeHtml(r.owner_phone) : ''}` : escapeHtml(r.owner_phone);
       return `
         <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors"
              data-ridx="${i}">

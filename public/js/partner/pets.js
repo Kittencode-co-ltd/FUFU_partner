@@ -2,6 +2,7 @@
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
+import { formatHN, escapeHtml } from '../utils/formatters.js';
 
 const SPECIES = {
   dog:    { label: 'สุนัข',      emoji: '🐕' },
@@ -63,18 +64,21 @@ export async function renderPets(container) {
 }
 
 function _shellHTML() {
+  const calendarIco = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>`;
+  const pawIco      = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8.5 3.5a2 2 0 100 4 2 2 0 000-4zm7 0a2 2 0 100 4 2 2 0 000-4zM4 7.5a2 2 0 100 4 2 2 0 000-4zm16 0a2 2 0 100 4 2 2 0 000-4zM12 10c-3.314 0-6 2.686-6 6 0 1.657.672 2.5 2 2.5h8c1.328 0 2-.843 2-2.5 0-3.314-2.686-6-6-6z"/></svg>`;
+  const userIco     = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>`;
   return `
     <div class="space-y-4 w-full">
       <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         ${[
-          { id: 'appointments', label: '📅 นัดหมาย' },
-          { id: 'pets',         label: '🐾 สัตว์เลี้ยง' },
-          { id: 'owners',       label: '👤 เจ้าของ' },
+          { id: 'appointments', label: 'นัดหมาย',     ico: calendarIco },
+          { id: 'pets',         label: 'สัตว์เลี้ยง', ico: pawIco      },
+          { id: 'owners',       label: 'เจ้าของ',      ico: userIco     },
         ].map(t => `
           <button data-tab="${t.id}"
-            class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold transition-colors
+            class="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors
                    ${t.id === 'appointments' ? 'bg-white text-navy shadow-card' : 'text-slate-500 hover:text-navy'}">
-            ${t.label}
+            ${t.ico} ${t.label}
           </button>`).join('')}
       </div>
       <div id="pets-content"></div>
@@ -1455,7 +1459,7 @@ function _openVaccineModal(pet, container) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function _hn(pet) {
-  return pet?.hn ? `HN-${String(pet.hn).padStart(5, '0')}` : '';
+  return pet?.hn ? formatHN(pet.hn, pet.created_at) : '';
 }
 
 function _calcAge(dob) {

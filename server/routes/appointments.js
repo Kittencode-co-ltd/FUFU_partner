@@ -2,6 +2,7 @@ import { Router }      from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole, resolveStoreId } from '../middleware/rbac.js';
+import { insertWithSeqRetry } from '../utils/seq-retry.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -85,35 +86,36 @@ router.patch('/:id/confirm', requireRole('owner', 'vet', 'reception'), async (re
     return res.json({ success: true, data: { appointment: appt, queue_entry: orphanQ } });
   }
 
-  // Auto-assign queue number for the appointment date
+  // Auto-assign queue number for the appointment date. Guarded by the UNIQUE
+  // (store_id, queue_date, queue_number) constraint + retry on concurrent dupes.
   const queueDate = appt.appt_date;
-  const { data: existing } = await req.supabase
-    .from('queue_entries')
-    .select('queue_number')
-    .eq('store_id', store_id)
-    .eq('queue_date', queueDate)
-    .order('queue_number', { ascending: false })
-    .limit(1);
-  const nextNum = ((existing?.[0]?.queue_number) || 0) + 1;
-
-  // Build notes: "pet_name - owner info"
   const entryNotes = notes || appt.pet_name;
 
-  // Create queue entry
-  const { data: qEntry, error: qErr } = await req.supabase
-    .from('queue_entries')
-    .insert([{
-      store_id,
-      appointment_id: appt.id,
-      queue_number:   nextNum,
-      queue_date:     queueDate,
-      service_type:   (appt.services || [])[0] || appt.category,
-      priority:       'normal',
-      source:         'app_booking',
-      status:         'waiting',
-      notes:          entryNotes,
-    }])
-    .select().single();
+  const { data: qEntry, error: qErr } = await insertWithSeqRetry(async () => {
+    const { data: existing } = await req.supabase
+      .from('queue_entries')
+      .select('queue_number')
+      .eq('store_id', store_id)
+      .eq('queue_date', queueDate)
+      .order('queue_number', { ascending: false })
+      .limit(1);
+    const nextNum = ((existing?.[0]?.queue_number) || 0) + 1;
+
+    return req.supabase
+      .from('queue_entries')
+      .insert([{
+        store_id,
+        appointment_id: appt.id,
+        queue_number:   nextNum,
+        queue_date:     queueDate,
+        service_type:   (appt.services || [])[0] || appt.category,
+        priority:       'normal',
+        source:         'app_booking',
+        status:         'waiting',
+        notes:          entryNotes,
+      }])
+      .select().single();
+  });
 
   if (qErr) return res.status(500).json({ error: qErr.message });
 

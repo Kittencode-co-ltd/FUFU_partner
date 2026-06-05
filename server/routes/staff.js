@@ -31,7 +31,7 @@ router.post('/', requireRole('owner'), async (req, res) => {
   // Create Supabase Auth account for staff (invite)
   const adminSb = createClient(
     process.env.Project_URL,
-    process.env.SERVICE_ROLE_KEY,
+    process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
@@ -123,7 +123,7 @@ router.patch('/:id/reset-password', resolveStoreId('store_staff'), requireRole('
 
   const adminSb = createClient(
     process.env.Project_URL,
-    process.env.SERVICE_ROLE_KEY,
+    process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
@@ -132,7 +132,7 @@ router.patch('/:id/reset-password', resolveStoreId('store_staff'), requireRole('
   // 2. Find auth user by email via auth schema
   const authSb = createClient(
     process.env.Project_URL,
-    process.env.SERVICE_ROLE_KEY,
+    process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false }, db: { schema: 'auth' } }
   );
 

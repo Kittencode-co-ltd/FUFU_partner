@@ -1,6 +1,7 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole, resolveStoreId } from '../middleware/rbac.js';
+import { insertWithSeqRetry } from '../utils/seq-retry.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -76,34 +77,39 @@ router.post('/', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), a
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
   const today = new Date().toISOString().split('T')[0];
-
-  const { data: existing } = await req.supabase
-    .from('queue_entries')
-    .select('queue_number')
-    .eq('store_id', store_id)
-    .eq('queue_date', today)
-    .order('queue_number', { ascending: false })
-    .limit(1);
-
-  const nextNum = existing?.length ? existing[0].queue_number + 1 : 1;
   const combinedNotes = notes || (pet_name && owner_name ? `${pet_name} - ${owner_name}` : pet_name || '');
 
-  const { data, error } = await req.supabase
-    .from('queue_entries')
-    .insert([{
-      store_id,
-      pet_id:         pet_id || null,
-      queue_number:   nextNum,
-      queue_date:     today,
-      service_type:   service_type || 'ตรวจทั่วไป',
-      priority:       priority || 'normal',
-      notes:          combinedNotes,
-      estimated_time: estimated_time || 20,
-      status:         'waiting',
-      source:         'walk_in',
-    }])
-    .select()
-    .single();
+  // Allocate queue_number atomically-ish: re-read MAX and insert; the UNIQUE
+  // (store_id, queue_date, queue_number) constraint rejects concurrent dupes,
+  // and insertWithSeqRetry re-runs with a fresh MAX on 23505.
+  const { data, error } = await insertWithSeqRetry(async () => {
+    const { data: existing } = await req.supabase
+      .from('queue_entries')
+      .select('queue_number')
+      .eq('store_id', store_id)
+      .eq('queue_date', today)
+      .order('queue_number', { ascending: false })
+      .limit(1);
+
+    const nextNum = existing?.length ? existing[0].queue_number + 1 : 1;
+
+    return req.supabase
+      .from('queue_entries')
+      .insert([{
+        store_id,
+        pet_id:         pet_id || null,
+        queue_number:   nextNum,
+        queue_date:     today,
+        service_type:   service_type || 'ตรวจทั่วไป',
+        priority:       priority || 'normal',
+        notes:          combinedNotes,
+        estimated_time: estimated_time || 20,
+        status:         'waiting',
+        source:         'walk_in',
+      }])
+      .select()
+      .single();
+  });
 
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });

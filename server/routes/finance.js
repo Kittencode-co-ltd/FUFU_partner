@@ -146,8 +146,11 @@ router.post('/transactions', requireRole('owner', 'accountant', 'reception', 'st
   const { store_id, total, subtotal, discount = 0, payment_method = 'cash', description } = req.body;
   if (!store_id || !total) return res.status(400).json({ error: 'store_id and total required' });
 
+  // Round once to whole baht, matching the POS path (server/routes/pos.js) so
+  // commission_amount is computed identically no matter where the transaction
+  // originates — avoids reconciliation drift between manual and POS entries.
   const COMMISSION_RATE = 0.05;
-  const commission_amount = Math.round(total * COMMISSION_RATE * 100) / 100;
+  const commission_amount = Math.round(total * COMMISSION_RATE);
 
   const row = {
     store_id,
@@ -155,7 +158,7 @@ router.post('/transactions', requireRole('owner', 'accountant', 'reception', 'st
     discount:          discount || 0,
     total:             Math.round(total),
     commission_rate:   COMMISSION_RATE,
-    commission_amount: Math.round(commission_amount),
+    commission_amount,
     payment_method,
     payment_status:    'paid',
   };

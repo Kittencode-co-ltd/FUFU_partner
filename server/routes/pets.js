@@ -1,6 +1,7 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole, resolveStoreId } from '../middleware/rbac.js';
+import { insertWithSeqRetry } from '../utils/seq-retry.js';
 // Note: GET /:id uses resolveStoreId to enforce store-scoped access
 
 const router = Router();
@@ -15,8 +16,8 @@ router.get('/owners/search', async (req, res) => {
   const { q, store_id } = req.query;
 
   const petSelect = store_id
-    ? `id, name, species, breed, hn, allergies, store_id`
-    : `id, name, species, breed, hn, allergies`;
+    ? `id, name, species, breed, hn, created_at, allergies, store_id`
+    : `id, name, species, breed, hn, created_at, allergies`;
 
   let ownerQuery = req.supabase
     .from('pet_owners')
@@ -43,8 +44,17 @@ router.get('/owners/search', async (req, res) => {
     const { data: byName } = await petNameQ;
     (byName || []).forEach(p => p.owner_id && petOwnerIds.add(p.owner_id));
 
-    // Search by HN number (strips "HN-", leading zeros: "HN-00001" → 1)
-    const hnNum = parseInt(q.replace(/[^0-9]/g, ''), 10);
+    // Search by HN. Accepts the year-prefixed form ("HN-2025-000042"), the
+    // legacy form ("HN-00042"), or a bare number. The stored `hn` is only the
+    // sequence, so when an "HN" prefix is present we take the LAST digit group
+    // (skipping the year); otherwise a pure-number query is used directly.
+    let hnNum = NaN;
+    if (/hn/i.test(q)) {
+      const groups = q.match(/\d+/g);
+      if (groups) hnNum = parseInt(groups[groups.length - 1], 10);
+    } else if (/^\s*\d+\s*$/.test(q)) {
+      hnNum = parseInt(q.trim(), 10);
+    }
     if (!isNaN(hnNum) && hnNum > 0) {
       let petHNQ = req.supabase.from('pets').select('owner_id').eq('hn', hnNum).limit(5);
       if (store_id) petHNQ = petHNQ.eq('store_id', store_id);
@@ -104,7 +114,7 @@ router.post('/owners', requireRole('owner', 'vet', 'reception', 'staff'), async 
 });
 
 // PATCH /api/pets/owners/:id
-router.patch('/owners/:id', async (req, res) => {
+router.patch('/owners/:id', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const updates = { ...req.body, updated_at: new Date().toISOString() };
   delete updates.id;
 
@@ -190,20 +200,25 @@ router.post('/', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   if (!name || !owner_id) return res.status(400).json({ error: 'name and owner_id required' });
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
-  // Generate next HN for this store (per-clinic sequential)
-  const { data: lastPet } = await req.supabase
-    .from('pets')
-    .select('hn')
-    .eq('store_id', store_id)
-    .order('hn', { ascending: false })
-    .limit(1);
-  const nextHn = (lastPet?.[0]?.hn || 0) + 1;
+  // Generate next HN for this store (per-clinic sequential). The UNIQUE
+  // (store_id, hn) constraint rejects concurrent duplicates; insertWithSeqRetry
+  // re-reads MAX(hn) and retries on 23505 so simultaneous registrations each
+  // get a distinct number.
+  const { data, error } = await insertWithSeqRetry(async () => {
+    const { data: lastPet } = await req.supabase
+      .from('pets')
+      .select('hn')
+      .eq('store_id', store_id)
+      .order('hn', { ascending: false })
+      .limit(1);
+    const nextHn = (lastPet?.[0]?.hn || 0) + 1;
 
-  const { data, error } = await req.supabase
-    .from('pets')
-    .insert([{ owner_id, store_id, hn: nextHn, name, species, type: species, breed, gender, dob, color, weight_kg, microchip_no, is_neutered: is_neutered ?? false, allergies, notes }])
-    .select('*, pet_owners(*)')
-    .single();
+    return req.supabase
+      .from('pets')
+      .insert([{ owner_id, store_id, hn: nextHn, name, species, type: species, breed, gender, dob, color, weight_kg, microchip_no, is_neutered: is_neutered ?? false, allergies, notes }])
+      .select('*, pet_owners(*)')
+      .single();
+  });
 
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });
@@ -296,7 +311,7 @@ router.post('/appointments', requireRole('owner', 'vet', 'reception'), async (re
 });
 
 // PATCH /api/pets/appointments/:id
-router.patch('/appointments/:id', async (req, res) => {
+router.patch('/appointments/:id', resolveStoreId('appointments'), requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const updates = { ...req.body, updated_at: new Date().toISOString() };
   delete updates.id;
 
@@ -312,8 +327,9 @@ router.patch('/appointments/:id', async (req, res) => {
 });
 
 // POST /api/pets/appointments/:id/checkin — convert appointment to queue entry
-router.post('/appointments/:id/checkin', async (req, res) => {
+router.post('/appointments/:id/checkin', requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const { store_id } = req.body;
+  if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
   const { data: appt, error: apptErr } = await req.supabase
     .from('appointments')
@@ -323,35 +339,39 @@ router.post('/appointments/:id/checkin', async (req, res) => {
 
   if (apptErr) return res.status(404).json({ error: 'Appointment not found' });
 
-  // Auto-increment queue number
-  const today = new Date().toISOString().split('T')[0];
-  const { data: existing } = await req.supabase
-    .from('queue_entries')
-    .select('queue_number')
-    .eq('store_id', store_id)
-    .eq('queue_date', today)
-    .order('queue_number', { ascending: false })
-    .limit(1);
-
-  const nextNum   = existing?.length ? existing[0].queue_number + 1 : 1;
+  // Auto-increment queue number. Guarded by the UNIQUE
+  // (store_id, queue_date, queue_number) constraint + retry on concurrent dupes.
+  const today     = new Date().toISOString().split('T')[0];
   const petName   = appt.pets?.name || '';
   const ownerName = appt.pets?.pet_owners?.name || '';
 
-  const { data: queueEntry, error: qErr } = await req.supabase
-    .from('queue_entries')
-    .insert([{
-      store_id,
-      queue_number:   nextNum,
-      queue_date:     today,
-      service_type:   appt.service_type,
-      priority:       'normal',
-      notes:          ownerName ? `${petName} - ${ownerName}` : petName,
-      estimated_time: 20,
-      status:         'waiting',
-      source:         'appointment',
-    }])
-    .select()
-    .single();
+  const { data: queueEntry, error: qErr } = await insertWithSeqRetry(async () => {
+    const { data: existing } = await req.supabase
+      .from('queue_entries')
+      .select('queue_number')
+      .eq('store_id', store_id)
+      .eq('queue_date', today)
+      .order('queue_number', { ascending: false })
+      .limit(1);
+
+    const nextNum = existing?.length ? existing[0].queue_number + 1 : 1;
+
+    return req.supabase
+      .from('queue_entries')
+      .insert([{
+        store_id,
+        queue_number:   nextNum,
+        queue_date:     today,
+        service_type:   appt.service_type,
+        priority:       'normal',
+        notes:          ownerName ? `${petName} - ${ownerName}` : petName,
+        estimated_time: 20,
+        status:         'waiting',
+        source:         'appointment',
+      }])
+      .select()
+      .single();
+  });
 
   if (qErr) return res.status(500).json({ error: qErr.message });
 

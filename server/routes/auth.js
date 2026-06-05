@@ -14,7 +14,8 @@ function adminSb() {
   if (!_adminSb) {
     _adminSb = createClient(
       process.env.Project_URL,
-      process.env.SERVICE_ROLE_KEY,
+      // .env uses lowercase `service_role_key`; accept either casing.
+      process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
   }

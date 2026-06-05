@@ -2,7 +2,7 @@ import { STORAGE_KEYS } from '../utils/config.js';
 import { showToast } from '../utils/toast.js';
 import { apiFetch } from '../utils/api-client.js';
 import { storage } from '../utils/storage.js';
-import { formatThaiDate } from '../utils/formatters.js';
+import { formatThaiDate, formatHN } from '../utils/formatters.js';
 
 const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
 
@@ -393,7 +393,7 @@ function _renderPetPanel() {
     ${p.gender    ? `<div class="wr-info-row"><span class="wr-info-label">เพศ</span><span class="wr-info-value">${genderMap[p.gender] || p.gender}</span></div>` : ''}
     ${age         ? `<div class="wr-info-row"><span class="wr-info-label">อายุ</span><span class="wr-info-value">${age}</span></div>` : ''}
     ${p.weight_kg ? `<div class="wr-info-row"><span class="wr-info-label">น้ำหนัก</span><span class="wr-info-value">${p.weight_kg} kg</span></div>` : ''}
-    ${p.hn        ? `<div class="wr-info-row"><span class="wr-info-label">HN</span><span class="wr-info-value">HN-${String(p.hn).padStart(5,'0')}</span></div>` : ''}
+    ${p.hn        ? `<div class="wr-info-row"><span class="wr-info-label">HN</span><span class="wr-info-value">${formatHN(p.hn, p.created_at)}</span></div>` : ''}
     ${p.is_neutered ? `<div class="wr-info-row"><span class="wr-info-label">ทำหมัน</span><span class="wr-info-value">แล้ว ✓</span></div>` : ''}
 
     <div class="wr-section-label">เจ้าของ</div>
@@ -426,7 +426,7 @@ function _renderEmptyPetPanel() {
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
         <input id="wr-patient-search" autocomplete="off" spellcheck="false"
-          placeholder="HN-00001, ชื่อสัตว์ หรือชื่อเจ้าของ..."
+          placeholder="HN, ชื่อสัตว์ หรือชื่อเจ้าของ..."
           style="flex:1;border:none;outline:none;background:transparent;font-size:12px;
                  color:#334155;font-family:inherit;min-width:0;">
         <button id="wr-search-clear"
@@ -583,7 +583,7 @@ function _bindPanelSearch(panel) {
     results.innerHTML = rows.map((r, i) => {
       const emoji    = SPECIES_EMOJI[r.pet.species] || '🐾';
       const hnBadge  = r.pet.hn
-        ? `<span style="background:#ccfbf1;color:#0f766e;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;font-family:monospace;">HN-${String(r.pet.hn).padStart(5,'0')}</span>`
+        ? `<span style="background:#ccfbf1;color:#0f766e;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;font-family:monospace;">${formatHN(r.pet.hn, r.pet.created_at)}</span>`
         : '';
       const allBadge = r.pet.allergies
         ? `<span style="background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-size:10px;">⚠ แพ้ยา</span>`

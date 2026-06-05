@@ -301,7 +301,9 @@ function _renderChart(container, days, from, to) {
   const today = new Date().toISOString().split('T')[0];
 
   el.innerHTML = days.map((d, i) => {
-    const pct     = Math.max((d.total / max) * 100, 2);
+    // Zero-revenue days render as a flat baseline; only non-zero days get a
+    // minimum visible height so the row of bars shares a clean, even base.
+    const pct     = d.total > 0 ? Math.max((d.total / max) * 100, 3) : 0;
     const isToday = d.date === today;
     const showLbl = i % showEvery === 0 || i === days.length - 1;
     const dt      = new Date(d.date + 'T00:00');
@@ -312,18 +314,21 @@ function _renderChart(container, days, from, to) {
       ? (d.total >= 1000 ? '฿' + Math.round(d.total / 1000) + 'k' : '฿' + d.total.toLocaleString('th-TH'))
       : '';
     return `
-      <div class="flex-1 flex flex-col items-center gap-0.5 min-w-0 group relative"
+      <div class="flex-1 h-full flex flex-col items-center min-w-0 group relative"
            title="${d.date}: ฿${d.total.toLocaleString('th-TH')}">
-        <span class="text-xs font-semibold font-body truncate w-full text-center leading-tight"
+        <span class="h-4 flex items-end justify-center text-xs font-semibold font-body truncate w-full text-center leading-none"
               style="color:${isToday ? '#0D9488' : '#94A3B8'}">${valLabel}</span>
-        <div class="w-full rounded-t transition-all relative"
-             style="height:${pct}%;background:${isToday ? '#0D9488' : '#CCFBF1'};min-height:4px">
-          <div class="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:flex
-                      bg-navy text-white text-xs font-body px-2 py-0.5 rounded-md whitespace-nowrap z-10 shadow">
-            ฿${d.total.toLocaleString('th-TH')}
+        <!-- Bar zone fills the remaining height; bars anchor to a shared baseline -->
+        <div class="flex-1 w-full flex items-end px-px py-0.5">
+          <div class="w-full rounded-t transition-all relative"
+               style="height:${pct}%;background:${isToday ? '#0D9488' : '#CCFBF1'};min-height:2px">
+            <div class="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:flex
+                        bg-navy text-white text-xs font-body px-2 py-0.5 rounded-md whitespace-nowrap z-10 shadow">
+              ฿${d.total.toLocaleString('th-TH')}
+            </div>
           </div>
         </div>
-        <span class="text-xs font-body text-center leading-tight truncate w-full"
+        <span class="h-4 flex items-start justify-center text-center leading-none truncate w-full"
               style="color:#94A3B8;font-size:9px">${day}</span>
       </div>`;
   }).join('');

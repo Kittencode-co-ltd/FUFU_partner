@@ -2,7 +2,7 @@ import { apiFetch }   from '../utils/api-client.js';
 import { storage }    from '../utils/storage.js';
 import { showToast }  from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
-import { formatThaiDate } from '../utils/formatters.js';
+import { formatThaiDate, escapeHtml } from '../utils/formatters.js';
 
 const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
 const STATUS_CFG = {
@@ -24,7 +24,7 @@ export async function renderMedicalRecords(container) {
   container.innerHTML = `
     <div class="space-y-4 w-full">
       <div class="card p-3 sm:p-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
-        <input id="med-search" class="input-field flex-1" placeholder="🔍 ค้นหาชื่อสัตว์เลี้ยง / เจ้าของ">
+        <input id="med-search" class="input-field flex-1" placeholder="ค้นหาชื่อสัตว์เลี้ยง / เจ้าของ...">
         <select id="med-filter" class="input-field w-44">
           <option value="">ทุกสถานะ</option>
           <option value="in_progress">กำลังรักษา</option>
@@ -83,24 +83,23 @@ function _recordRow(r) {
   const snippet = r.assessment || r.diagnosis || r.subjective || '';
 
   return `
-    <div class="card p-4 hover:shadow-card-hover transition-shadow cursor-pointer"
+    <div class="card px-3 py-2.5 hover:shadow-card-hover transition-shadow cursor-pointer"
          data-record-id="${r.id}">
-      <div class="flex items-center gap-4">
-        <div class="w-10 h-10 rounded-xl bg-primary-subtle flex items-center justify-center text-xl flex-shrink-0">${sp}</div>
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-primary-subtle flex items-center justify-center text-base flex-shrink-0">${sp}</div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-semibold text-navy">${r.pet_name || '(ไม่ระบุชื่อ)'}</span>
+            <span class="font-semibold text-navy text-sm truncate">${escapeHtml(r.pet_name) || '(ไม่ระบุชื่อ)'}</span>
             <span class="badge ${cfg.cls}">${cfg.label}</span>
             ${rxCount ? `<span class="text-xs badge badge-navy">💊 ${rxCount}</span>` : ''}
           </div>
-          <div class="text-sm text-slate-500 font-body mt-0.5">
-            ${r.owner_name ? `เจ้าของ: ${r.owner_name} · ` : ''}${date}
+          <div class="text-xs text-slate-500 font-body mt-0.5 truncate">
+            ${r.owner_name ? `${escapeHtml(r.owner_name)} · ` : ''}${date}${snippet ? ` · ${escapeHtml(snippet)}` : ''}
           </div>
-          ${snippet ? `<div class="text-xs text-slate-400 font-body mt-1 truncate">${snippet}</div>` : ''}
         </div>
         <div class="flex-shrink-0 flex gap-1.5 items-center">
-          ${r.weight_kg     ? `<span class="text-xs badge badge-navy">⚖ ${r.weight_kg}kg</span>` : ''}
-          ${r.temperature_c ? `<span class="text-xs badge badge-navy">🌡 ${r.temperature_c}°C</span>` : ''}
+          ${r.weight_kg     ? `<span class="hidden sm:inline-flex text-xs badge badge-navy">⚖ ${r.weight_kg}kg</span>` : ''}
+          ${r.temperature_c ? `<span class="hidden sm:inline-flex text-xs badge badge-navy">🌡 ${r.temperature_c}°C</span>` : ''}
           <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
@@ -132,7 +131,7 @@ function _openRecordView(r) {
     return `
       <div>
         <div class="text-xs font-semibold text-slate-400 font-body mb-0.5">${label}</div>
-        <div class="text-sm text-navy whitespace-pre-wrap">${text}</div>
+        <div class="text-sm text-navy whitespace-pre-wrap">${escapeHtml(text)}</div>
       </div>`;
   }
 
@@ -152,11 +151,11 @@ function _openRecordView(r) {
           <div class="flex items-start gap-2 text-sm bg-slate-50 rounded-lg px-3 py-2">
             <span class="text-base">💊</span>
             <div class="flex-1 min-w-0">
-              <span class="font-semibold text-navy">${rx.drug || rx.name || '?'}</span>
-              ${rx.dose ? `<span class="text-slate-500 font-body ml-1">· ${rx.dose}</span>` : ''}
-              ${rx.freq ? `<span class="text-xs text-slate-400 font-body ml-1">${FREQ_LABELS[rx.freq] || rx.freq}</span>` : ''}
-              ${rx.days ? `<span class="text-xs text-slate-400 font-body ml-1">· ${rx.days} วัน</span>` : ''}
-              ${rx.note ? `<div class="text-xs text-slate-400 font-body mt-0.5">${rx.note}</div>` : ''}
+              <span class="font-semibold text-navy">${escapeHtml(rx.drug || rx.name || '?')}</span>
+              ${rx.dose ? `<span class="text-slate-500 font-body ml-1">· ${escapeHtml(rx.dose)}</span>` : ''}
+              ${rx.freq ? `<span class="text-xs text-slate-400 font-body ml-1">${FREQ_LABELS[rx.freq] || escapeHtml(rx.freq)}</span>` : ''}
+              ${rx.days ? `<span class="text-xs text-slate-400 font-body ml-1">· ${escapeHtml(String(rx.days))} วัน</span>` : ''}
+              ${rx.note ? `<div class="text-xs text-slate-400 font-body mt-0.5">${escapeHtml(rx.note)}</div>` : ''}
             </div>
           </div>`).join('')}
       </div>
@@ -173,11 +172,11 @@ function _openRecordView(r) {
           <span class="text-3xl">${sp}</span>
           <div>
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold text-navy">${r.pet_name || '(ไม่ระบุชื่อ)'}</span>
+              <span class="font-bold text-navy">${escapeHtml(r.pet_name) || '(ไม่ระบุชื่อ)'}</span>
               <span class="badge ${cfg.cls}">${cfg.label}</span>
             </div>
             <div class="text-xs text-slate-400 font-body">
-              ${r.owner_name ? `เจ้าของ: ${r.owner_name} · ` : ''}${date}
+              ${r.owner_name ? `เจ้าของ: ${escapeHtml(r.owner_name)} · ` : ''}${date}
             </div>
           </div>
         </div>

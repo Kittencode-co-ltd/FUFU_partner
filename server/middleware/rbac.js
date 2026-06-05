@@ -16,7 +16,10 @@ function _admin() {
   if (!_adminSb) {
     _adminSb = createClient(
       process.env.Project_URL,
-      process.env.SERVICE_ROLE_KEY,
+      // .env defines the key as lowercase `service_role_key`; accept either casing
+      // so owner-role resolution (which relies on this admin client) never silently
+      // breaks and 403s legitimate store owners.
+      process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
   }

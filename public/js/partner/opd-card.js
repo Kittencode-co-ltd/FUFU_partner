@@ -3,6 +3,7 @@ import { storage } from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { printDrugLabels, printReferralLetter } from '../utils/print-docs.js';
+import { formatHN } from '../utils/formatters.js';
 
 const VITALS_NORMAL = {
   temp: { min: 37.5, max: 39.2, unit: '°C' },
@@ -150,7 +151,7 @@ function _buildHTML() {
           <i class="fas fa-search text-slate-400 text-sm flex-shrink-0"></i>
           <input id="opd-main-search"
             class="flex-1 bg-transparent outline-none text-sm text-navy placeholder:text-slate-400 font-body"
-            placeholder="พิมพ์ HN-00001, ชื่อสัตว์ หรือชื่อเจ้าของ..."
+            placeholder="พิมพ์ HN, ชื่อสัตว์ หรือชื่อเจ้าของ..."
             autocomplete="off" spellcheck="false">
           <button id="opd-main-search-clear" class="hidden text-slate-400 hover:text-slate-600 text-lg leading-none">×</button>
         </div>
@@ -168,7 +169,7 @@ function _buildHTML() {
           🚶 Walk-in / ไม่มีประวัติ
         </button>
         <span class="text-xs text-slate-400 font-body">
-          เคล็ดลับ: พิมพ์ <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-</kbd> แล้วตามด้วยตัวเลข เช่น <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-00042</kbd>
+          เคล็ดลับ: พิมพ์ <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-</kbd> แล้วตามด้วยตัวเลข เช่น <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-000042</kbd>
         </span>
       </div>
 
@@ -562,7 +563,7 @@ function _bindMainSearch(c) {
     results.innerHTML = rows.map((r, i) => {
       const emoji  = SPECIES_EMOJI[r.species] || '🐾';
       const hnTag  = r.hn
-        ? `<span class="text-xs bg-teal-100 text-teal-700 rounded px-1.5 py-0.5 font-mono font-semibold">HN-${String(r.hn).padStart(5, '0')}</span>`
+        ? `<span class="text-xs bg-teal-100 text-teal-700 rounded px-1.5 py-0.5 font-mono font-semibold">${formatHN(r.hn, r.created_at)}</span>`
         : '';
       const breedTxt = r.breed ? `<span class="text-xs text-slate-400 font-body">${r.breed}</span>` : '';
       const allergyBadge = r.allergies
@@ -993,7 +994,7 @@ async function _loadPetProfile(petId) {
   if (extra) {
     const parts = [];
     if (pet.breed) parts.push(pet.breed);
-    if (pet.hn) parts.push(`HN-${String(pet.hn).padStart(5, '0')}`);
+    if (pet.hn) parts.push(formatHN(pet.hn, pet.created_at));
     if (pet.dob) parts.push(`อายุ ${_calcAge(pet.dob)}`);
     if (pet.is_neutered) parts.push('ทำหมันแล้ว');
     if (parts.length) {

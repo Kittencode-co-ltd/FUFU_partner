@@ -50,6 +50,10 @@ export async function renderIPDWard(container) {
       .cage-edit-btn:hover   { background: #DBEAFE; }
       .cage-delete-btn { background: #FEF2F2; color: #DC2626; }
       .cage-delete-btn:hover { background: #FEE2E2; }
+      /* Edit/delete controls reveal on hover (replaces the old "จัดการกรง"
+         settings-mode toggle, which was removed from the ward header). */
+      .cage-card:hover .cage-edit-overlay,
+      .cage-card:focus-within .cage-edit-overlay { display: flex; }
       .ipd-settings-mode .cage-edit-overlay { display: flex; }
       .ipd-settings-mode .cage-card {
         border-style: dashed !important;
@@ -67,10 +71,6 @@ export async function renderIPDWard(container) {
 // ─── Main render ──────────────────────────────────────────────────────────────
 
 async function _render(container) {
-  const staffRole = storage.get(STORAGE_KEYS.STAFF_ROLE);
-  // null/empty = owner (ไม่ใช่ staff) → เข้าได้เสมอ
-  const canSettings = !staffRole || staffRole === 'owner' || staffRole === 'vet';
-
   const [cagesRes, admRes] = await Promise.all([
     apiFetch(`/api/ipd/cages?store_id=${_storeId}`),
     apiFetch(`/api/ipd/admissions?store_id=${_storeId}&status=admitted`),
@@ -128,14 +128,6 @@ async function _render(container) {
                     <i class="fas ${v.icon} text-xs"></i>${v.label}
                   </span>`).join('')}
               </div>
-              ${canSettings ? `
-              <button id="settings-mode-btn"
-                class="text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors
-                       ${_settingsMode
-                         ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
-                         : 'border border-slate-300 text-slate-500 hover:border-primary hover:text-primary'}">
-                ${_settingsMode ? '✕ ออกจาก Settings' : '⚙️ จัดการกรง'}
-              </button>` : ''}
               <button id="add-cage-btn"
                 class="text-xs border border-primary text-primary px-3 py-1.5 rounded-lg
                        hover:bg-primary-subtle transition-colors font-semibold whitespace-nowrap">
@@ -167,11 +159,6 @@ async function _render(container) {
         </div>
       </div>
     </div>`;
-
-  container.querySelector('#settings-mode-btn')?.addEventListener('click', () => {
-    _settingsMode = !_settingsMode;
-    _render(container);
-  });
 
   container.querySelector('#add-cage-btn')?.addEventListener('click', () => _openAddCageModal(container));
   container.querySelector('#add-first-cage-btn')?.addEventListener('click', () => _openAddCageModal(container));
