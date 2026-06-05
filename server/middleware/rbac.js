@@ -1,7 +1,7 @@
 /**
  * RBAC middleware — role-based access control at the API level.
  *
- * Staff roles (stored in store_staff.roles TEXT[]):
+ * Staff roles (stored in staff.roles TEXT[]):
  *   owner | vet | reception | staff | accountant | counter
  *
  * Store owners are identified via stores.owner_id (UUID) OR stores.owner_email (fallback).
@@ -55,18 +55,20 @@ export async function attachStoreRole(req, res, next) {
       return next();
     }
 
-    // Not the owner — check store_staff table (supports both `role` TEXT and `roles` TEXT[])
+    // Not the owner — check staff table (supports both `role` TEXT and `roles` TEXT[]).
+    // The app's multi-role model lives in `roles[]`, so prefer it; fall back to the
+    // single `role` column only when no array roles are set.
     const { data: staff } = await req.supabase
-      .from('store_staff')
+      .from('staff')
       .select('role, roles')
       .eq('store_id', storeId)
       .eq('user_email', req.user.email)
       .eq('is_active', true)
       .single();
 
-    req.staffRole = staff?.role
-      || (Array.isArray(staff?.roles) ? staff.roles[0] : staff?.roles)
-      || null;
+    req.staffRole = (Array.isArray(staff?.roles) && staff.roles.length)
+      ? staff.roles[0]
+      : (staff?.role || null);
     next();
   } catch {
     req.staffRole = null;

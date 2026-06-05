@@ -169,7 +169,12 @@ function _openAddModal(container) {
         <div class="col-span-2">
           <label class="input-label">อีเมล (ใช้ Login) *</label>
           <input id="sf-email" class="input-field" type="email" placeholder="somchai@email.com">
-          <p class="text-xs text-slate-400 font-body mt-1">จะสร้าง account ให้อัตโนมัติพร้อมรหัสผ่านชั่วคราว</p>
+        </div>
+        <div class="col-span-2">
+          <label class="input-label">รหัสผ่านสำหรับ Login</label>
+          <input id="sf-password" class="input-field" type="text" autocomplete="new-password"
+                 placeholder="เว้นว่างเพื่อสุ่มรหัสชั่วคราวให้อัตโนมัติ">
+          <p class="text-xs text-slate-400 font-body mt-1">ตั้งรหัสเอง (อย่างน้อย 6 ตัว) หรือเว้นว่างให้ระบบสุ่มให้</p>
         </div>
         <div>
           <label class="input-label">เบอร์โทรศัพท์</label>
@@ -216,18 +221,20 @@ function _openAddModal(container) {
     const position = modal.querySelector('#sf-position').value;
     const start_date = modal.querySelector('#sf-start').value || null;
     const notes    = modal.querySelector('#sf-notes').value.trim();
+    const password = modal.querySelector('#sf-password').value;
     const roles    = [...modal.querySelectorAll('.sf-role:checked')].map(c => c.value);
 
     if (!name || !email)   { showToast('กรุณากรอกชื่อและอีเมล', 'error'); return; }
     if (!email.includes('@')) { showToast('อีเมลไม่ถูกต้อง', 'error'); return; }
     if (!roles.length)     { showToast('กรุณาเลือกสิทธิ์อย่างน้อย 1 อย่าง', 'error'); return; }
+    if (password && password.length < 6) { showToast('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'error'); return; }
 
     const btn = modal.querySelector('#modal-confirm');
     btn.disabled = true; btn.textContent = 'กำลังสร้าง...';
 
     const res = await apiFetch('/api/staff', {
       method: 'POST',
-      body: JSON.stringify({ store_id: _storeId, user_email: email, name, roles, phone, position, start_date, notes }),
+      body: JSON.stringify({ store_id: _storeId, user_email: email, name, roles, phone, position, start_date, notes, password: password || undefined }),
     });
 
     if (res?.success) {
@@ -306,19 +313,62 @@ function _openEditModal(member, container) {
       <!-- ── รหัสผ่าน ── -->
       <div class="border-t border-slate-100 pt-4">
         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">รหัสผ่าน Login</div>
-        <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-          <div>
-            <div class="text-sm font-semibold text-navy">อีเมล: ${member.user_email}</div>
-            <div class="text-xs text-slate-400 font-body mt-0.5">รีเซ็ตรหัสผ่านจะสร้างรหัสชั่วคราวใหม่</div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-3">
+          <div class="text-sm font-semibold text-navy">อีเมล: ${member.user_email}</div>
+
+          <!-- ตั้งรหัสเอง -->
+          <div class="flex items-end gap-2">
+            <div class="flex-1">
+              <label class="input-label">ตั้งรหัสผ่านเอง</label>
+              <input id="se-password" class="input-field" type="text" autocomplete="new-password"
+                     placeholder="อย่างน้อย 6 ตัวอักษร">
+            </div>
+            <button id="set-pw-btn"
+              class="flex-shrink-0 text-sm px-4 py-2.5 rounded-lg bg-primary text-white
+                     hover:bg-primary-dark font-semibold transition-colors whitespace-nowrap">
+              ตั้งรหัส
+            </button>
           </div>
+
+          <div class="flex items-center gap-2">
+            <div class="flex-1 border-t border-slate-200"></div>
+            <span class="text-xs text-slate-400 font-body">หรือ</span>
+            <div class="flex-1 border-t border-slate-200"></div>
+          </div>
+
+          <!-- สุ่มรหัสชั่วคราว -->
           <button id="reset-pw-btn"
-            class="flex-shrink-0 text-sm px-4 py-2 rounded-lg border border-amber-300 text-amber-700
-                   bg-amber-50 hover:bg-amber-100 font-semibold transition-colors whitespace-nowrap">
-            🔑 รีเซ็ตรหัสผ่าน
+            class="w-full text-sm px-4 py-2.5 rounded-lg border border-amber-300 text-amber-700
+                   bg-amber-50 hover:bg-amber-100 font-semibold transition-colors">
+            🔑 สุ่มรหัสผ่านชั่วคราวใหม่
           </button>
         </div>
       </div>
     </div>`);
+
+  // Set a custom (permanent) password
+  modal.querySelector('#set-pw-btn').addEventListener('click', async () => {
+    const pwInput = modal.querySelector('#se-password');
+    const password = pwInput.value;
+    if (!password || password.length < 6) { showToast('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'error'); return; }
+
+    const btn = modal.querySelector('#set-pw-btn');
+    btn.disabled = true; btn.textContent = 'กำลังตั้ง...';
+
+    const res = await apiFetch(`/api/staff/${member.id}/reset-password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ password }),
+    });
+
+    btn.disabled = false; btn.textContent = 'ตั้งรหัส';
+
+    if (res?.success) {
+      modal.remove();
+      _showPasswordModal('ตั้งรหัสผ่านสำเร็จ 🔑', res.name, res.email, res.temp_password);
+    } else {
+      showToast(res?.error || 'ตั้งรหัสผ่านไม่สำเร็จ', 'error');
+    }
+  });
 
   // Save basic info + roles
   modal.querySelector('#modal-confirm').addEventListener('click', async () => {

@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
   const { data, error } = await req.supabase
-    .from('store_staff')
+    .from('staff')
     .select('*')
     .eq('store_id', store_id)
     .order('created_at', { ascending: true });
@@ -23,9 +23,13 @@ router.get('/', async (req, res) => {
 
 // POST /api/staff — invite/add staff member
 router.post('/', requireRole('owner'), async (req, res) => {
-  const { store_id, user_email, name, roles, pin } = req.body;
+  const { store_id, user_email, name, roles, pin, password } = req.body;
   if (!store_id || !user_email || !name) {
     return res.status(400).json({ error: 'store_id, user_email, name required' });
+  }
+  // Optional owner-chosen permanent password; otherwise a random temp is generated.
+  if (password != null && password !== '' && String(password).length < 6) {
+    return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
   }
 
   // Create Supabase Auth account for staff (invite)
@@ -42,24 +46,26 @@ router.post('/', requireRole('owner'), async (req, res) => {
   let authUserId = existingUser?.id;
 
   if (!existingUser) {
-    // Create auth account with temp password — user must change on first login
-    const tempPassword = `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // Use the owner-chosen password if given, otherwise generate a random one.
+    const accountPassword = (password != null && password !== '')
+      ? String(password)
+      : `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const { data: newUser, error: createErr } = await adminSb.auth.admin.createUser({
       email: user_email,
-      password: tempPassword,
+      password: accountPassword,
       email_confirm: true,
       user_metadata: { name, is_staff: true },
     });
     if (createErr) return res.status(500).json({ error: createErr.message });
     authUserId = newUser.user.id;
 
-    // Store temp password to return to owner (so they can share with staff)
-    req._tempPassword = tempPassword;
+    // Return the password to the owner so they can share it with the staff member.
+    req._tempPassword = accountPassword;
   }
 
-  // Add to store_staff
+  // Add to staff
   const { data, error } = await req.supabase
-    .from('store_staff')
+    .from('staff')
     .upsert([{
       store_id,
       user_email: user_email.toLowerCase(),
@@ -83,7 +89,7 @@ router.post('/', requireRole('owner'), async (req, res) => {
 });
 
 // PATCH /api/staff/:id — update name, roles, status, extra fields
-router.patch('/:id', resolveStoreId('store_staff'), requireRole('owner'), async (req, res) => {
+router.patch('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
   const extraCols  = ['phone', 'position', 'start_date', 'notes'];
   const baseCols   = ['name', 'roles', 'is_active', 'pin'];
 
@@ -96,12 +102,12 @@ router.patch('/:id', resolveStoreId('store_staff'), requireRole('owner'), async 
   const fullUpdates = { ...pick(baseCols), ...pick(extraCols) };
 
   const { data, error } = await req.supabase
-    .from('store_staff').update(fullUpdates).eq('id', req.params.id).select().single();
+    .from('staff').update(fullUpdates).eq('id', req.params.id).select().single();
 
   // If extra columns don't exist yet, retry with base columns only
   if (error && error.message.includes('schema cache')) {
     const { data: d2, error: e2 } = await req.supabase
-      .from('store_staff').update(pick(baseCols)).eq('id', req.params.id).select().single();
+      .from('staff').update(pick(baseCols)).eq('id', req.params.id).select().single();
     if (e2) return res.status(500).json({ error: e2.message });
     return res.json({ success: true, data: d2, migration_needed: true });
   }
@@ -111,10 +117,16 @@ router.patch('/:id', resolveStoreId('store_staff'), requireRole('owner'), async 
 });
 
 // PATCH /api/staff/:id/reset-password — generate new temp password
-router.patch('/:id/reset-password', resolveStoreId('store_staff'), requireRole('owner'), async (req, res) => {
+router.patch('/:id/reset-password', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
+  const { password } = req.body || {};
+  // Owner-chosen permanent password is optional; otherwise a random one is generated.
+  if (password != null && password !== '' && String(password).length < 6) {
+    return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+  }
+
   // 1. Get staff record
   const { data: member, error: findErr } = await req.supabase
-    .from('store_staff')
+    .from('staff')
     .select('user_email, name')
     .eq('id', req.params.id)
     .single();
@@ -127,7 +139,9 @@ router.patch('/:id/reset-password', resolveStoreId('store_staff'), requireRole('
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
-  const tempPassword = `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  const tempPassword = (password != null && password !== '')
+    ? String(password)
+    : `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
   // 2. Find auth user by email via auth schema
   const authSb = createClient(
@@ -163,9 +177,9 @@ router.patch('/:id/reset-password', resolveStoreId('store_staff'), requireRole('
 });
 
 // DELETE /api/staff/:id — deactivate (not delete)
-router.delete('/:id', resolveStoreId('store_staff'), requireRole('owner'), async (req, res) => {
+router.delete('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
   const { data, error } = await req.supabase
-    .from('store_staff')
+    .from('staff')
     .update({ is_active: false })
     .eq('id', req.params.id)
     .select()
@@ -181,7 +195,7 @@ router.get('/me', async (req, res) => {
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
   const { data, error } = await req.supabase
-    .from('store_staff')
+    .from('staff')
     .select('*')
     .eq('store_id', store_id)
     .eq('user_email', req.user.email)

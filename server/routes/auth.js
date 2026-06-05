@@ -68,11 +68,11 @@ router.post('/login', async (req, res) => {
     stores = byEmail;
   }
 
-  // 2. If not owner → check store_staff membership
+  // 2. If not owner → check staff membership
   let isStaffMember = false;
   if (!stores?.length) {
     const { data: staffRows } = await userSb
-      .from('store_staff')
+      .from('staff')
       .select('store_id, roles, name')
       .eq('user_email', data.user.email)
       .eq('is_active', true);
