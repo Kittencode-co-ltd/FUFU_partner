@@ -2,6 +2,7 @@ import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
+import { icon } from '../utils/icons.js';
 
 const DAYS_TH = { mon:'จันทร์', tue:'อังคาร', wed:'พุธ', thu:'พฤหัส', fri:'ศุกร์', sat:'เสาร์', sun:'อาทิตย์' };
 
@@ -31,7 +32,7 @@ export async function renderSettings(container) {
       ${canManage ? `
       <div class="card p-5 space-y-4">
         <div>
-          <h3 class="font-bold text-navy text-lg">🏥 ข้อมูลร้านค้า</h3>
+          <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('hospital-alt','w-5 h-5')}</span> ข้อมูลร้านค้า</h3>
           <p class="text-sm text-slate-400 font-body mt-0.5">ข้อมูลนี้ปรากฏบนใบเสร็จ, ฉลากยา และเอกสารทั้งหมด</p>
         </div>
         <div class="space-y-3">
@@ -137,7 +138,7 @@ export async function renderSettings(container) {
       <!-- ── FEAT-05: เวลาทำการ ── -->
       <div class="card p-5 space-y-4" id="biz-hours-card">
         <div>
-          <h3 class="font-bold text-navy text-lg">⏰ เวลาทำการ</h3>
+          <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('calendar-alt','w-5 h-5')}</span> เวลาทำการ</h3>
           <p class="text-sm text-slate-400 font-body mt-0.5">ข้อมูลนี้ส่งให้ App ลูกค้าเพื่อกำหนดช่วงจองที่อนุญาต</p>
         </div>
         <div id="biz-hours-loading" class="text-slate-400 font-body text-sm">กำลังโหลด...</div>
@@ -148,7 +149,7 @@ export async function renderSettings(container) {
       <!-- ── FEAT-05: ค่ารักษาเบื้องต้น ── -->
       <div class="card p-5 space-y-4">
         <div>
-          <h3 class="font-bold text-navy text-lg">💊 ค่ารักษาเริ่มต้น</h3>
+          <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('pills','w-5 h-5')}</span> ค่ารักษาเริ่มต้น</h3>
           <p class="text-sm text-slate-400 font-body mt-0.5">ใช้ pre-fill ใน POS — แก้ได้ต่อ visit</p>
         </div>
         <div id="rates-loading" class="text-slate-400 font-body text-sm">กำลังโหลด...</div>

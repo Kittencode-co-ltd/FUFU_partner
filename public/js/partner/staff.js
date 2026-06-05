@@ -2,6 +2,7 @@
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
+import { icon } from '../utils/icons.js';
 
 const PERM_MODULES = ['queue','opd','ipd','stock','finance','pos','settings'];
 const PERM_ACTIONS = ['view','create','edit','delete'];
@@ -306,7 +307,9 @@ async function _render(container) {
           <p class="text-sm text-slate-400 font-body mt-0.5">Active ${active.length} คน</p>
         </div>
         <div class="flex gap-2">
-          <button id="manage-roles-btn" class="btn-outline px-4 py-2 text-sm">🔐 จัดการสิทธิ์</button>
+          <button id="manage-roles-btn" class="btn-outline px-4 py-2 text-sm">
+            <span class="opacity-70 mr-1">${icon('shield-alt','w-3.5 h-3.5')}</span>จัดการสิทธิ์
+          </button>
           <button id="add-staff-btn" class="btn-primary px-4 py-2">+ เพิ่มพนักงาน</button>
         </div>
       </div>
@@ -380,10 +383,10 @@ function _staffCard(s, inactive = false) {
             ${positionBadge}
           </div>
           <div class="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-400 font-body">
-            <span><i class="fas fa-envelope mr-1 opacity-60"></i>${s.user_email}</span>
-            ${s.phone ? `<span><i class="fas fa-phone mr-1 opacity-60"></i>${s.phone}</span>` : ''}
-            ${startDate ? `<span><i class="fas fa-calendar-alt mr-1 opacity-60"></i>เริ่มงาน ${startDate}</span>` : ''}
-            ${s.last_login ? `<span><i class="fas fa-clock mr-1 opacity-60"></i>Login ล่าสุด ${new Date(s.last_login).toLocaleDateString('th-TH')}</span>` : ''}
+            <span class="flex items-center gap-1"><span class="opacity-50">${icon('envelope','w-3 h-3')}</span>${s.user_email}</span>
+            ${s.phone ? `<span class="flex items-center gap-1"><span class="opacity-50">${icon('phone','w-3 h-3')}</span>${s.phone}</span>` : ''}
+            ${startDate ? `<span class="flex items-center gap-1"><span class="opacity-50">${icon('calendar-alt','w-3 h-3')}</span>เริ่มงาน ${startDate}</span>` : ''}
+            ${s.last_login ? `<span class="flex items-center gap-1"><span class="opacity-50">${icon('clock','w-3 h-3')}</span>Login ล่าสุด ${new Date(s.last_login).toLocaleDateString('th-TH')}</span>` : ''}
           </div>
           ${s.notes ? `<div class="text-xs text-slate-400 font-body mt-1 italic">${s.notes}</div>` : ''}
         </div>
@@ -660,7 +663,7 @@ function _showPasswordModal(title, name, email, password) {
           <div class="flex items-center gap-2">
             <span id="tmp-pw" class="font-mono font-bold text-primary text-base bg-primary-subtle px-3 py-1 rounded-lg select-all">${password}</span>
             <button id="copy-pw" class="text-slate-400 hover:text-primary transition-colors" title="คัดลอก">
-              <i class="fas fa-copy"></i>
+              ${icon('copy','w-3.5 h-3.5')}
             </button>
           </div>
         </div>
@@ -766,11 +769,11 @@ function _openRolesPanel(storeId) {
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-slate-100">
         <div>
-          <h3 class="font-bold text-navy text-lg">🔐 Role & Permission</h3>
+          <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('shield-alt','w-5 h-5')}</span> Role & Permission</h3>
           <p class="text-sm text-slate-400 font-body mt-0.5">กำหนดตำแหน่งและสิทธิ์การเข้าถึงของพนักงาน</p>
         </div>
         <button id="rp-close" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
-          <i class="fas fa-times"></i>
+          ${icon('times','w-4 h-4')}
         </button>
       </div>
 
@@ -918,7 +921,7 @@ function _openRoleModal(role, storeId, onSave) {
           ${isEdit ? `แก้ไข Role — ${role.name}` : '+ สร้าง Role ใหม่'}
         </h3>
         <button id="rl-x" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
-          <i class="fas fa-times"></i>
+          ${icon('times','w-4 h-4')}
         </button>
       </div>
 
@@ -1026,7 +1029,7 @@ function _modal(title, body) {
       <div class="flex items-center justify-between">
         <h3 class="font-bold text-navy text-lg">${title}</h3>
         <button id="modal-x" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
-          <i class="fas fa-times"></i>
+          ${icon('times','w-4 h-4')}
         </button>
       </div>
       <div>${body}</div>

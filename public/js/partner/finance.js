@@ -3,18 +3,19 @@ import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { formatThaiDate } from '../utils/formatters.js';
+import { icon } from '../utils/icons.js';
 
-const PM_ICON  = { cash: '💵', promptpay: '📱', card: '💳', transfer: '🏦', voucher: '🎟', other: '💰' };
+const PM_ICON  = { cash: 'money-bill-wave', promptpay: 'qrcode', card: 'credit-card', transfer: 'exchange-alt', voucher: 'ticket-alt', other: 'coins' };
 const PM_LABEL = { cash: 'เงินสด', promptpay: 'PromptPay', card: 'บัตร', transfer: 'โอน', voucher: 'Voucher', other: 'อื่นๆ' };
 
 const EXP_CAT = {
-  salary:    { label: 'ค่าแรงงาน',       icon: '👷' },
-  supplies:  { label: 'วัสดุสิ้นเปลือง',  icon: '🔧' },
-  rent:      { label: 'ค่าเช่า',          icon: '🏠' },
-  utilities: { label: 'ค่าไฟ/น้ำ',        icon: '💡' },
-  goods:     { label: 'ค่าสินค้า/ยา',     icon: '📦' },
-  marketing: { label: 'ค่าโฆษณา',         icon: '📣' },
-  other:     { label: 'อื่นๆ',            icon: '💰' },
+  salary:    { label: 'ค่าแรงงาน',       icon: 'user-tie' },
+  supplies:  { label: 'วัสดุสิ้นเปลือง',  icon: 'tools' },
+  rent:      { label: 'ค่าเช่า',          icon: 'building' },
+  utilities: { label: 'ค่าไฟ/น้ำ',        icon: 'bolt' },
+  goods:     { label: 'ค่าสินค้า/ยา',     icon: 'box' },
+  marketing: { label: 'ค่าโฆษณา',         icon: 'bullhorn' },
+  other:     { label: 'อื่นๆ',            icon: 'ellipsis-h' },
 };
 
 // ─── Date range presets ───────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ export async function renderFinancePage(container) {
 
       <!-- P&L summary -->
       <div id="pnl-section" class="card p-5">
-        <h3 class="font-semibold text-navy mb-3">📊 P&L — รายได้ vs รายจ่าย</h3>
+        <h3 class="font-semibold text-navy mb-3 flex items-center gap-2"><span class="text-primary opacity-70">${icon('chart-pie','w-4 h-4')}</span> P&L — รายได้ vs รายจ่าย</h3>
         <div id="pnl-content" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
           ${_skeletonCards(3)}
         </div>
@@ -91,7 +92,7 @@ export async function renderFinancePage(container) {
       <!-- Daily chart -->
       <div class="card p-5">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-navy" id="chart-title">📈 รายได้รายวัน</h3>
+          <h3 class="font-semibold text-navy flex items-center gap-2" id="chart-title"><span class="text-primary opacity-70">${icon('chart-bar','w-4 h-4')}</span> รายได้รายวัน</h3>
           <span class="text-xs text-slate-400 font-body" id="chart-max-label"></span>
         </div>
         <div id="finance-chart" class="flex items-end gap-1 sm:gap-1.5 h-40 sm:h-56 md:h-64">
@@ -101,7 +102,7 @@ export async function renderFinancePage(container) {
 
       <!-- Payment breakdown -->
       <div class="card p-5" id="payment-breakdown-card">
-        <h3 class="font-semibold text-navy mb-4">💳 ช่องทางชำระเงิน</h3>
+        <h3 class="font-semibold text-navy mb-4 flex items-center gap-2"><span class="text-primary opacity-70">${icon('credit-card','w-4 h-4')}</span> ช่องทางชำระเงิน</h3>
         <div id="payment-breakdown" class="space-y-3"></div>
       </div>
 
@@ -110,7 +111,7 @@ export async function renderFinancePage(container) {
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-semibold text-navy">ประวัติธุรกรรม <span id="tx-count" class="text-xs text-slate-400 font-body ml-1"></span></h3>
           <button id="export-csv" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-primary hover:text-primary transition-colors font-semibold">
-            <i class="fas fa-download mr-1"></i>Export CSV
+            <span class="mr-1 inline-flex">${icon('download','w-3.5 h-3.5')}</span>Export CSV
           </button>
         </div>
         <div id="finance-table" class="space-y-0">
@@ -121,10 +122,12 @@ export async function renderFinancePage(container) {
       <!-- Expense section -->
       <div class="card p-5">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-navy">💸 รายจ่าย <span id="exp-count" class="text-xs text-slate-400 font-body ml-1"></span></h3>
+          <h3 class="font-semibold text-navy flex items-center gap-2">
+            <span class="text-red-400 opacity-80">${icon('file-invoice-dollar','w-4 h-4')}</span> รายจ่าย
+            <span id="exp-count" class="text-xs text-slate-400 font-body ml-1"></span></h3>
           <div class="flex items-center gap-2">
             <button id="export-exp-csv" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-primary hover:text-primary transition-colors font-semibold">
-              <i class="fas fa-download mr-1"></i>Export CSV
+              <span class="mr-1 inline-flex">${icon('download','w-3.5 h-3.5')}</span>Export CSV
             </button>
             ${canManage ? `
             <button id="add-expense-btn"
@@ -234,13 +237,15 @@ function _renderStats(container, d, from, to) {
   if (!el) return;
   const fmt = n => Number(n || 0).toLocaleString('th-TH');
   el.innerHTML = [
-    { icon: '💰', label: 'รายได้รวม',    value: fmt(d.total),       unit: '฿',    cls: 'text-navy'      },
-    { icon: '🧾', label: 'จำนวนธุรกรรม', value: fmt(d.count),       unit: 'ครั้ง', cls: 'text-navy'      },
-    { icon: '📊', label: 'เฉลี่ย/วัน',   value: fmt(d.avg_per_day), unit: '฿',    cls: 'text-primary'   },
-    { icon: '💸', label: 'ค่าคอม 5%',    value: fmt(d.commission),  unit: '฿',    cls: 'text-slate-500' },
+    { icon: 'coins',       bg: '#0D948822', label: 'รายได้รวม',    value: fmt(d.total),       unit: '฿',    cls: 'text-navy'      },
+    { icon: 'receipt',     bg: '#3B82F622', label: 'จำนวนธุรกรรม', value: fmt(d.count),       unit: 'ครั้ง', cls: 'text-navy'      },
+    { icon: 'chart-line',  bg: '#F59E0B22', label: 'เฉลี่ย/วัน',   value: fmt(d.avg_per_day), unit: '฿',    cls: 'text-primary'   },
+    { icon: 'percentage',  bg: '#94A3B822', label: 'ค่าคอม 5%',    value: fmt(d.commission),  unit: '฿',    cls: 'text-slate-500' },
   ].map(s => `
     <div class="card p-5">
-      <div class="text-2xl mb-2">${s.icon}</div>
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style="background:${s.bg};color:${s.bg.replace('22','bb')}">
+        ${icon(s.icon, 'w-4 h-4')}
+      </div>
       <div class="text-xs text-slate-400 font-body">${s.label}</div>
       <div class="mt-1 flex items-baseline gap-1">
         <span class="text-2xl font-bold ${s.cls}">${s.value}</span>
@@ -257,22 +262,28 @@ function _renderPnL(container, revenue, expTotal) {
   const profit   = revenue - expTotal;
   const margin   = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
   const profitCls = profit >= 0 ? 'text-primary' : 'text-red-500';
-  const profitIcon = profit >= 0 ? '📈' : '📉';
+  const profitIconKey = profit >= 0 ? 'arrow-trend-up' : 'arrow-trend-down';
   const fmt = n => Math.abs(n).toLocaleString('th-TH');
 
   el.innerHTML = `
     <div class="card p-4 text-center">
-      <div class="text-lg mb-1">💰</div>
+      <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2 mx-auto text-primary">
+        ${icon('coins','w-4 h-4')}
+      </div>
       <div class="text-xs text-slate-400 font-body">รายได้รวม</div>
       <div class="text-xl font-bold text-navy mt-1">฿${fmt(revenue)}</div>
     </div>
     <div class="card p-4 text-center">
-      <div class="text-lg mb-1">💸</div>
+      <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center mb-2 mx-auto text-red-400">
+        ${icon('file-invoice-dollar','w-4 h-4')}
+      </div>
       <div class="text-xs text-slate-400 font-body">รายจ่ายรวม</div>
       <div class="text-xl font-bold text-red-500 mt-1">฿${fmt(expTotal)}</div>
     </div>
-    <div class="card p-4 text-center border-2 ${profit >= 0 ? 'border-primary' : 'border-red-300'}">
-      <div class="text-lg mb-1">${profitIcon}</div>
+    <div class="card p-4 text-center border-2 ${profit >= 0 ? 'border-primary/30' : 'border-red-200'}">
+      <div class="w-8 h-8 rounded-lg ${profit >= 0 ? 'bg-primary/10' : 'bg-red-50'} flex items-center justify-center mb-2 mx-auto ${profit >= 0 ? 'text-primary' : 'text-red-400'}">
+        ${icon(profitIconKey,'w-4 h-4')}
+      </div>
       <div class="text-xs text-slate-400 font-body">กำไรสุทธิ (ประมาณ)</div>
       <div class="text-xl font-bold ${profitCls} mt-1">${profit < 0 ? '-' : ''}฿${fmt(profit)}</div>
       <div class="text-xs text-slate-400 font-body mt-0.5">Margin ${margin}%</div>
@@ -293,7 +304,7 @@ function _renderChart(container, days, from, to) {
 
   const dayCount  = days.length;
   const showEvery = dayCount <= 14 ? 1 : dayCount <= 30 ? 3 : 7;
-  if (title) title.textContent = `📈 รายได้รายวัน (${dayCount} วัน)`;
+  if (title) title.innerHTML = `<span class="text-primary opacity-70 mr-1 inline-flex">${icon('chart-bar','w-4 h-4')}</span> รายได้รายวัน (${dayCount} วัน)`;
 
   const max   = Math.max(...days.map(d => d.total), 1);
   const label = container.querySelector('#chart-max-label');
@@ -349,8 +360,9 @@ function _renderPaymentBreakdown(container, byMethod, total) {
     const pct = Math.round((amount / max) * 100);
     return `
       <div class="flex items-center gap-3">
-        <span class="w-20 text-sm font-body text-slate-500 flex-shrink-0">
-          ${PM_ICON[method] || '💰'} ${PM_LABEL[method] || method}
+        <span class="w-24 text-sm font-body text-slate-500 flex-shrink-0 flex items-center gap-1.5">
+          <span class="text-slate-400 w-3 flex-shrink-0">${icon(PM_ICON[method] || 'coins','w-3 h-3')}</span>
+          ${PM_LABEL[method] || method}
         </span>
         <div class="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
           <div class="h-full rounded-full bg-primary transition-all" style="width:${pct}%"></div>
@@ -404,8 +416,11 @@ function _txRow(tx) {
         <div class="text-xs text-slate-400 font-body">${timeStr}</div>
       </td>
       <td class="py-3 pr-4 text-slate-600 font-body text-sm">
-        ${PM_ICON[pm] || '💰'} ${PM_LABEL[pm] || pm}
-        ${tx.description ? `<div class="text-xs text-slate-400">${tx.description}</div>` : ''}
+        <span class="flex items-center gap-1.5">
+          <span class="text-slate-400 w-3 flex-shrink-0">${icon(PM_ICON[pm] || 'coins','w-3 h-3')}</span>
+          ${PM_LABEL[pm] || pm}
+        </span>
+        ${tx.description ? `<div class="text-xs text-slate-400 mt-0.5">${tx.description}</div>` : ''}
       </td>
       <td class="py-3 pr-4 text-right font-semibold text-navy">฿${fmt(tx.total)}</td>
       <td class="py-3 pr-4 text-right text-slate-400 font-body text-xs">฿${fmt(tx.commission_amount)}</td>
@@ -485,7 +500,7 @@ function _renderExpenses(container, rows, total) {
                 <td class="py-2.5 text-right">
                   <button data-del-expense="${e.id}"
                     class="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                    <i class="fas fa-times text-xs"></i>
+                    ${icon('times','w-3 h-3')}
                   </button>
                 </td>
               </tr>`;
@@ -516,7 +531,7 @@ function _openAddExpenseModal(storeId, defaultDate, onSaved) {
   modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
-      <h3 class="font-bold text-navy text-lg">💸 บันทึกรายจ่าย</h3>
+      <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-red-400">${icon('file-invoice-dollar','w-5 h-5')}</span> บันทึกรายจ่าย</h3>
 
       <div class="grid grid-cols-2 gap-3">
         <div>

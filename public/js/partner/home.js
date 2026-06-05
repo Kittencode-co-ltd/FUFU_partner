@@ -1,6 +1,7 @@
 import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { STORAGE_KEYS } from '../utils/config.js';
+import { icon } from '../utils/icons.js';
 
 // ─── Date range presets ───────────────────────────────────────────────────────
 
@@ -31,7 +32,9 @@ export async function renderHome(container) {
   if (!storeId) {
     container.innerHTML = `
       <div class="card p-10 text-center space-y-3">
-        <div class="text-4xl">🏪</div>
+        <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto">
+          <span class="text-slate-400">${icon('store', 'w-6 h-6')}</span>
+        </div>
         <div class="font-semibold text-navy">ยังไม่ได้เลือกร้านค้า</div>
         <p class="text-slate-400 font-body text-sm">กรุณา logout แล้ว login ใหม่</p>
       </div>`;
@@ -116,24 +119,24 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
 
       <!-- ── KPI Cards ── -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        ${_kpi('💰', 'รายได้รวม',       `฿${_fmt(fin.total)}`,        `จาก ${fin.count||0} รายการ`,  'text-primary')}
-        ${_kpi('🐾', 'ผู้ป่วย/ลูกค้า',  `${q.total||0} ราย`,          `เสร็จ ${q.completed||0} ราย`, 'text-blue-500')}
-        ${_kpi('📊', 'รายได้เฉลี่ย/วัน',`฿${_fmt(fin.avg_per_day)}`, label,                           'text-amber-600')}
-        ${_kpi('💸', 'ค่าคอม FUFU 5%', `฿${_fmt(fin.commission)}`,   'หักจากรายได้รวม',              'text-slate-400')}
+        ${_kpi('coins',       'รายได้รวม',       `฿${_fmt(fin.total)}`,        `จาก ${fin.count||0} รายการ`,  'text-primary',   '#0D948822')}
+        ${_kpi('paw',         'ผู้ป่วย/ลูกค้า',  `${q.total||0} ราย`,          `เสร็จ ${q.completed||0} ราย`, 'text-blue-500',  '#3B82F622')}
+        ${_kpi('chart-line',  'รายได้เฉลี่ย/วัน',`฿${_fmt(fin.avg_per_day)}`, label,                           'text-amber-600', '#F59E0B22')}
+        ${_kpi('percentage',  'ค่าคอม FUFU 5%', `฿${_fmt(fin.commission)}`,   'หักจากรายได้รวม',              'text-slate-500', '#94A3B822')}
       </div>
 
       <!-- ── Charts row ── -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <div class="card p-4 sm:p-5">
           <div class="flex items-start justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
-            <h3 class="font-semibold text-navy text-sm">📈 รายได้รายวัน</h3>
+            <h3 class="font-semibold text-navy text-sm flex items-center gap-1.5"><span class="text-primary opacity-70">${icon('chart-bar','w-3.5 h-3.5')}</span> รายได้รายวัน</h3>
             <span class="text-xs text-slate-400 font-body">สูงสุด ฿${_fmt(Math.max(...(fin.by_day||[]).map(d=>d.total), 0))}</span>
           </div>
           ${_barChart(fin.by_day || [], d => d.total, d => `฿${_fmt(d.total)}`, d => _shortDate(d.date), '#0D9488')}
         </div>
         <div class="card p-4 sm:p-5">
           <div class="flex items-start justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
-            <h3 class="font-semibold text-navy text-sm">🐾 จำนวนผู้ป่วย/ลูกค้ารายวัน</h3>
+            <h3 class="font-semibold text-navy text-sm flex items-center gap-1.5"><span class="text-blue-400">${icon('paw','w-3.5 h-3.5')}</span> จำนวนผู้ป่วย/ลูกค้ารายวัน</h3>
             <span class="text-xs text-slate-400 font-body">สูงสุด ${Math.max(...(q.by_day||[]).map(d=>d.count), 0)} ราย</span>
           </div>
           ${_barChart(q.by_day || [], d => d.count, d => `${d.count} ราย`, d => _shortDate(d.date), '#3B82F6')}
@@ -145,7 +148,7 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
 
         <!-- Payment method breakdown -->
         <div class="card p-4 sm:p-5">
-          <h3 class="font-semibold text-navy text-sm mb-4">💳 รายได้แบ่งตามช่องทางชำระ</h3>
+          <h3 class="font-semibold text-navy text-sm mb-4 flex items-center gap-1.5"><span class="text-slate-400">${icon('credit-card','w-3.5 h-3.5')}</span> รายได้แบ่งตามช่องทางชำระ</h3>
           ${_paymentBars(fin.by_method || {}, fin.total || 0)}
           ${(q.by_service && Object.keys(q.by_service).length > 0) ? `
             <div class="mt-5 pt-4 border-t border-slate-100">
@@ -157,7 +160,7 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
         <!-- Today's queue -->
         <div class="card p-4 sm:p-5">
           <div class="flex items-start justify-between mb-3 gap-2 flex-wrap">
-            <h3 class="font-semibold text-navy text-sm flex-shrink-0">📋 คิววันนี้</h3>
+            <h3 class="font-semibold text-navy text-sm flex-shrink-0 flex items-center gap-1.5"><span class="text-slate-400">${icon('list-ul','w-3.5 h-3.5')}</span> คิววันนี้</h3>
             <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs font-body text-slate-400">
               <span>รอ <strong class="text-amber-500">${todayQ.filter(q=>q.status==='waiting').length}</strong></span>
               <span>กำลังรักษา <strong class="text-blue-500">${todayQ.filter(q=>q.status==='in_progress').length}</strong></span>
@@ -233,10 +236,14 @@ function _updateTabs(container, activeId) {
   });
 }
 
-function _kpi(icon, label, value, sub, valueClass) {
+function _kpi(iconKey, label, value, sub, valueClass, iconBg = '#f1f5f9') {
+  const iconColor = iconBg.replace('22', 'bb');
   return `
     <div class="card p-3 sm:p-5">
-      <div class="text-xl sm:text-2xl mb-1.5">${icon}</div>
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-3 flex-shrink-0"
+           style="background:${iconBg};color:${iconColor}">
+        ${icon(iconKey, 'w-4 h-4')}
+      </div>
       <div class="text-xs text-slate-400 font-body leading-tight">${label}</div>
       <div class="text-lg sm:text-2xl font-bold ${valueClass} mt-1 leading-tight break-all">${value}</div>
       <div class="text-xs text-slate-400 font-body mt-0.5">${sub}</div>

@@ -2,21 +2,22 @@
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
+import { icon } from '../utils/icons.js';
 
 let _storeId = '';
 let _tasks   = [];
 
 const PRIORITY_CFG = {
-  low:    { color: '#6B7280', label: 'ต่ำ',   icon: '⬇️' },
-  normal: { color: '#3B82F6', label: 'ปกติ',  icon: '➡️' },
-  high:   { color: '#F97316', label: 'สูง',   icon: '⬆️' },
-  urgent: { color: '#EF4444', label: 'ด่วน',  icon: '🔥' },
+  low:    { color: '#6B7280', label: 'ต่ำ',   icon: 'arrow-down' },
+  normal: { color: '#3B82F6', label: 'ปกติ',  icon: 'minus' },
+  high:   { color: '#F97316', label: 'สูง',   icon: 'arrow-up' },
+  urgent: { color: '#EF4444', label: 'ด่วน',  icon: 'fire' },
 };
 
 const COLUMNS = [
-  { id: 'todo',        label: '📋 รอดำเนินการ', color: '#6B7280' },
-  { id: 'in_progress', label: '🔄 กำลังทำ',     color: '#F97316' },
-  { id: 'done',        label: '✅ เสร็จแล้ว',    color: '#10B981' },
+  { id: 'todo',        label: 'รอดำเนินการ', color: '#6B7280' },
+  { id: 'in_progress', label: 'กำลังทำ',     color: '#F97316' },
+  { id: 'done',        label: 'เสร็จแล้ว',    color: '#10B981' },
 ];
 
 export async function renderKanban(container) {
@@ -31,7 +32,7 @@ async function _render(container) {
   container.innerHTML = `
     <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <h2 class="font-bold text-navy text-lg">📌 Task Board</h2>
+        <h2 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('tasks','w-5 h-5')}</span> Task Board</h2>
         <button id="kanban-add" class="btn-primary text-sm px-4 py-2">+ เพิ่มงาน</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -123,8 +124,10 @@ function _taskCard(task) {
          data-task-id="${task.id}">
       <!-- Priority badge + delete -->
       <div class="flex items-start justify-between gap-1 mb-2">
-        <span class="text-xs font-bold px-2 py-0.5 rounded-full"
-              style="background:${p.color}22;color:${p.color}">${p.icon} ${p.label}</span>
+        <span class="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+              style="background:${p.color}22;color:${p.color}">
+          <span class="inline-flex">${icon(p.icon,'w-3 h-3')}</span> ${p.label}
+        </span>
         <div class="flex items-center gap-1.5">
           ${due ? `<span class="text-xs font-body ${isOverdue ? 'text-red-500 font-semibold' : 'text-slate-400'}">${due}</span>` : ''}
           <button data-delete-task="${task.id}"
@@ -136,7 +139,7 @@ function _taskCard(task) {
       ${task.description ? `<div class="text-xs text-slate-400 font-body mb-2 line-clamp-2">${task.description}</div>` : ''}
       <!-- Assignee -->
       ${task.assigned_to ? `<div class="text-xs text-slate-500 font-body mb-2 flex items-center gap-1">
-        <i class="fas fa-user text-slate-300 text-[10px]"></i>${task.assigned_to}
+        <span class="text-slate-300 inline-flex">${icon('user','w-3 h-3')}</span>${task.assigned_to}
       </div>` : ''}
       <!-- Tags -->
       ${(task.tags || []).length ? `<div class="flex gap-1 flex-wrap mb-2">

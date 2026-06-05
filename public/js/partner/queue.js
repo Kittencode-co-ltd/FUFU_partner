@@ -3,6 +3,7 @@ import { storage } from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { escapeHtml } from '../utils/formatters.js';
+import { icon } from '../utils/icons.js';
 
 const SERVICE_TYPES = ['ตรวจทั่วไป', 'วัคซีน', 'ผ่าตัด', 'ทำฟัน', 'ตรวจเลือด', 'อาบน้ำ-ตัดขน', 'อื่นๆ'];
 
@@ -73,7 +74,7 @@ export async function renderQueue(container) {
         <div class="flex items-end gap-2">
           <label class="flex items-center gap-1.5 cursor-pointer pb-3">
             <input type="checkbox" id="wk-emergency" class="w-4 h-4 accent-red-500">
-            <span class="text-sm font-semibold text-red-500">🚨 ด่วน</span>
+            <span class="text-sm font-semibold text-red-500 flex items-center gap-1"><span class="inline-flex">${icon('exclamation-triangle','w-3.5 h-3.5')}</span> ด่วน</span>
           </label>
           <button id="wk-submit" class="btn-primary whitespace-nowrap">+ Walk-in</button>
         </div>
@@ -150,7 +151,7 @@ function _renderInbox(appointments) {
             id="inbox-confirm-all"
             class="text-xs px-3 py-1 rounded-lg font-semibold transition-colors bg-primary text-white hover:bg-primary-dark">ยืนยันทั้งหมด</button>
           <span class="text-xs text-slate-400" id="inbox-hint">แตะเพื่อดู ▼</span>
-          <i class="fas fa-chevron-right text-slate-400 text-xs transition-transform duration-200" id="inbox-chevron"></i>
+          <span class="text-slate-400 transition-transform duration-200 inline-flex" id="inbox-chevron">${icon('chevron-right','w-3.5 h-3.5')}</span>
         </div>
       </div>
 
@@ -239,7 +240,10 @@ function _apptRow(a, today) {
 
       <!-- Pet + service -->
       <div class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-        <span class="text-sm font-semibold text-navy truncate">🐾 ${escapeHtml(a.pet_name) || '—'}</span>
+        <span class="text-sm font-semibold text-navy truncate flex items-center gap-1">
+          <span class="text-primary opacity-60 inline-flex">${icon('paw','w-3 h-3')}</span>
+          ${escapeHtml(a.pet_name) || '—'}
+        </span>
         <span class="text-xs text-slate-500 truncate">${escapeHtml(service)}${escapeHtml(dropoff)}</span>
         ${isToday ? '<span class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">วันนี้</span>' : ''}
       </div>
@@ -481,7 +485,7 @@ function _bindWalkinSearch(container) {
   const dropdown = container.querySelector('#wk-dropdown');
   if (!input || !dropdown) return;
 
-  const EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+  const SPECIES_ICON = { dog: 'dog', cat: 'cat', rabbit: 'paw', bird: 'dove', other: 'paw' };
 
   async function _loadDropdown(q) {
     const url = q.length >= 2
@@ -519,8 +523,10 @@ function _bindWalkinSearch(container) {
     const header = q ? '' : `<div class="px-4 py-1.5 text-xs text-slate-400 font-body border-b border-slate-100">สัตว์เลี้ยงล่าสุดในระบบ</div>`;
 
     dropdown.innerHTML = header + rows.map((r, i) => {
-      const emoji = r.pet_id ? (EMOJI[r.species] || '🐾') : '👤';
-      const main = r.pet_id ? `${emoji} ${escapeHtml(r.pet_name)}` : `${emoji} ${escapeHtml(r.owner_name)} (ยังไม่มีสัตว์)`;
+      const iconKey = r.pet_id ? (SPECIES_ICON[r.species] || 'paw') : 'user';
+      const main = r.pet_id
+        ? `<span class="text-primary opacity-70 inline-flex">${icon(iconKey,'w-3 h-3')}</span> ${escapeHtml(r.pet_name)}`
+        : `<span class="text-slate-400 inline-flex">${icon(iconKey,'w-3 h-3')}</span> ${escapeHtml(r.owner_name)} (ยังไม่มีสัตว์)`;
       const sub = r.pet_id ? `เจ้าของ: ${escapeHtml(r.owner_name)}${r.owner_phone ? ' · ' + escapeHtml(r.owner_phone) : ''}` : escapeHtml(r.owner_phone);
       return `
         <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors"
@@ -586,9 +592,11 @@ function _updateChip(container) {
   if (!selectedEl || !chipEl) return;
   if (_selectedPet) {
     const label = _selectedPet.pet_id
-      ? `🐾 ${_selectedPet.pet_name} · ${_selectedPet.owner_name}`
-      : `👤 ${_selectedPet.owner_name}`;
-    chipEl.textContent = label;
+      ? `${_selectedPet.pet_name} · ${_selectedPet.owner_name}`
+      : _selectedPet.owner_name;
+    chipEl.innerHTML = _selectedPet.pet_id
+      ? `<span class="inline-flex mr-1 opacity-70">${icon('paw','w-3 h-3')}</span>${label}`
+      : `<span class="inline-flex mr-1 opacity-70">${icon('user','w-3 h-3')}</span>${label}`;
     selectedEl.classList.remove('hidden');
     selectedEl.classList.add('flex');
   } else {
@@ -696,17 +704,19 @@ function _openQuickRegister(container) {
 
 function _openQuickRegisterPet(container, owner) {
   const SPECIES_OPTS = [
-    { k: 'dog', e: '🐕', l: 'สุนัข' }, { k: 'cat', e: '🐈', l: 'แมว' },
-    { k: 'rabbit', e: '🐰', l: 'กระต่าย' }, { k: 'bird', e: '🐦', l: 'นก' },
-    { k: 'other', e: '🐾', l: 'อื่นๆ' },
+    { k: 'dog',    l: 'สุนัข' },
+    { k: 'cat',    l: 'แมว' },
+    { k: 'rabbit', l: 'กระต่าย' },
+    { k: 'bird',   l: 'นก' },
+    { k: 'other',  l: 'อื่นๆ' },
   ];
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
       <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 2/2 สัตว์เลี้ยง</h3>
-      <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">
-        👤 ${owner.name} · ${owner.phone || ''}
+      <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold flex items-center gap-2">
+        <span class="inline-flex opacity-70">${icon('user','w-3.5 h-3.5')}</span> ${owner.name} · ${owner.phone || ''}
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
@@ -716,7 +726,7 @@ function _openQuickRegisterPet(container, owner) {
         <div>
           <label class="input-label">ชนิด</label>
           <select id="qp-species" class="input-field">
-            ${SPECIES_OPTS.map(s => `<option value="${s.k}">${s.e} ${s.l}</option>`).join('')}
+            ${SPECIES_OPTS.map(s => `<option value="${s.k}">${s.l}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -824,16 +834,16 @@ function _openTVMode() {
         .prog-num  { font-size:22px; font-weight:700; color:#3B82F6; min-width:60px; }
       </style>
       <div class="header">
-        <div class="store">🏥 ${storeName}</div>
+        <div class="store">${storeName}</div>
         <div class="clock" id="tv-clock"></div>
       </div>
       <div class="body">
         <!-- Calling now -->
         <div class="panel">
-          <div class="panel-title">📢 กำลังเรียก</div>
+          <div class="panel-title">กำลังเรียก</div>
           ${calling.length ? `
             <div class="calling-num">${num(calling[0])}</div>
-            <div class="calling-name">🐾 ${calling[0].notes?.split(' - ')[0] || '—'}</div>
+            <div class="calling-name">${calling[0].notes?.split(' - ')[0] || '—'}</div>
             <div class="calling-svc">${calling[0].service_type || ''}</div>
           ` : `<div style="text-align:center;color:#334155;font-size:20px;margin-top:24px">—</div>`}
         </div>
@@ -841,12 +851,12 @@ function _openTVMode() {
         <!-- Right side: waiting + in progress -->
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="panel" style="flex:1">
-            <div class="panel-title">⏳ รอเรียก (${waiting.length})</div>
+            <div class="panel-title">รอเรียก (${waiting.length})</div>
             ${waiting.slice(0,8).map(q => `
               <div class="wait-item">
                 <span class="wait-num">${num(q)}</span>
                 <div>
-                  <div class="wait-name">🐾 ${(q.notes||'—').split(' - ')[0]}</div>
+                  <div class="wait-name">${(q.notes||'—').split(' - ')[0]}</div>
                   <div class="wait-svc">${q.service_type||''}</div>
                 </div>
               </div>`).join('')}
@@ -854,12 +864,12 @@ function _openTVMode() {
           </div>
           ${inProg.length ? `
           <div class="panel" style="flex:0 0 auto">
-            <div class="panel-title">🩺 กำลังรักษา (${inProg.length})</div>
+            <div class="panel-title">กำลังรักษา (${inProg.length})</div>
             ${inProg.slice(0,3).map(q => `
               <div class="prog-item">
                 <span class="prog-num">${num(q)}</span>
                 <div>
-                  <div class="wait-name">🐾 ${(q.notes||'—').split(' - ')[0]}</div>
+                  <div class="wait-name">${(q.notes||'—').split(' - ')[0]}</div>
                   <div class="wait-svc">${q.service_type||''}</div>
                 </div>
               </div>`).join('')}

@@ -5,34 +5,35 @@ import { storage }        from '../utils/storage.js';
 import { STORAGE_KEYS, CATEGORY_MAP } from '../utils/config.js';
 import { startSyncEngine } from '../utils/sync-engine.js';
 import { escapeHtml } from '../utils/formatters.js';
+import { icon } from '../utils/icons.js';
 
 // ─── Staff Mode config ────────────────────────────────────────────────────────
 
 const MODES = {
   all: {
-    label: 'ทั่วไป', icon: 'fas fa-th-large',
+    label: 'ทั่วไป', icon: 'th-large',
     description: 'เข้าถึงทุกส่วน',
   },
   counter: {
-    label: 'เคาน์เตอร์', icon: 'fas fa-clipboard-list',
+    label: 'เคาน์เตอร์', icon: 'clipboard-list',
     description: 'รับคนไข้ นัดหมาย เก็บเงิน',
     defaultPage: 'queue',
     pages: ['home', 'queue', 'pets', 'pos', 'income'],
   },
   doctor: {
-    label: 'แพทย์', icon: 'fas fa-stethoscope',
+    label: 'แพทย์', icon: 'stethoscope',
     description: 'ตรวจ บันทึก OPD',
     defaultPage: 'opd',
     pages: ['home', 'queue', 'opd', 'medical', 'pets', 'inventory'],
   },
   pharmacy: {
-    label: 'สต็อก/เภสัช', icon: 'fas fa-box',
+    label: 'สต็อก/เภสัช', icon: 'box',
     description: 'จัดยา รับสินค้า สต็อก',
     defaultPage: 'inventory',
     pages: ['home', 'inventory'],
   },
   finance: {
-    label: 'การเงิน', icon: 'fas fa-coins',
+    label: 'การเงิน', icon: 'coins',
     description: 'รายได้ ใบเสร็จ',
     defaultPage: 'income',
     pages: ['home', 'income'],
@@ -59,44 +60,44 @@ function _setMode(mode, role) {
 
 const NAV = {
   vet: [
-    { id: 'home',      icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
-    { id: 'queue',     icon: 'fas fa-clipboard-list',   label: 'คิวตรวจ' },
-    { id: 'pets',      icon: 'fas fa-paw',              label: 'สัตว์เลี้ยง / นัดหมาย' },
-    { id: 'opd',       icon: 'fas fa-stethoscope',      label: 'ห้องตรวจ' },
-    { id: 'ipd',       icon: 'fas fa-hospital',         label: 'IPD Ward' },
-    { id: 'medical',   icon: 'fas fa-folder-open',      label: 'ประวัติการรักษา' },
-    { id: 'inventory', icon: 'fas fa-box',              label: 'สต็อก / ยา' },
-    { id: 'income',    icon: 'fas fa-coins',            label: 'รายได้' },
-    { id: 'documents', icon: 'fas fa-file-alt',         label: 'เอกสาร' },
-    { id: 'kanban',    icon: 'fas fa-tasks',            label: 'Task Board' },
-    { id: 'staff',     icon: 'fas fa-users',            label: 'จัดการพนักงาน' },
-    { id: 'settings',  icon: 'fas fa-cog',              label: 'ตั้งค่า' },
+    { id: 'home',      icon: 'chart-bar',      label: 'ภาพรวม' },
+    { id: 'queue',     icon: 'clipboard-list', label: 'คิวตรวจ' },
+    { id: 'pets',      icon: 'paw',            label: 'สัตว์เลี้ยง / นัดหมาย' },
+    { id: 'opd',       icon: 'stethoscope',    label: 'ห้องตรวจ' },
+    { id: 'ipd',       icon: 'hospital',       label: 'IPD Ward' },
+    { id: 'medical',   icon: 'folder-open',    label: 'ประวัติการรักษา' },
+    { id: 'inventory', icon: 'box',            label: 'สต็อก / ยา' },
+    { id: 'income',    icon: 'coins',          label: 'รายได้' },
+    { id: 'documents', icon: 'file-alt',       label: 'เอกสาร' },
+    { id: 'kanban',    icon: 'tasks',          label: 'Task Board' },
+    { id: 'staff',     icon: 'users',          label: 'จัดการพนักงาน' },
+    { id: 'settings',  icon: 'cog',            label: 'ตั้งค่า' },
   ],
   shop: [
-    { id: 'home',      icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
-    { id: 'queue',     icon: 'fas fa-clipboard-list',   label: 'คิว' },
-    { id: 'inventory', icon: 'fas fa-box',              label: 'สต็อก' },
-    { id: 'income',    icon: 'fas fa-coins',            label: 'รายได้' },
-    { id: 'settings',  icon: 'fas fa-cog',              label: 'ตั้งค่า' },
+    { id: 'home',      icon: 'chart-bar',      label: 'ภาพรวม' },
+    { id: 'queue',     icon: 'clipboard-list', label: 'คิว' },
+    { id: 'inventory', icon: 'box',            label: 'สต็อก' },
+    { id: 'income',    icon: 'coins',          label: 'รายได้' },
+    { id: 'settings',  icon: 'cog',            label: 'ตั้งค่า' },
   ],
   hotel: [
-    { id: 'home',     icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
-    { id: 'queue',    icon: 'fas fa-clipboard-list',   label: 'คิว' },
-    { id: 'pets',     icon: 'fas fa-paw',              label: 'สัตว์เลี้ยง / นัดหมาย' },
-    { id: 'hotel',    icon: 'fas fa-bed',              label: 'ห้องพัก' },
-    { id: 'income',   icon: 'fas fa-coins',            label: 'รายได้' },
-    { id: 'settings', icon: 'fas fa-cog',              label: 'ตั้งค่า' },
+    { id: 'home',     icon: 'chart-bar',      label: 'ภาพรวม' },
+    { id: 'queue',    icon: 'clipboard-list', label: 'คิว' },
+    { id: 'pets',     icon: 'paw',            label: 'สัตว์เลี้ยง / นัดหมาย' },
+    { id: 'hotel',    icon: 'bed',            label: 'ห้องพัก' },
+    { id: 'income',   icon: 'coins',          label: 'รายได้' },
+    { id: 'settings', icon: 'cog',            label: 'ตั้งค่า' },
   ],
   grooming: [
-    { id: 'home',     icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
-    { id: 'grooming', icon: 'fas fa-cut',              label: 'คิว Grooming' },
-    { id: 'pets',     icon: 'fas fa-paw',              label: 'สัตว์เลี้ยง / นัดหมาย' },
-    { id: 'income',   icon: 'fas fa-coins',            label: 'รายได้' },
-    { id: 'settings', icon: 'fas fa-cog',              label: 'ตั้งค่า' },
+    { id: 'home',     icon: 'chart-bar',      label: 'ภาพรวม' },
+    { id: 'grooming', icon: 'cut',            label: 'คิว Grooming' },
+    { id: 'pets',     icon: 'paw',            label: 'สัตว์เลี้ยง / นัดหมาย' },
+    { id: 'income',   icon: 'coins',          label: 'รายได้' },
+    { id: 'settings', icon: 'cog',            label: 'ตั้งค่า' },
   ],
   admin: [
-    { id: 'home',     icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
-    { id: 'settings', icon: 'fas fa-cog',              label: 'ตั้งค่า' },
+    { id: 'home',     icon: 'chart-bar', label: 'ภาพรวม' },
+    { id: 'settings', icon: 'cog',       label: 'ตั้งค่า' },
   ],
 };
 
@@ -185,13 +186,13 @@ async function _initStoreSwitcher() {
   const check = `<svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
 
   dd.innerHTML = stores.map(s => {
-    const cat    = CATEGORY_MAP[s.category] || { label: s.category || '', icon: 'fas fa-store' };
+    const cat    = CATEGORY_MAP[s.category] || { label: s.category || '', icon: 'store' };
     const active = s.id === currentId;
     const branch = s.branch_name ? ` · ${s.branch_name}` : '';
     return `
       <button data-store-id="${s.id}" data-store-name="${escapeHtml(s.name)}" data-store-category="${escapeHtml(s.category)}"
         class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${active ? 'bg-primary-subtle' : 'hover:bg-slate-50'}">
-        <i class="${cat.icon} w-4 text-center flex-shrink-0 text-slate-400"></i>
+        <span class="w-4 flex items-center justify-center flex-shrink-0 text-slate-400">${icon(cat.icon, 'w-3.5 h-3.5')}</span>
         <span class="flex-1 min-w-0">
           <span class="block text-sm font-semibold text-navy truncate">${escapeHtml(s.name)}${escapeHtml(branch)}</span>
           <span class="block text-xs text-slate-400 truncate">${cat.label}</span>
@@ -245,11 +246,11 @@ export async function initDashboard() {
   const role    = getCurrentRole();
   const user    = getCurrentUser();
   const store   = getCurrentStore();
-  const catInfo = CATEGORY_MAP[store.category] || { label: store.category || '', icon: 'fas fa-store' };
+  const catInfo = CATEGORY_MAP[store.category] || { label: store.category || '', icon: 'store' };
 
   const q = (id) => document.getElementById(id);
   if (q('sb-store-name')) q('sb-store-name').textContent = store.name || 'ร้านของคุณ';
-  if (q('sb-store-type')) q('sb-store-type').innerHTML = `<i class="${catInfo.icon} mr-1 opacity-60"></i>${catInfo.label}`;
+  if (q('sb-store-type')) q('sb-store-type').innerHTML = `<span class="inline-flex items-center gap-1">${icon(catInfo.icon, 'w-3 h-3')} ${catInfo.label}</span>`;
   if (q('sb-user-email')) q('sb-user-email').textContent = user.email || '';
   if (q('sb-user-role'))  q('sb-user-role').textContent  = role;
 
@@ -388,9 +389,10 @@ function _buildNav(role) {
   nav.innerHTML = items.map(item => `
     <button data-nav="${item.id}"
       class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-             transition-all duration-150 text-slate-400 hover:bg-white/8 hover:text-slate-200
-             relative group">
-      <i class="${item.icon} w-4 text-center flex-shrink-0 text-sm opacity-75 group-[.active]:opacity-100"></i>
+             transition-all duration-150 text-slate-400 hover:bg-white/10 hover:text-slate-200">
+      <span class="w-4 flex items-center justify-center flex-shrink-0 opacity-70">
+        ${icon(item.icon, 'w-4 h-4')}
+      </span>
       <span class="flex-1 text-left">${item.label}</span>
       ${item.id === 'queue' ? '<span id="appt-nav-badge" style="display:none;background:#F97316;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 5px;"></span>' : ''}
     </button>
@@ -444,7 +446,7 @@ function _renderModeSwitcher(role) {
                ${active
                  ? 'bg-primary text-white'
                  : 'bg-white/10 text-slate-400 hover:bg-white/20 hover:text-white'}">
-        <i class="${cfg.icon} flex-shrink-0 text-xs"></i>
+        <span class="flex-shrink-0 opacity-90">${icon(cfg.icon, 'w-3 h-3')}</span>
         <span class="truncate">${cfg.label}</span>
       </button>`;
   }).join('');

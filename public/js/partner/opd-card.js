@@ -180,6 +180,53 @@ function _buildHTML() {
       </div>
     </div>
 
+    <!-- ══ Walk-in: New Patient Form ════════════════════════════════════════════ -->
+    <div id="opd-walkin-form" class="hidden card p-5 border-2 border-dashed border-amber-300 bg-amber-50/30">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="text-xl leading-none">🚶</span>
+        <h3 class="font-semibold text-navy">Walk-in — กรอกข้อมูลสัตว์เลี้ยง</h3>
+        <span class="text-xs text-slate-400 font-body">ระบบจะสร้างประวัติและ HN ให้อัตโนมัติ</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="input-label">ชื่อสัตว์เลี้ยง *</label>
+          <input id="wk-pet-name" class="input-field" placeholder="เช่น มะลิ, โดนัท" autocomplete="off">
+        </div>
+        <div>
+          <label class="input-label">ประเภท *</label>
+          <select id="wk-species" class="input-field">
+            ${Object.entries(SPECIES_EMOJI).map(([k, v]) =>
+              `<option value="${k}">${v} ${k}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="input-label">สายพันธุ์</label>
+          <input id="wk-breed" class="input-field" placeholder="เช่น Golden Retriever, ไทย">
+        </div>
+        <div>
+          <label class="input-label">เพศ</label>
+          <select id="wk-gender" class="input-field">
+            <option value="">— ไม่ระบุ —</option>
+            <option value="male">♂ เพศผู้</option>
+            <option value="female">♀ เพศเมีย</option>
+          </select>
+        </div>
+        <div>
+          <label class="input-label">ชื่อเจ้าของ *</label>
+          <input id="wk-owner-name" class="input-field" placeholder="ชื่อ-นามสกุลเจ้าของ">
+        </div>
+        <div>
+          <label class="input-label">เบอร์โทรศัพท์</label>
+          <input id="wk-owner-phone" class="input-field" placeholder="08x-xxx-xxxx" type="tel">
+        </div>
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button id="wk-cancel-btn" class="btn-outline px-5">← กลับ</button>
+        <button id="wk-confirm-btn" class="btn-primary flex-1 px-5">✓ ยืนยัน / เริ่มตรวจ</button>
+      </div>
+    </div>
+
     <!-- Allergies warning banner (shown by _loadPetProfile if pet has allergies) -->
     <div id="opd-allergy-banner" class="hidden card border-2 border-red-300 bg-red-50 p-3 flex items-center gap-3">
       <span class="text-2xl flex-shrink-0">⚠️</span>
@@ -436,6 +483,14 @@ function _bindEvents() {
     _saveDraft();
   });
 
+  // ── Walk-in form ───────────────────────────────────────────────────────────
+  c.querySelector('#wk-cancel-btn')?.addEventListener('click', () => {
+    c.querySelector('#opd-walkin-form')?.classList.add('hidden');
+    c.querySelector('#opd-search-panel')?.classList.remove('hidden');
+    c.querySelector('#opd-main-search')?.focus();
+  });
+  c.querySelector('#wk-confirm-btn')?.addEventListener('click', () => _confirmWalkin(c));
+
   // ── Main patient search panel ──────────────────────────────────────────────
   _bindMainSearch(c);
   _bindQueueSection(c);
@@ -621,9 +676,14 @@ function _bindMainSearch(c) {
     }
   }, { signal: _bindAbort.signal });
 
-  // Walk-in: dismiss search panel, use manual entry
+  // Walk-in: show new patient form
   walkinBtn?.addEventListener('click', () => {
-    _selectPatient(null, c);
+    c.querySelector('#opd-search-panel')?.classList.add('hidden');
+    const form = c.querySelector('#opd-walkin-form');
+    if (form) {
+      form.classList.remove('hidden');
+      form.querySelector('#wk-pet-name')?.focus();
+    }
   });
 }
 
@@ -776,6 +836,76 @@ function _bindPetSearch(container) {
       dropdown.classList.add('hidden');
     }
   }, { signal: _bindAbort.signal });
+}
+
+// ─── Walk-in: create new pet + owner ─────────────────────────────────────────
+
+async function _confirmWalkin(c) {
+  const petName   = c.querySelector('#wk-pet-name')?.value.trim();
+  const ownerName = c.querySelector('#wk-owner-name')?.value.trim();
+  const species   = c.querySelector('#wk-species')?.value || 'dog';
+  const breed     = c.querySelector('#wk-breed')?.value.trim() || '';
+  const gender    = c.querySelector('#wk-gender')?.value || '';
+  const phone     = c.querySelector('#wk-owner-phone')?.value.trim() || '';
+
+  if (!petName)   { showToast('กรุณากรอกชื่อสัตว์เลี้ยง', 'error'); return; }
+  if (!ownerName) { showToast('กรุณากรอกชื่อเจ้าของ', 'error'); return; }
+
+  const btn = c.querySelector('#wk-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังสร้างประวัติ...'; }
+
+  const storeId = storage.get(STORAGE_KEYS.STORE_ID);
+
+  // 1. Create owner
+  const ownerRes = await apiFetch('/api/pets/owners', {
+    method: 'POST',
+    body: JSON.stringify({ name: ownerName, phone: phone || null }),
+  });
+
+  if (!ownerRes?.success) {
+    showToast('สร้างข้อมูลเจ้าของไม่สำเร็จ' + (ownerRes?.error ? ': ' + ownerRes.error : ''), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ ยืนยัน / เริ่มตรวจ'; }
+    return;
+  }
+
+  const ownerId = ownerRes.data?.id;
+
+  // 2. Create pet
+  const petRes = await apiFetch('/api/pets', {
+    method: 'POST',
+    body: JSON.stringify({
+      owner_id: ownerId,
+      store_id: storeId,
+      name: petName,
+      species,
+      breed: breed || null,
+      gender: gender || null,
+    }),
+  });
+
+  if (!petRes?.success) {
+    showToast('สร้างข้อมูลสัตว์เลี้ยงไม่สำเร็จ' + (petRes?.error ? ': ' + petRes.error : ''), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ ยืนยัน / เริ่มตรวจ'; }
+    return;
+  }
+
+  const pet = petRes.data;
+
+  // 3. Hide form and populate patient bar
+  c.querySelector('#opd-walkin-form')?.classList.add('hidden');
+  _selectPatient({
+    pet_id:      pet.id,
+    pet_name:    pet.name,
+    owner_name:  ownerName,
+    species:     pet.species || species,
+    hn:          pet.hn || null,
+    breed,
+    allergies:   '',
+    owner_phone: phone,
+  }, c);
+
+  showToast(`สร้างประวัติ "${petName}" สำเร็จ${pet.hn ? ' · HN: ' + pet.hn : ''}`);
+  if (pet.id) _loadPetProfile(pet.id);
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────

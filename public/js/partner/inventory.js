@@ -2,14 +2,15 @@ import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
+import { icon } from '../utils/icons.js';
 
 const CATEGORIES = {
-  medicine:  { label: 'ยา',        icon: '💊' },
-  vaccine:   { label: 'วัคซีน',    icon: '💉' },
-  food:      { label: 'อาหาร',     icon: '🍖' },
-  accessory: { label: 'อุปกรณ์',   icon: '🩺' },
-  service:   { label: 'บริการ',    icon: '🏥' },
-  grooming:  { label: 'Grooming',  icon: '✂️' },
+  medicine:  { label: 'ยา',        icon: 'pills',        emoji: '💊' },
+  vaccine:   { label: 'วัคซีน',    icon: 'syringe',      emoji: '💉' },
+  food:      { label: 'อาหาร',     icon: 'bone',         emoji: '🦴' },
+  accessory: { label: 'อุปกรณ์',   icon: 'stethoscope',  emoji: '🩺' },
+  service:   { label: 'บริการ',    icon: 'hospital',     emoji: '🏥' },
+  grooming:  { label: 'Grooming',  icon: 'cut',          emoji: '✂️' },
 };
 
 const ADJUST_REASONS = [
@@ -159,7 +160,9 @@ function _productCard(p) {
     <div class="card p-4 hover:shadow-card-hover transition-shadow" data-product-id="${p.id}">
       <div class="flex items-start justify-between mb-3">
         <div class="flex items-center gap-2">
-          <span class="text-2xl">${p.icon || cat.icon}</span>
+          <div class="w-9 h-9 rounded-lg bg-primary-subtle flex items-center justify-center flex-shrink-0 text-primary">
+            ${icon(cat.icon,'w-4 h-4')}
+          </div>
           <div>
             <div class="font-semibold text-navy text-sm leading-tight">${p.name}</div>
             <div class="text-xs text-slate-400 font-body">${cat.label}</div>
@@ -529,7 +532,7 @@ function _openProductModal(tabEl, existing = null) {
           <label class="input-label">หมวดหมู่</label>
           <select id="pm-category" class="input-field">
             ${Object.entries(CATEGORIES).map(([k, v]) =>
-              `<option value="${k}" ${existing?.category === k ? 'selected' : ''}>${v.icon} ${v.label}</option>`
+              `<option value="${k}" ${existing?.category === k ? 'selected' : ''}>${v.emoji} ${v.label}</option>`
             ).join('')}
           </select>
         </div>

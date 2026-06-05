@@ -39,8 +39,8 @@ export const FEATURE_FLAGS = {
 };
 
 export const CATEGORY_MAP = {
-  vet_clinic:   { label: 'คลินิกสัตว์แพทย์', role: 'vet',      icon: 'fas fa-hospital-alt' },
-  pet_shop:     { label: 'ร้านค้าสัตว์เลี้ยง', role: 'shop',    icon: 'fas fa-store' },
-  pet_hotel:    { label: 'โรงแรมสัตว์เลี้ยง', role: 'hotel',   icon: 'fas fa-bed' },
-  pet_grooming: { label: 'บริการอาบน้ำตัดขน', role: 'grooming', icon: 'fas fa-cut' },
+  vet_clinic:   { label: 'คลินิกสัตว์แพทย์', role: 'vet',      icon: 'hospital-alt', emoji: '🏥' },
+  pet_shop:     { label: 'ร้านค้าสัตว์เลี้ยง', role: 'shop',    icon: 'store',        emoji: '🛒' },
+  pet_hotel:    { label: 'โรงแรมสัตว์เลี้ยง', role: 'hotel',   icon: 'bed',          emoji: '🏨' },
+  pet_grooming: { label: 'บริการอาบน้ำตัดขน', role: 'grooming', icon: 'cut',          emoji: '✂️' },
 };

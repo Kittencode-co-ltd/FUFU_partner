@@ -83,7 +83,7 @@ export function renderStoreList(container, stores) {
   }
 
   container.innerHTML = stores.map(store => {
-    const cat = CATEGORY_MAP[store.category] || { label: store.category, icon: '🏪' };
+    const cat = CATEGORY_MAP[store.category] || { label: store.category, emoji: '🏪' };
     return `
       <button
         class="w-full flex items-center gap-4 px-4 py-4 rounded-xl border border-slate-100
@@ -93,7 +93,7 @@ export function renderStoreList(container, stores) {
         data-store-category="${store.category}"
       >
         <span class="text-2xl w-12 h-12 flex items-center justify-center bg-slate-50
-                     rounded-xl group-hover:bg-white transition-colors">${cat.icon}</span>
+                     rounded-xl group-hover:bg-white transition-colors">${cat.emoji}</span>
         <div class="flex-1 min-w-0">
           <div class="font-semibold text-navy truncate">${store.name}</div>
           <div class="text-xs text-slate-500 font-body mt-0.5">
