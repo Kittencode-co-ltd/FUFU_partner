@@ -12,7 +12,7 @@ const ALLOWED = new Set([
   'pet_name', 'owner_name', 'species',
   'subjective', 'objective', 'assessment', 'plan',
   'weight_kg', 'temperature_c', 'heart_rate', 'respiratory_rate',
-  'vitals', 'prescriptions', 'prescribed_meds',
+  'vitals', 'prescriptions',
   'diagnosis', 'treatment', 'notes',
   'lab_results', 'next_appointment',
 ]);
@@ -22,9 +22,9 @@ function sanitize(body) {
   for (const [k, v] of Object.entries(body)) {
     if (ALLOWED.has(k)) out[k] = v;
   }
-  // Normalize: keep prescriptions and prescribed_meds in sync
-  if (out.prescriptions   && !out.prescribed_meds) out.prescribed_meds = out.prescriptions;
-  if (out.prescribed_meds && !out.prescriptions)   out.prescriptions   = out.prescribed_meds;
+  // Normalize: prescribed_meds was old column name, map to prescriptions
+  if (!out.prescriptions && out.prescribed_meds) out.prescriptions = out.prescribed_meds;
+  delete out.prescribed_meds;
   return out;
 }
 
@@ -35,8 +35,9 @@ router.get('/', requireRole('owner', 'vet', 'reception'), async (req, res) => {
 
   let q = req.supabase
     .from('medical_records')
-    .select('id,store_id,pet_id,pet_name,owner_name,species,record_type,chief_complaint,status,created_at,visit_date,updated_at,deleted_at')
+    .select('id,store_id,pet_id,pet_name,owner_name,species,record_type,status,visit_date,created_at,updated_at,deleted_at,subjective,assessment,diagnosis,weight_kg,temperature_c,prescriptions')
     .eq('store_id', store_id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(parseInt(limit));
 

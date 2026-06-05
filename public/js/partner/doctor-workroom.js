@@ -5,6 +5,24 @@ import { storage } from '../utils/storage.js';
 import { formatThaiDate } from '../utils/formatters.js';
 
 const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+
+const VACCINE_LIST = [
+  // สุนัข
+  { name: 'DHPPiL 5 โรค',             en: 'DHPP + Leptospirosis',                          days: 365 },
+  { name: 'DHPPiL+CCV 7 โรค',         en: 'DHPP + Lepto + Coronavirus',                    days: 365 },
+  { name: 'พิษสุนัขบ้า',              en: 'Rabies',                                         days: 365 },
+  { name: 'Bordetella (ไอหวัดหมา)',   en: 'Bordetella bronchiseptica',                      days: 180 },
+  { name: 'Leptospirosis',             en: 'Leptospirosis',                                  days: 365 },
+  { name: 'Coronavirus CCV',           en: 'Canine Coronavirus (CCV)',                       days: 365 },
+  { name: 'Canine Influenza',          en: 'Canine Influenza H3N2/H3N8',                     days: 365 },
+  // แมว
+  { name: 'FVRCP แมว 3 โรค',          en: 'FVRCP (Rhinotracheitis, Calicivirus, Panleuko)', days: 365 },
+  { name: 'FeLV มะเร็งเม็ดเลือดขาว',  en: 'Feline Leukemia Virus (FeLV)',                   days: 365 },
+  { name: 'Chlamydophila felis',       en: 'Chlamydophila felis',                            days: 365 },
+  // ทั่วไป
+  { name: 'Rabies (สัตว์เลี้ยงอื่น)', en: 'Rabies (other species)',                         days: 365 },
+  { name: 'อื่นๆ (ระบุชื่อเอง)',       en: 'Other — type manually',                          days: 365 },
+];
 const FREQ_LABELS   = { SID: 'วันละ 1×', BID: 'วันละ 2×', TID: 'วันละ 3×', QID: 'วันละ 4×', PRN: 'เมื่อจำเป็น' };
 const VITALS_NORMAL = {
   temp:   { min: 37.5, max: 39.5, unit: '°C' },
@@ -311,34 +329,45 @@ async function _loadVaccinations(petId) {
   const section = _container?.querySelector('#wr-vaccine-section');
   if (!section) return;
 
-  const res = await apiFetch(`/api/pets/vaccinations?pet_id=${petId}`);
+  const res     = await apiFetch(`/api/pets/vaccinations?pet_id=${petId}`);
   const vaccines = res?.data || [];
 
-  if (!vaccines.length) {
-    section.innerHTML = `<div class="wr-section-label">💉 วัคซีน</div><p style="color:#94a3b8;font-size:12px;">ยังไม่มีข้อมูลวัคซีน</p>`;
-    return;
-  }
-
-  const today = new Date();
+  const today   = new Date();
   const soonCut = new Date(); soonCut.setDate(today.getDate() + 30);
 
-  section.innerHTML = `<div class="wr-section-label">💉 วัคซีน</div>` +
-    vaccines.map(v => {
-      const exp = v.next_due ? new Date(v.next_due) : null;
-      let cls = 'ok', label = 'ปกติ';
-      if (exp) {
-        if (exp < today)       { cls = 'expired'; label = 'เกินกำหนด'; }
-        else if (exp <= soonCut){ cls = 'soon';    label = 'ใกล้หมด'; }
-      }
-      return `
-        <div class="wr-vaccine-item">
-          <div>
-            <div class="wr-vaccine-name">${_esc(v.vaccine_name || v.name || 'วัคซีน')}</div>
-            ${exp ? `<div class="wr-vaccine-date">ครบกำหนด: ${formatThaiDate(v.next_due)}</div>` : ''}
-          </div>
-          <span class="wr-vaccine-badge ${cls}">${label}</span>
-        </div>`;
-    }).join('');
+  const hdr = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div class="wr-section-label" style="margin:0;">💉 วัคซีน</div>
+      <button id="wr-add-vax-btn"
+        style="background:var(--primary,#0d9488);color:#fff;border:none;border-radius:6px;
+               padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">
+        + บันทึก
+      </button>
+    </div>`;
+
+  const list = vaccines.length
+    ? vaccines.map(v => {
+        const exp = v.next_due_date ? new Date(v.next_due_date) : null;
+        let cls = 'ok', label = 'ปกติ';
+        if (exp) {
+          if (exp < today)        { cls = 'expired'; label = 'เกินกำหนด'; }
+          else if (exp <= soonCut){ cls = 'soon';    label = 'ใกล้หมด'; }
+        }
+        return `
+          <div class="wr-vaccine-item">
+            <div>
+              <div class="wr-vaccine-name">${_esc(v.vaccine_name || 'วัคซีน')}</div>
+              ${v.given_date  ? `<div class="wr-vaccine-date">ฉีด: ${formatThaiDate(v.given_date)}</div>` : ''}
+              ${exp ? `<div class="wr-vaccine-date">ครั้งหน้า: ${formatThaiDate(v.next_due_date)}</div>` : ''}
+            </div>
+            <span class="wr-vaccine-badge ${cls}">${label}</span>
+          </div>`;
+      }).join('')
+    : `<p style="color:#94a3b8;font-size:12px;margin:4px 0 0;">ยังไม่มีข้อมูลวัคซีน</p>`;
+
+  section.innerHTML = hdr + list;
+
+  section.querySelector('#wr-add-vax-btn')?.addEventListener('click', () => _openVaccineModalWR(petId));
 }
 
 function _renderPetPanel() {
@@ -423,11 +452,101 @@ function _renderEmptyPetPanel() {
       🚶 Walk-in / ไม่มีประวัติ
     </button>
 
-    <p style="font-size:11px;color:#cbd5e1;text-align:center;margin-top:10px;margin-bottom:0;">
-      หรือรอเลือกผู้ป่วยจากหน้าคิว
-    </p>`;
+    <div style="margin-top:14px;border-top:1px solid #f1f5f9;padding-top:12px;">
+      <div class="wr-section-label" style="margin-top:0;">🟢 คิวที่กำลังตรวจอยู่</div>
+      <div id="wr-queue-list" style="font-size:12px;color:#94a3b8;">กำลังโหลด...</div>
+    </div>`;
 
   _bindPanelSearch(panel);
+  _loadQueueSection(panel);
+}
+
+// ── In-progress queue list in sidebar ────────────────────────────────────────
+
+async function _loadQueueSection(panel) {
+  const listEl  = panel.querySelector('#wr-queue-list');
+  if (!listEl) return;
+  const storeId = storage.get(STORAGE_KEYS.STORE_ID);
+  // ใช้ toISOString เหมือน queue.js เพราะ queue_date ถูก store ไว้ด้วยค่า UTC เดียวกัน
+  const today   = new Date().toISOString().split('T')[0];
+
+  const res   = await apiFetch(`/api/queue?store_id=${storeId}&date=${today}`);
+  const items = (res?.data || []).filter(q => q.status === 'in_progress');
+
+  if (!items.length) {
+    listEl.style.cssText = 'font-size:11px;color:#cbd5e1;text-align:center;padding:4px 0;font-style:italic;';
+    listEl.textContent   = '— ยังไม่มีคิวกำลังตรวจ';
+    return;
+  }
+
+  listEl.innerHTML = items.map((q, i) => {
+    const [petName = '', ownerName = ''] = (q.notes || '').split(' - ');
+    const num = q.queue_number ? `A${String(q.queue_number).padStart(3,'0')}` : '?';
+    return `
+      <div data-qidx="${i}"
+        style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
+               border:1px solid #99f6e4;background:#f0fdfa;cursor:pointer;margin-bottom:6px;
+               transition:background .12s;"
+        onmouseover="this.style.background='#ccfbf1'"
+        onmouseout="this.style.background='#f0fdfa'">
+        <span style="font-size:10px;font-weight:700;color:#0f766e;background:#fff;
+                     border:1px solid #99f6e4;border-radius:5px;padding:2px 5px;
+                     font-family:monospace;flex-shrink:0;">${num}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:12px;color:#1e293b;
+                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${_esc(petName || `คิว ${num}`)}
+          </div>
+          ${ownerName ? `<div style="font-size:11px;color:#64748b;
+                                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${_esc(ownerName)}</div>` : ''}
+        </div>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0f766e" stroke-width="2.5" style="flex-shrink:0;">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('[data-qidx]').forEach(el => {
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const q = items[+el.dataset.qidx];
+      const [petName = '', ownerName = ''] = (q.notes || '').split(' - ');
+
+      // Set as current queue item (keep real id so เสร็จสิ้น updates queue status)
+      _queueItem = {
+        id:           q.id,
+        pet_id:       q.pet_id       || null,
+        pet_name:     petName        || q.pet_name    || '',
+        owner_name:   ownerName      || q.owner_name  || '',
+        owner_phone:  q.owner_phone  || '',
+        queue_number: q.queue_number,
+      };
+
+      // Update topbar
+      const chip = _container?.querySelector('.wr-patient-chip');
+      if (chip) {
+        chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:#0f766e;white-space:nowrap;';
+        chip.textContent   = `🐾 ${_queueItem.pet_name}${_queueItem.owner_name ? ' · ' + _queueItem.owner_name : ''}`;
+      }
+      const qChip = _container?.querySelector('.wr-queue-chip');
+      if (qChip) qChip.textContent = `คิว A${String(q.queue_number).padStart(3,'0')}`;
+      else if (chip?.parentElement && q.queue_number) {
+        const c = document.createElement('div');
+        c.className   = 'wr-queue-chip';
+        c.textContent = `คิว A${String(q.queue_number).padStart(3,'0')}`;
+        chip.insertAdjacentElement('afterend', c);
+      }
+
+      // Enable done button
+      const doneBtn = _container?.querySelector('#wr-done-btn');
+      if (doneBtn) doneBtn.disabled = false;
+
+      // Load full pet data and refresh view
+      _loadPetPanel();
+      _renderActiveTab();
+    });
+  });
 }
 
 // ── Patient search in sidebar ─────────────────────────────────────────────────
@@ -591,6 +710,171 @@ function _selectPatientFromSearch(pet, owner) {
   _renderActiveTab();
 }
 
+// ── Vaccine modal ─────────────────────────────────────────────────────────────
+
+function _openVaccineModalWR(petId) {
+  const storeId  = storage.get(STORAGE_KEYS.STORE_ID);
+  const petName  = _petData?.name || _queueItem?.pet_name || '';
+  const ownerId  = _petData?.owner_id || null;
+
+  const d = new Date();
+  const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);padding:16px;';
+
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:440px;
+                box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
+      <h3 style="font-weight:700;font-size:16px;color:#1e293b;margin-bottom:4px;">💉 บันทึกวัคซีน</h3>
+      <p style="font-size:12px;color:#94a3b8;margin-bottom:16px;">${_esc(petName)}</p>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">ชื่อวัคซีน *</label>
+        <select id="vx-preset" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+                font-size:13px;outline:none;font-family:inherit;background:#fff;color:#334155;">
+          ${VACCINE_LIST.map((v,i) => `<option value="${i}">${_esc(v.name)}${v.en !== v.name ? ' — ' + v.en : ''}</option>`).join('')}
+        </select>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">หรือพิมพ์ชื่อวัคซีนเอง</label>
+        <input id="vx-name" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+               font-size:13px;outline:none;font-family:inherit;" placeholder="เช่น Nobivac DHPPi+L">
+        <p style="font-size:10px;color:#94a3b8;margin:3px 0 0;">ถ้าพิมพ์ไว้จะใช้แทนชื่อจาก dropdown</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">วันที่ฉีด *</label>
+          <input id="vx-date" type="date" value="${todayStr}"
+            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">นัดฉีดครั้งต่อไป</label>
+          <input id="vx-next" type="date"
+            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Batch / Lot No.</label>
+          <input id="vx-lot" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+                 font-size:13px;outline:none;font-family:inherit;" placeholder="LOT-2026-001">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">สัตวแพทย์ผู้ฉีด</label>
+          <input id="vx-vet" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+                 font-size:13px;outline:none;font-family:inherit;" placeholder="นสพ. ...">
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">หมายเหตุ</label>
+        <textarea id="vx-notes" rows="2"
+          style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+                 font-size:13px;outline:none;font-family:inherit;resize:vertical;"
+          placeholder="เช่น ปฏิกิริยาหลังฉีด, ขนาดยา..."></textarea>
+      </div>
+
+      <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:#0f766e;">
+        📅 ระบบจะ <strong>สร้างนัดหมายอัตโนมัติ</strong> สำหรับการฉีดครั้งต่อไปให้อัตโนมัติ (ถ้าระบุวันนัด)
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button id="vx-cancel"
+          style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px;
+                 font-size:13px;font-weight:600;cursor:pointer;color:#64748b;font-family:inherit;">
+          ยกเลิก
+        </button>
+        <button id="vx-save"
+          style="flex:2;background:var(--primary,#0d9488);color:#fff;border:none;border-radius:8px;
+                 padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+          💾 บันทึกวัคซีน
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  // Auto-fill next due date when preset or given date changes
+  function _updateNextDate() {
+    const idx      = parseInt(modal.querySelector('#vx-preset').value) || 0;
+    const givenVal = modal.querySelector('#vx-date').value;
+    if (!givenVal) return;
+    const given = new Date(givenVal + 'T00:00');
+    const days  = VACCINE_LIST[idx]?.days || 365;
+    given.setDate(given.getDate() + days);
+    const ns = `${given.getFullYear()}-${String(given.getMonth()+1).padStart(2,'0')}-${String(given.getDate()).padStart(2,'0')}`;
+    modal.querySelector('#vx-next').value = ns;
+  }
+  _updateNextDate();
+  modal.querySelector('#vx-preset').addEventListener('change', _updateNextDate);
+  modal.querySelector('#vx-date').addEventListener('change',   _updateNextDate);
+
+  modal.querySelector('#vx-cancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  modal.querySelector('#vx-save').addEventListener('click', async () => {
+    const saveBtn   = modal.querySelector('#vx-save');
+    const idx       = parseInt(modal.querySelector('#vx-preset').value) || 0;
+    const customName = modal.querySelector('#vx-name').value.trim();
+    const vaccineName = customName || VACCINE_LIST[idx]?.name || 'วัคซีน';
+    const givenDate  = modal.querySelector('#vx-date').value;
+    const nextDate   = modal.querySelector('#vx-next').value || null;
+
+    if (!givenDate) { showToast('กรุณาระบุวันที่ฉีด', 'error'); return; }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'กำลังบันทึก...';
+
+    // 1. บันทึกวัคซีน
+    const vaxRes = await apiFetch('/api/pets/vaccinations', {
+      method: 'POST',
+      body: JSON.stringify({
+        pet_id:        petId,
+        store_id:      storeId,
+        vaccine_name:  vaccineName,
+        given_date:    givenDate,
+        next_due_date: nextDate,
+        batch_no:      modal.querySelector('#vx-lot').value.trim()   || null,
+        vet_name:      modal.querySelector('#vx-vet').value.trim()   || null,
+        notes:         modal.querySelector('#vx-notes').value.trim() || null,
+      }),
+    });
+
+    if (!vaxRes?.success) {
+      showToast(vaxRes?.error || 'บันทึกวัคซีนไม่สำเร็จ', 'error');
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 บันทึกวัคซีน';
+      return;
+    }
+
+    // 2. สร้างนัดหมายอัตโนมัติถ้ามีวันนัดครั้งหน้า
+    if (nextDate && petId) {
+      await apiFetch('/api/pets/appointments', {
+        method: 'POST',
+        body: JSON.stringify({
+          store_id:     storeId,
+          pet_id:       petId,
+          owner_id:     ownerId,
+          appt_date:    nextDate,
+          service_type: 'วัคซีน',
+          notes:        `ฉีดวัคซีน ${vaccineName} (นัดต่อเนื่องจากการฉีดวันที่ ${givenDate})`,
+          status:       'scheduled',
+        }),
+      }).catch(() => {});
+    }
+
+    showToast(`💉 บันทึกวัคซีน ${vaccineName} แล้ว${nextDate ? ' · สร้างนัดหมายครั้งหน้าแล้ว 📅' : ''}`);
+    modal.remove();
+
+    // รีเฟรช vaccine section
+    _loadVaccinations(petId);
+  });
+}
+
 // ── OPD Tab ───────────────────────────────────────────────────────────────────
 
 function _renderOPDTab(content) {
@@ -705,11 +989,11 @@ function _onFieldInput() {
 
 async function _loadExistingRecord() {
   const storeId = storage.get(STORAGE_KEYS.STORE_ID);
-  const petName = _queueItem?.pet_name;
-  if (!petName) return;
+  const petId   = _petData?.id || _queueItem?.pet_id;
+  if (!petId) return;
 
   const res = await apiFetch(
-    `/api/medical-records?store_id=${storeId}&pet_name=${encodeURIComponent(petName)}&status=in_progress&limit=1`
+    `/api/medical-records?store_id=${storeId}&pet_id=${petId}&status=in_progress&limit=1`
   );
   const rec = res?.data?.[0];
   if (!rec) return;
@@ -738,7 +1022,6 @@ async function _loadExistingRecord() {
 // ── History Tab ───────────────────────────────────────────────────────────────
 
 async function _renderHistoryTab(content) {
-  const petName = _queueItem?.pet_name;
   if (!_queueItem) {
     content.innerHTML = `<div class="wr-empty-state"><span>กรุณาค้นหาผู้ป่วยก่อน</span></div>`;
     return;
@@ -747,8 +1030,13 @@ async function _renderHistoryTab(content) {
   content.innerHTML = `<p style="color:#94a3b8;font-size:13px;padding:30px;text-align:center;">กำลังโหลดประวัติ...</p>`;
 
   const storeId = storage.get(STORAGE_KEYS.STORE_ID);
+  const petId   = _petData?.id || _queueItem?.pet_id;
+  if (!petId) {
+    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;">📂</span><span>ไม่พบ ID สัตว์เลี้ยง</span></div>`;
+    return;
+  }
   const res = await apiFetch(
-    `/api/medical-records?store_id=${storeId}&pet_name=${encodeURIComponent(petName)}`
+    `/api/medical-records?store_id=${storeId}&pet_id=${petId}&limit=50`
   );
   const records = res?.data || [];
 
@@ -1084,7 +1372,6 @@ async function _saveRecord(status = 'in_progress') {
     respiratory_rate:  parseInt(g('wr-rr'))         || null,
     vitals:            { temp: g('wr-temp'), weight: g('wr-weight'), hr: g('wr-hr'), rr: g('wr-rr') },
     prescriptions:     _prescriptions,
-    prescribed_meds:   _prescriptions,
   };
 
   _setAutosave('● กำลังบันทึก...');

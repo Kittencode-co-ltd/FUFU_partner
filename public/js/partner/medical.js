@@ -46,7 +46,7 @@ export async function renderMedicalRecords(container) {
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 async function _loadRecords() {
-  const res   = await apiFetch(`/api/medical-records?store_id=${_storeId}&record_type=opd&limit=100`);
+  const res   = await apiFetch(`/api/medical-records?store_id=${_storeId}&limit=100`);
   _allRecords = res?.data || [];
   _renderList(_allRecords);
 }

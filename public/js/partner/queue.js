@@ -111,56 +111,85 @@ function _renderInbox(appointments) {
 
   const today = new Date().toISOString().split('T')[0];
   const todayApt = appointments.filter(a => a.appt_date === today);
-  const futureApt = appointments.filter(a => a.appt_date > today);
 
   el.innerHTML = `
     <div class="card border border-amber-200 bg-amber-50/50 overflow-hidden">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-amber-200 cursor-pointer select-none"
+      <!-- Banner (always visible) -->
+      <div class="flex items-center justify-between px-4 py-2.5 cursor-pointer select-none"
            id="inbox-toggle">
         <div class="flex items-center gap-2">
-          <span class="text-base">📱</span>
+          <span>📱</span>
           <span class="font-semibold text-navy text-sm">การจองจากแอป</span>
           <span class="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold text-white"
-            style="background:#F97316">${appointments.length}</span>
+                style="background:#F97316">${appointments.length}</span>
+          ${todayApt.length
+            ? `<span class="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">วันนี้ ${todayApt.length} รายการ</span>`
+            : ''}
         </div>
         <div class="flex items-center gap-3">
-          ${todayApt.length ? `<span class="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">วันนี้ ${todayApt.length} รายการ</span>` : ''}
-          <i class="fas fa-chevron-down text-slate-400 text-xs transition-transform" id="inbox-chevron"></i>
+          <button data-appt-action="confirm-all"
+            class="text-xs px-3 py-1 rounded-lg font-semibold transition-colors hidden"
+            id="inbox-confirm-all"
+            style="background:#0D9488;color:#fff;">✓ ยืนยันทั้งหมด</button>
+          <span class="text-xs text-slate-400" id="inbox-hint">แตะเพื่อดู ▼</span>
+          <i class="fas fa-chevron-right text-slate-400 text-xs transition-transform duration-200" id="inbox-chevron"></i>
         </div>
       </div>
-      <div id="inbox-body" class="divide-y divide-amber-100">
-        ${appointments.map(a => _apptCard(a, today)).join('')}
+
+      <!-- Collapsible list (hidden by default) -->
+      <div id="inbox-body" class="divide-y divide-amber-100 border-t border-amber-200" style="display:none">
+        ${appointments.map(a => _apptRow(a, today)).join('')}
       </div>
     </div>`;
 
-  // Toggle collapse
-  let open = true;
-  el.querySelector('#inbox-toggle')?.addEventListener('click', () => {
+  // Toggle collapse — starts closed
+  let open = false;
+  const body   = el.querySelector('#inbox-body');
+  const chev   = el.querySelector('#inbox-chevron');
+  const hint   = el.querySelector('#inbox-hint');
+  const btnAll = el.querySelector('#inbox-confirm-all');
+
+  el.querySelector('#inbox-toggle').addEventListener('click', e => {
+    if (e.target.closest('[data-appt-action="confirm-all"]')) return;
     open = !open;
-    el.querySelector('#inbox-body').style.display = open ? '' : 'none';
-    const chev = el.querySelector('#inbox-chevron');
-    if (chev) chev.style.transform = open ? '' : 'rotate(-90deg)';
+    body.style.display = open ? '' : 'none';
+    chev.style.transform = open ? 'rotate(90deg)' : '';
+    hint.textContent = open ? 'แตะเพื่อซ่อน ▲' : 'แตะเพื่อดู ▼';
+    btnAll.classList.toggle('hidden', !open);
   });
 
-  // Confirm / Reject
-  el.addEventListener('click', async e => {
+  // Confirm all
+  btnAll.addEventListener('click', async () => {
+    const ids = [...el.querySelectorAll('[data-appt-action="confirm"]')].map(b => b.dataset.apptId);
+    if (!ids.length) return;
+    btnAll.disabled = true; btnAll.textContent = 'กำลังยืนยัน...';
+    for (const id of ids) {
+      await apiFetch(`/api/appointments/${id}/confirm`, {
+        method: 'PATCH', body: JSON.stringify({ store_id: _storeId }),
+      });
+    }
+    showToast(`✅ ยืนยัน ${ids.length} รายการแล้ว`);
+    await _loadQueue();
+  });
+
+  // Confirm / Reject individual
+  body.addEventListener('click', async e => {
     const btn = e.target.closest('[data-appt-action]');
-    if (!btn) return;
+    if (!btn || btn.dataset.apptAction === 'confirm-all') return;
     const { apptAction, apptId } = btn.dataset;
 
     if (apptAction === 'confirm') {
-      btn.disabled = true; btn.textContent = 'กำลังยืนยัน...';
+      btn.disabled = true; btn.textContent = '...';
       const res = await apiFetch(`/api/appointments/${apptId}/confirm`, {
-        method: 'PATCH',
-        body: JSON.stringify({ store_id: _storeId }),
+        method: 'PATCH', body: JSON.stringify({ store_id: _storeId }),
       });
       if (res?.success) {
         const q = res.data?.queue_entry;
-        showToast(`✅ ยืนยันแล้ว — เพิ่มคิว A${String(q?.queue_number || '').padStart(3, '0')} วันที่ ${_thaiDate(q?.queue_date || '')}`);
+        showToast(`✅ ยืนยันแล้ว — คิว A${String(q?.queue_number || '').padStart(3, '0')}`);
         await _loadQueue();
       } else {
         showToast(res?.error || 'ยืนยันไม่สำเร็จ', 'error');
-        btn.disabled = false; btn.textContent = '✓ ยืนยัน';
+        btn.disabled = false; btn.textContent = '✓';
       }
     }
 
@@ -170,47 +199,41 @@ function _renderInbox(appointments) {
         method: 'PATCH', body: JSON.stringify({}),
       });
       if (res?.success) { showToast('ปฏิเสธการจองแล้ว', 'info'); await _loadQueue(); }
-      else { showToast(res?.error || 'เกิดข้อผิดพลาด', 'error'); btn.disabled = false; btn.textContent = '✕ ปฏิเสธ'; }
+      else { showToast(res?.error || 'เกิดข้อผิดพลาด', 'error'); btn.disabled = false; btn.textContent = '✕'; }
     }
   });
 }
 
-function _apptCard(a, today) {
+function _apptRow(a, today) {
   const isToday = a.appt_date === today;
-  const dateLabel = isToday
-    ? `<span class="font-semibold text-orange-600">วันนี้</span>`
-    : `<span>${_thaiDate(a.appt_date)}</span>`;
-  const services = (a.services || []).join(', ') || a.category || '—';
-  const dropoff = a.drop_off_method ? `· ${a.drop_off_method}` : '';
+  const dateLabel = isToday ? 'วันนี้' : _thaiDate(a.appt_date);
+  const time = a.appt_time_slot || a.appt_time || '—';
+  const service = (a.services?.length ? a.services.join(', ') : null) || a.service_type || a.category || '—';
+  const dropoff = a.drop_off_method ? ` · ${a.drop_off_method}` : '';
 
   return `
-    <div class="flex items-start gap-4 px-5 py-3 ${isToday ? 'bg-orange-50/60' : 'hover:bg-amber-50/40'} transition-colors">
-      <!-- Date badge -->
-      <div class="flex-shrink-0 text-center min-w-12">
-        <div class="text-xs font-body text-slate-500">${dateLabel}</div>
-        <div class="text-sm font-bold text-navy">${a.appt_time_slot || '—'}</div>
+    <div class="flex items-center gap-3 px-4 py-2 ${isToday ? 'bg-orange-50/50' : 'hover:bg-amber-50/30'} transition-colors">
+      <!-- Time -->
+      <div class="flex-shrink-0 text-center w-14">
+        <div class="text-xs ${isToday ? 'text-orange-500 font-semibold' : 'text-slate-400'}">${dateLabel}</div>
+        <div class="text-sm font-bold text-navy leading-tight">${time}</div>
       </div>
 
-      <!-- Info -->
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-semibold text-navy text-sm">🐾 ${a.pet_name}</span>
-          <span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-body">📱 App</span>
-          ${isToday ? '<span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-semibold">วันนี้</span>' : ''}
-        </div>
-        <div class="text-xs text-slate-500 font-body mt-0.5">
-          ${services} ${dropoff}
-        </div>
+      <!-- Pet + service -->
+      <div class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+        <span class="text-sm font-semibold text-navy truncate">🐾 ${a.pet_name || '—'}</span>
+        <span class="text-xs text-slate-500 truncate">${service}${dropoff}</span>
+        ${isToday ? '<span class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">วันนี้</span>' : ''}
       </div>
 
       <!-- Actions -->
-      <div class="flex gap-2 flex-shrink-0">
+      <div class="flex gap-1.5 flex-shrink-0">
         <button data-appt-action="confirm" data-appt-id="${a.id}"
-          class="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
+          class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors"
           style="background:#0D9488;color:#fff;">✓ ยืนยัน</button>
         <button data-appt-action="reject" data-appt-id="${a.id}"
-          class="text-xs px-3 py-1.5 rounded-lg font-semibold border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-          ✕ ปฏิเสธ</button>
+          class="text-xs px-2.5 py-1 rounded-lg font-semibold border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+          ✕</button>
       </div>
     </div>`;
 }

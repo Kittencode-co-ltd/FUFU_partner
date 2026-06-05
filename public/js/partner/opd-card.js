@@ -171,6 +171,12 @@ function _buildHTML() {
           เคล็ดลับ: พิมพ์ <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-</kbd> แล้วตามด้วยตัวเลข เช่น <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-00042</kbd>
         </span>
       </div>
+
+      <!-- In-progress queue -->
+      <div class="mt-4 border-t border-slate-100 pt-3">
+        <p class="text-xs font-semibold text-slate-400 font-body mb-2">🟢 คิวที่กำลังตรวจอยู่</p>
+        <div id="opd-queue-list" class="space-y-1.5"></div>
+      </div>
     </div>
 
     <!-- Allergies warning banner (shown by _loadPetProfile if pet has allergies) -->
@@ -431,6 +437,7 @@ function _bindEvents() {
 
   // ── Main patient search panel ──────────────────────────────────────────────
   _bindMainSearch(c);
+  _bindQueueSection(c);
 
   // "เปลี่ยนผู้ป่วย" button — shows search panel again
   c.querySelector('#opd-change-patient')?.addEventListener('click', () => {
@@ -453,6 +460,59 @@ function _bindEvents() {
   // Medical images
   _bindImageUpload(c);
   if (_currentRecord?.medical_images?.length) _renderImages(c, _currentRecord.medical_images);
+}
+
+// ─── In-progress queue section ───────────────────────────────────────────────
+
+async function _bindQueueSection(c) {
+  const listEl  = c.querySelector('#opd-queue-list');
+  if (!listEl) return;
+  const storeId = storage.get(STORAGE_KEYS.STORE_ID);
+  const d       = new Date();
+  const today   = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  listEl.innerHTML = `<div class="text-xs text-slate-300 font-body animate-pulse py-1">กำลังโหลด...</div>`;
+
+  const res   = await apiFetch(`/api/queue?store_id=${storeId}&date=${today}`);
+  const items = (res?.data || []).filter(q => q.status === 'in_progress');
+
+  if (!items.length) {
+    listEl.innerHTML = `<div class="text-xs text-slate-300 font-body italic py-1">— ยังไม่มีคิวกำลังตรวจ</div>`;
+    return;
+  }
+
+  listEl.innerHTML = items.map((q, i) => {
+    const [petName = '', ownerName = ''] = (q.notes || '').split(' - ');
+    return `
+      <div class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-primary/20 bg-primary-subtle
+                  cursor-pointer hover:bg-primary/10 transition-colors" data-qidx="${i}">
+        <span class="text-xs font-mono font-bold text-primary bg-white border border-primary/20 rounded-lg px-1.5 py-0.5 flex-shrink-0">
+          ${q.queue_number}
+        </span>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-navy text-sm truncate">${petName || `คิว ${q.queue_number}`}</div>
+          ${ownerName ? `<div class="text-xs text-slate-400 font-body truncate">${ownerName}</div>` : ''}
+        </div>
+        <span class="text-xs text-primary font-semibold flex-shrink-0">เปิด →</span>
+      </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('[data-qidx]').forEach(el => {
+    el.addEventListener('click', () => {
+      const q = items[+el.dataset.qidx];
+      const [petName = '', ownerName = ''] = (q.notes || '').split(' - ');
+      _selectPatient({
+        pet_id:      q.pet_id,
+        pet_name:    petName || `คิว ${q.queue_number}`,
+        owner_name:  ownerName,
+        species:     'dog',
+        hn:          null,
+        breed:       '',
+        allergies:   '',
+        owner_phone: '',
+      }, c);
+    });
+  });
 }
 
 // ─── Main patient search (search panel at top) ────────────────────────────────

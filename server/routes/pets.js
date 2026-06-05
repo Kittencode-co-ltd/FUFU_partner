@@ -119,6 +119,22 @@ router.patch('/owners/:id', async (req, res) => {
   res.json({ success: true, data });
 });
 
+// GET /api/pets/vaccinations?pet_id=UUID — must be BEFORE /:id to avoid route shadowing
+// No requireRole here — store_id not available in query; RLS on pet_vaccinations enforces access
+router.get('/vaccinations', async (req, res) => {
+  const { pet_id } = req.query;
+  if (!pet_id) return res.status(400).json({ error: 'pet_id required' });
+
+  const { data, error } = await req.supabase
+    .from('pet_vaccinations')
+    .select('*')
+    .eq('pet_id', pet_id)
+    .order('given_date', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data: data || [] });
+});
+
 // ─── Pets ─────────────────────────────────────────────────────────────────────
 
 // GET /api/pets/:id — full profile with history

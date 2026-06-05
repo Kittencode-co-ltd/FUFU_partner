@@ -110,12 +110,16 @@ let _listFilter   = 'today';    // 'today' | 'week' | 'month' | 'date'
 let _selectedDate = null;       // YYYY-MM-DD when user clicks a calendar cell
 let _monthAppts   = [];         // cached appointments for current calendar month
 
+function _toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 async function _renderAppointments(el) {
   _calOffset    = 0;
   _listFilter   = 'today';
   _selectedDate = null;
   _monthAppts   = [];
-  const today = new Date().toISOString().split('T')[0];
+  const today = _toDateStr(new Date());
   _selectedDate = today;
 
   el.innerHTML = `
@@ -197,9 +201,9 @@ async function _renderCalPanel(rootEl) {
   const month    = ((baseMonth % 12) + 12) % 12;
   const firstDay = new Date(year, month, 1);
   const lastDay  = new Date(year, month + 1, 0);
-  const from     = firstDay.toISOString().split('T')[0];
-  const to       = lastDay.toISOString().split('T')[0];
-  const today    = now.toISOString().split('T')[0];
+  const from     = _toDateStr(firstDay);
+  const to       = _toDateStr(lastDay);
+  const today    = _toDateStr(now);
   const monthName = firstDay.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 
   panel.innerHTML = `<div class="text-center py-8 text-slate-400 animate-pulse text-sm">กำลังโหลด...</div>`;
@@ -235,7 +239,7 @@ async function _renderCalPanel(rootEl) {
     <div class="grid grid-cols-7" id="cal-cells">
       ${cells.map(d => {
         if (!d) return `<div class="h-10 border-r border-b border-slate-50/50"></div>`;
-        const ds       = d.toISOString().split('T')[0];
+        const ds       = _toDateStr(d);
         const count    = byDate[ds]?.length || 0;
         const isToday  = ds === today;
         const isSel    = ds === _selectedDate;
@@ -292,12 +296,12 @@ function _refreshCalHighlight(rootEl) {
 
 function _isInFilter(ds) {
   const now = new Date();
-  const today = now.toISOString().split('T')[0];
+  const today = _toDateStr(now);
   if (_listFilter === 'today') return ds === today;
   if (_listFilter === 'week') {
     const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-    return ds >= mon.toISOString().split('T')[0] && ds <= sun.toISOString().split('T')[0];
+    return ds >= _toDateStr(mon) && ds <= _toDateStr(sun);
   }
   if (_listFilter === 'month') return ds.startsWith(today.substring(0, 7));
   return false;
@@ -309,7 +313,7 @@ async function _renderListPanel(listEl) {
   if (!listEl) return;
   listEl.innerHTML = `<div class="text-center py-8 text-slate-400 animate-pulse text-sm">กำลังโหลด...</div>`;
 
-  const today  = new Date().toISOString().split('T')[0];
+  const today  = _toDateStr(new Date());
   let from, to, title;
 
   if (_listFilter === 'today' || (_listFilter === 'date' && _selectedDate === today)) {
@@ -323,13 +327,13 @@ async function _renderListPanel(listEl) {
     const now = new Date();
     const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-    from  = mon.toISOString().split('T')[0];
-    to    = sun.toISOString().split('T')[0];
+    from  = _toDateStr(mon);
+    to    = _toDateStr(sun);
     title = `สัปดาห์นี้ (${mon.toLocaleDateString('th-TH',{day:'numeric',month:'short'})} – ${sun.toLocaleDateString('th-TH',{day:'numeric',month:'short'})})`;
   } else {
     const now = new Date();
-    from  = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    to    = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    from  = _toDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+    to    = _toDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
     title = new Date(from + 'T00:00').toLocaleDateString('th-TH', { month:'long', year:'numeric' });
   }
 
@@ -383,7 +387,7 @@ function _apptCard(a) {
   const sp      = SPECIES[pet?.species] || SPECIES.other;
   const cfg     = APPT_STATUS[a.status] || APPT_STATUS.scheduled;
   const time    = a.appt_time ? a.appt_time.substring(0, 5) : '—';
-  const isToday = a.appt_date === new Date().toISOString().split('T')[0];
+  const isToday = a.appt_date === _toDateStr(new Date());
   const canCheckin = isToday && ['scheduled','confirmed'].includes(a.status);
 
   return `
@@ -538,6 +542,17 @@ export function renderPetProfile(container, pet) {
 
   container.innerHTML = `
     <div class="space-y-4 w-full">
+      <!-- Back nav -->
+      <div>
+        <button id="profile-back"
+          class="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-navy transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-100">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="min-width:16px">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+          </svg>
+          กลับ
+        </button>
+      </div>
+
       <!-- Header -->
       <div class="card p-5 flex items-center gap-4">
         <div class="w-16 h-16 rounded-xl bg-primary-subtle flex items-center justify-center text-3xl flex-shrink-0">
@@ -559,8 +574,7 @@ export function renderPetProfile(container, pet) {
           </div>
           ${pet.allergies ? `<div class="text-xs text-red-500 font-body mt-1">⚠️ แพ้: ${pet.allergies}</div>` : ''}
         </div>
-        <div class="flex-shrink-0 flex gap-2">
-          <button id="profile-back" class="btn-outline text-sm px-3 py-2">← กลับ</button>
+        <div class="flex-shrink-0">
           <button id="new-appt-from-profile" class="btn-primary text-sm px-3 py-2">📅 นัดหมาย</button>
         </div>
       </div>
@@ -639,6 +653,14 @@ function _fmtAuditTs(ts) {
   } catch { return null; }
 }
 
+function _fmtVisitDate(s) {
+  if (!s) return '—';
+  try {
+    const d = s.includes('T') ? new Date(s) : new Date(s + 'T00:00');
+    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch { return s; }
+}
+
 function _renderHistory(records) {
   if (!records.length) {
     const empty = document.createElement('div');
@@ -658,7 +680,7 @@ function _renderHistory(records) {
       <div class="flex items-center gap-3">
         <div class="flex-1 cursor-pointer" data-opd-open>
           <div class="flex items-center gap-2">
-            <span class="font-semibold text-navy text-sm">${r.visit_date || '—'}</span>
+            <span class="font-semibold text-navy text-sm">${_fmtVisitDate(r.visit_date)}</span>
             <span class="badge ${r.status === 'completed' ? 'badge-teal' : 'bg-blue-50 text-blue-600'} text-xs">
               ${r.status === 'completed' ? 'เสร็จสิ้น' : 'กำลังรักษา'}
             </span>
@@ -699,8 +721,8 @@ function _renderHistory(records) {
 }
 
 function _renderVaccines(vaccines, petId, medicalRecords = []) {
-  const today    = new Date().toISOString().split('T')[0];
-  const soon30   = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+  const today    = _toDateStr(new Date());
+  const soon30   = _toDateStr(new Date(Date.now() + 30 * 86400000));
 
   function _vaccineBadge(v) {
     if (!v.next_due_date) return '';
@@ -836,17 +858,71 @@ async function _renderOwnersList(el) {
       resultsEl.innerHTML = `<div class="card p-6 text-center text-slate-400 font-body">${q ? `ไม่พบ "${q}"` : 'ยังไม่มีข้อมูลเจ้าของในระบบ'}</div>`;
       return;
     }
-    resultsEl.innerHTML = owners.map(o => `
-      <div class="card p-4 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl">👤</div>
-        <div class="flex-1">
-          <div class="font-semibold text-navy">${o.name}</div>
-          <div class="text-sm text-slate-500 font-body">
-            ${o.phone || ''}${o.email ? ` · ${o.email}` : ''}
-            · สัตว์เลี้ยง ${o.pets?.length || 0} ตัว
+    resultsEl.innerHTML = owners.map(o => {
+      const pets = o.pets || [];
+      const hasPets = pets.length > 0;
+      return `
+      <div class="card overflow-hidden">
+        <div class="owner-row p-4 flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors select-none"
+             data-owner-id="${o.id}">
+          <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">👤</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-navy">${o.name}</div>
+            <div class="text-sm text-slate-500 font-body truncate">
+              ${o.phone || ''}${o.email ? ` · ${o.email}` : ''}
+              · สัตว์เลี้ยง ${pets.length} ตัว
+            </div>
           </div>
+          ${hasPets ? `<svg class="owner-chevron flex-shrink-0 transition-transform duration-200"
+               width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:#94a3b8;min-width:16px">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>` : ''}
         </div>
-      </div>`).join('');
+        ${hasPets ? `
+        <div class="owner-pets hidden border-t border-slate-100 bg-slate-50/60 px-4 py-3 space-y-2">
+          ${pets.map(p => {
+            const sp = SPECIES[p.species] || SPECIES.other;
+            return `
+            <div class="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-white cursor-pointer transition-colors pet-row"
+                 data-pet-id="${p.id}">
+              <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-base flex-shrink-0">
+                ${p.photo_url
+                  ? `<img src="${p.photo_url}" class="w-full h-full object-cover rounded-lg">`
+                  : sp.emoji}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-sm text-navy">${p.name}</div>
+                <div class="text-xs text-slate-400 font-body">${sp.label}${p.breed ? ` · ${p.breed}` : ''}</div>
+              </div>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:#cbd5e1;flex-shrink:0;min-width:14px">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+              </svg>
+            </div>`;
+          }).join('')}
+        </div>` : ''}
+      </div>`;
+    }).join('');
+
+    // Toggle pet dropdown
+    resultsEl.querySelectorAll('.owner-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const petsEl  = row.nextElementSibling;
+        const chevron = row.querySelector('.owner-chevron');
+        if (!petsEl) return;
+        const open = !petsEl.classList.contains('hidden');
+        petsEl.classList.toggle('hidden', open);
+        chevron?.classList.toggle('rotate-180', !open);
+      });
+    });
+
+    // Open pet profile on pet row click
+    resultsEl.querySelectorAll('.pet-row').forEach(row => {
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        const petId = row.dataset.petId;
+        if (petId) _viewPet(petId);
+      });
+    });
   }
 
   let timer;
@@ -893,7 +969,7 @@ function _openApptModal(el, pet = null) {
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="input-label">วันที่นัด *</label>
-          <input id="ap-date" class="input-field" type="date" value="${new Date().toISOString().split('T')[0]}">
+          <input id="ap-date" class="input-field" type="date" value="${_toDateStr(new Date())}">
         </div>
         <div>
           <label class="input-label">เวลา</label>
@@ -1333,7 +1409,7 @@ function _openVaccineModal(pet, container) {
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="input-label">วันที่ฉีด *</label>
-          <input id="vax-date" class="input-field" type="date" value="${new Date().toISOString().split('T')[0]}">
+          <input id="vax-date" class="input-field" type="date" value="${_toDateStr(new Date())}">
         </div>
         <div>
           <label class="input-label">นัดฉีดครั้งหน้า</label>

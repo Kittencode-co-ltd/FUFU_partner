@@ -67,6 +67,24 @@ router.patch('/:id/confirm', requireRole('owner', 'vet', 'reception'), async (re
     .from('appointments').select('*').eq('id', req.params.id).single();
   if (apptErr || !appt) return res.status(404).json({ error: 'Appointment not found' });
 
+  // Guard: already confirmed — return existing queue entry
+  if (appt.status === 'Confirmed' && appt.queue_entry_id) {
+    const { data: existingQ } = await adminSb
+      .from('queue_entries').select('*').eq('id', appt.queue_entry_id).single();
+    return res.json({ success: true, data: { appointment: appt, queue_entry: existingQ } });
+  }
+
+  // Guard: queue entry already exists for this appointment (orphaned from failed update)
+  const { data: orphanQ } = await adminSb
+    .from('queue_entries').select('*').eq('appointment_id', appt.id).maybeSingle();
+  if (orphanQ) {
+    // Just update the appointment status to link it properly
+    await adminSb.from('appointments').update({
+      status: 'Confirmed', store_id, queue_entry_id: orphanQ.id,
+    }).eq('id', req.params.id);
+    return res.json({ success: true, data: { appointment: appt, queue_entry: orphanQ } });
+  }
+
   // Auto-assign queue number for the appointment date
   const queueDate = appt.appt_date;
   const { data: existing } = await req.supabase
@@ -91,7 +109,7 @@ router.patch('/:id/confirm', requireRole('owner', 'vet', 'reception'), async (re
       queue_date:     queueDate,
       service_type:   (appt.services || [])[0] || appt.category,
       priority:       'normal',
-      source:         'app',
+      source:         'app_booking',
       status:         'waiting',
       notes:          entryNotes,
     }])
@@ -103,7 +121,7 @@ router.patch('/:id/confirm', requireRole('owner', 'vet', 'reception'), async (re
   const { error: updErr } = await adminSb
     .from('appointments')
     .update({
-      status:         'confirmed',
+      status:         'Confirmed',
       store_id,
       queue_entry_id: qEntry.id,
     })

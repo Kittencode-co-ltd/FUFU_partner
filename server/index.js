@@ -23,6 +23,7 @@ import rolesRoutes         from './routes/roles.js';
 import serviceItemsRoutes  from './routes/service-items.js';
 import expensesRoutes       from './routes/expenses.js';
 import soapTemplatesRoutes  from './routes/soap-templates.js';
+import rewardsRoutes        from './routes/rewards.js';
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ app.use('/api/roles',           rolesRoutes);
 app.use('/api/service-items',   serviceItemsRoutes);
 app.use('/api/expenses',        expensesRoutes);
 app.use('/api/soap-templates',  soapTemplatesRoutes);
+app.use('/api/rewards',         rewardsRoutes);
 
 // SPA fallback — serve login for unknown routes
 app.get('*', (req, res) => {
