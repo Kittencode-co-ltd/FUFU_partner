@@ -140,7 +140,7 @@ router.patch('/:id/reject', resolveStoreId('appointments'), requireRole('owner',
 
   const { error } = await adminSb
     .from('appointments')
-    .update({ status: 'rejected', reject_reason: reason || null })
+    .update({ status: 'Cancelled', reject_reason: reason || null })
     .eq('id', req.params.id);
 
   if (error) return res.status(500).json({ error: error.message });

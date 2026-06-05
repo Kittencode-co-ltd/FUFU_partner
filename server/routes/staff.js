@@ -2,45 +2,31 @@ import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole, resolveStoreId } from '../middleware/rbac.js';
 import { createClient } from '@supabase/supabase-js';
+import { FIXED_ROLES, isValidRole, permissionsFor } from '../config/roles.js';
 
 const router = Router();
 router.use(requireAuth);
 
-// ── Role mappings ─────────────────────────────────────────────────────────────
-// Frontend uses roles[] array; DB uses a single role string with CHECK constraint
+// ── Fixed roles ───────────────────────────────────────────────────────────────
+// `staff.role` stores a fixed role key (see config/roles.js). The role is chosen
+// directly from the fixed set — stores no longer create custom roles.
 
-const FRONTEND_TO_DB = {
-  all:      'manager',
-  doctor:   'veterinarian',
-  pharmacy: 'pharmacist',
-  counter:  'receptionist',
-  finance:  'staff',
-};
-const DB_TO_FRONTEND = {
-  manager:      ['all'],
-  owner:        ['all'],
-  veterinarian: ['doctor'],
-  pharmacist:   ['pharmacy'],
-  receptionist: ['counter'],
-  groomer:      ['counter'],
-  staff:        ['counter'],
-};
-
-function toDbRole(roles) {
-  const arr = Array.isArray(roles) ? roles : [roles || 'counter'];
-  for (const key of ['all', 'doctor', 'pharmacy', 'counter', 'finance']) {
-    if (arr.includes(key)) return FRONTEND_TO_DB[key];
-  }
-  return 'staff';
+// Resolve an incoming role to a valid fixed DB role key. Accepts the role key
+// directly; falls back to 'staff' when missing/invalid.
+function resolveRole(role) {
+  return (role && isValidRole(role) && role !== 'owner') ? role : 'staff';
 }
 
 function normalize(row) {
   if (!row) return row;
+  const cfg = FIXED_ROLES[row.role] || FIXED_ROLES.staff;
   return {
     ...row,
-    name:       row.full_name  ?? row.name       ?? '',
-    user_email: row.email      ?? row.user_email  ?? '',
-    roles:      DB_TO_FRONTEND[row.role] ?? ['counter'],
+    name:       row.full_name ?? row.name       ?? '',
+    user_email: row.email     ?? row.user_email ?? '',
+    roles:      cfg.modes,          // dashboard mode keys for nav
+    role_label: cfg.label,
+    role_color: row.role_color || cfg.color,
   };
 }
 
@@ -61,7 +47,7 @@ router.get('/', async (req, res) => {
 
 // ── POST /api/staff — add staff member ────────────────────────────────────────
 router.post('/', requireRole('owner'), async (req, res) => {
-  const { store_id, user_email, name, roles, password, phone, position,
+  const { store_id, user_email, name, role, password, phone, position,
           role_color, start_date, notes } = req.body;
 
   if (!store_id || !user_email || !name)
@@ -107,14 +93,15 @@ router.post('/', requireRole('owner'), async (req, res) => {
     .eq('email', email)
     .maybeSingle();
 
+  const dbRole = resolveRole(role);
   const staffPayload = {
     store_id,
     email,
     full_name:  name,
-    role:       toDbRole(roles),
+    role:       dbRole,
     phone:      phone      || null,
-    position:   position   || null,
-    role_color: role_color || null,
+    position:   position   || FIXED_ROLES[dbRole].label,
+    role_color: role_color || FIXED_ROLES[dbRole].color,
     start_date: start_date || null,
     notes:      notes      || null,
     user_id:    authUserId || null,
@@ -143,13 +130,6 @@ router.post('/', requireRole('owner'), async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // Link to custom role so permissions can be fetched at login
-  const roleId = req.body.role_id;
-  if (roleId && data?.id) {
-    await adminSb.from('staff_roles').delete().eq('staff_id', data.id);
-    await adminSb.from('staff_roles').insert([{ staff_id: data.id, role_id: roleId }]);
-  }
-
   res.json({
     success:        true,
     data:           normalize(data),
@@ -160,13 +140,20 @@ router.post('/', requireRole('owner'), async (req, res) => {
 
 // ── PATCH /api/staff/:id ──────────────────────────────────────────────────────
 router.patch('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
-  const allowed = ['full_name','role','phone','is_active','position',
+  const allowed = ['full_name','phone','is_active','position',
                    'role_color','start_date','notes','pin','masking_level'];
   const updates = { updated_at: new Date().toISOString() };
 
   // Map frontend field names → DB column names
-  if (req.body.name      !== undefined) updates.full_name  = req.body.name;
-  if (req.body.roles     !== undefined) updates.role       = toDbRole(req.body.roles);
+  if (req.body.name !== undefined) updates.full_name = req.body.name;
+
+  // Role change — accept fixed role key directly
+  if (req.body.role !== undefined) {
+    const dbRole = resolveRole(req.body.role);
+    updates.role       = dbRole;
+    updates.position   = req.body.position   || FIXED_ROLES[dbRole].label;
+    updates.role_color = req.body.role_color || FIXED_ROLES[dbRole].color;
+  }
 
   for (const col of allowed) {
     if (req.body[col] !== undefined) updates[col] = req.body[col];
@@ -187,13 +174,6 @@ router.patch('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, 
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-
-  // Update custom role link when role_id is provided
-  const roleId = req.body.role_id;
-  if (roleId) {
-    await admin.from('staff_roles').delete().eq('staff_id', req.params.id);
-    await admin.from('staff_roles').insert([{ staff_id: req.params.id, role_id: roleId }]);
-  }
 
   res.json({ success: true, data: normalize(data) });
 });
@@ -294,19 +274,21 @@ router.get('/me', async (req, res) => {
 
   const { data, error } = await admin
     .from('staff')
-    .select('*, staff_roles(role_id, roles(name, permissions))')
+    .select('*')
     .eq('store_id', store_id)
     .eq('email', req.user.email)
     .eq('is_active', true)
-    .maybeSingle();
+    .order('updated_at', { ascending: false })
+    .limit(1);
 
   if (error) return res.json({ success: true, data: null });
 
-  if (!data) return res.json({ success: true, data: null });
+  const row = data?.[0];
+  if (!row) return res.json({ success: true, data: null });
 
-  const normalized = normalize(data);
-  // Attach the custom role's permissions if linked
-  normalized.permissions = data.staff_roles?.[0]?.roles?.permissions || null;
+  const normalized = normalize(row);
+  // Permissions come from the fixed role definition keyed by staff.role
+  normalized.permissions = permissionsFor(row.role);
   res.json({ success: true, data: normalized });
 });
 

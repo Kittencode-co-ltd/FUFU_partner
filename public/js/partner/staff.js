@@ -12,273 +12,6 @@ const MODULE_LABELS = {
   finance: 'การเงิน', pos: 'POS / ขายหน้าร้าน', settings: 'ตั้งค่า',
 };
 
-// ── Presets per store category ────────────────────────────────────────────────
-const ROLE_PRESETS = {
-  vet_clinic: [
-    {
-      name: 'สัตวแพทย์', color: '#0EA5E9', icon: '👨‍⚕️',
-      desc: 'ดู OPD, บันทึกประวัติ, สั่งยา',
-      permissions: {
-        home:    [],
-        queue:   ['view'],
-        opd:     ['view','create','edit'],
-        ipd:     ['view','create','edit'],
-        stock:   ['view'],
-        finance: [],
-        pos:     [],
-        settings:[],
-      },
-    },
-    {
-      name: 'พยาบาลสัตว์', color: '#10B981', icon: '🩺',
-      desc: 'รับคิว, ช่วย OPD, ดูสต็อก',
-      permissions: {
-        home:    [],
-        queue:   ['view','create','edit'],
-        opd:     ['view','create'],
-        ipd:     ['view'],
-        stock:   ['view'],
-        finance: [],
-        pos:     [],
-        settings:[],
-      },
-    },
-    {
-      name: 'เคาน์เตอร์', color: '#8B5CF6', icon: '📋',
-      desc: 'รับคิว, POS, ดูการเงิน',
-      permissions: {
-        home:    [],
-        queue:   ['view','create','edit','delete'],
-        opd:     ['view'],
-        ipd:     [],
-        stock:   ['view'],
-        finance: ['view'],
-        pos:     ['view','create','edit'],
-        settings:[],
-      },
-    },
-    {
-      name: 'สต็อก / เภสัช', color: '#F59E0B', icon: '📦',
-      desc: 'จัดยา, รับ-จ่ายสินค้า',
-      permissions: {
-        home:    [],
-        queue:   ['view'],
-        opd:     ['view'],
-        ipd:     [],
-        stock:   ['view','create','edit','delete'],
-        finance: [],
-        pos:     ['view'],
-        settings:[],
-      },
-    },
-    {
-      name: 'การเงิน', color: '#EF4444', icon: '💰',
-      desc: 'รายได้, ใบเสร็จ, รายงาน',
-      permissions: {
-        home:    [],
-        queue:   ['view'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: ['view','create','edit','delete'],
-        pos:     ['view'],
-        settings:[],
-      },
-    },
-  ],
-
-  pet_shop: [
-    {
-      name: 'ผู้จัดการ', color: '#6366F1', icon: '👔',
-      desc: 'เข้าถึงทุกส่วนของร้าน',
-      permissions: {
-        home:    ['view'],
-        queue:   ['view','create','edit','delete'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view','create','edit','delete'],
-        finance: ['view','create','edit','delete'],
-        pos:     ['view','create','edit','delete'],
-        settings:['view','edit'],
-      },
-    },
-    {
-      name: 'พนักงานขาย', color: '#10B981', icon: '🛍️',
-      desc: 'POS, ดูสต็อก',
-      permissions: {
-        home:    [],
-        queue:   ['view','create'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: [],
-        pos:     ['view','create','edit'],
-        settings:[],
-      },
-    },
-    {
-      name: 'สต็อก', color: '#F59E0B', icon: '📦',
-      desc: 'รับ-จ่าย, นับสต็อก',
-      permissions: {
-        home:    [],
-        queue:   [],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view','create','edit','delete'],
-        finance: [],
-        pos:     ['view'],
-        settings:[],
-      },
-    },
-    {
-      name: 'การเงิน', color: '#EF4444', icon: '💰',
-      desc: 'รายได้, ใบเสร็จ',
-      permissions: {
-        home:    [],
-        queue:   ['view'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: ['view','create','edit','delete'],
-        pos:     ['view'],
-        settings:[],
-      },
-    },
-  ],
-
-  pet_hotel: [
-    {
-      name: 'ผู้จัดการ', color: '#6366F1', icon: '👔',
-      desc: 'เข้าถึงทุกส่วนของโรงแรม',
-      permissions: {
-        home:    ['view'],
-        queue:   ['view','create','edit','delete'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view','create','edit','delete'],
-        finance: ['view','create','edit','delete'],
-        pos:     ['view','create','edit','delete'],
-        settings:['view','edit'],
-      },
-    },
-    {
-      name: 'พนักงานต้อนรับ', color: '#8B5CF6', icon: '🏨',
-      desc: 'เช็คอิน/เช็คเอาท์, คิว',
-      permissions: {
-        home:    [],
-        queue:   ['view','create','edit'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: ['view'],
-        pos:     ['view','create'],
-        settings:[],
-      },
-    },
-    {
-      name: 'ดูแลสัตว์', color: '#10B981', icon: '🐾',
-      desc: 'ดูข้อมูลห้องพัก, บันทึกการดูแล',
-      permissions: {
-        home:    [],
-        queue:   ['view','edit'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: [],
-        pos:     [],
-        settings:[],
-      },
-    },
-    {
-      name: 'การเงิน', color: '#EF4444', icon: '💰',
-      desc: 'รายได้, ใบเสร็จ',
-      permissions: {
-        home:    [],
-        queue:   ['view'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: ['view','create','edit','delete'],
-        pos:     ['view'],
-        settings:[],
-      },
-    },
-  ],
-
-  pet_grooming: [
-    {
-      name: 'ผู้จัดการ', color: '#6366F1', icon: '👔',
-      desc: 'เข้าถึงทุกส่วน',
-      permissions: {
-        home:    ['view'],
-        queue:   ['view','create','edit','delete'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view','create','edit','delete'],
-        finance: ['view','create','edit','delete'],
-        pos:     ['view','create','edit','delete'],
-        settings:['view','edit'],
-      },
-    },
-    {
-      name: 'ช่างตัดแต่ง', color: '#EC4899', icon: '✂️',
-      desc: 'รับงาน, บันทึกผลงาน',
-      permissions: {
-        home:    [],
-        queue:   ['view','create','edit'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: [],
-        pos:     [],
-        settings:[],
-      },
-    },
-    {
-      name: 'พนักงานต้อนรับ', color: '#8B5CF6', icon: '📋',
-      desc: 'รับคิว, POS',
-      permissions: {
-        home:    [],
-        queue:   ['view','create','edit'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: ['view'],
-        pos:     ['view','create','edit'],
-        settings:[],
-      },
-    },
-    {
-      name: 'สต็อก', color: '#F59E0B', icon: '📦',
-      desc: 'จัดการวัสดุอุปกรณ์',
-      permissions: {
-        home:    [],
-        queue:   [],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view','create','edit','delete'],
-        finance: [],
-        pos:     ['view'],
-        settings:[],
-      },
-    },
-    {
-      name: 'การเงิน', color: '#EF4444', icon: '💰',
-      desc: 'รายได้, ใบเสร็จ',
-      permissions: {
-        home:    [],
-        queue:   ['view'],
-        opd:     [],
-        ipd:     [],
-        stock:   ['view'],
-        finance: ['view','create','edit','delete'],
-        pos:     ['view'],
-        settings:[],
-      },
-    },
-  ],
-};
-
 const ROLES_CFG = {
   counter:  { label: 'เคาน์เตอร์',   icon: '📋', desc: 'รับคนไข้, นัดหมาย, POS' },
   doctor:   { label: 'แพทย์',         icon: '👨‍⚕️', desc: 'OPD, ประวัติ, สั่งยา' },
@@ -496,8 +229,7 @@ async function _openAddModal(container) {
         store_id: _storeId,
         user_email: email,
         name,
-        roles: _permissionsToModes(selectedRole.permissions),
-        role_id: selectedRole.id,
+        role: selectedRole.id,
         phone,
         position: selectedRole.name,
         role_color: selectedRole.color,
@@ -629,8 +361,7 @@ async function _openEditModal(member, container) {
       method: 'PATCH',
       body: JSON.stringify({
         name,
-        roles: _permissionsToModes(selectedRole.permissions),
-        role_id: selectedRole.id,
+        role: selectedRole.id,
         phone,
         position: selectedRole.name,
         role_color: selectedRole.color,
@@ -759,85 +490,25 @@ function _renderRoleSelector(storeRoles, selectedNames, prefix) {
     </div>`;
 }
 
-// Maps custom role permissions → dashboard mode keys (staff.roles[])
-function _permissionsToModes(permissions) {
-  if (!permissions) return ['counter'];
-  const has = (mod, act) => (permissions[mod] || []).includes(act);
+// ─── Role & Permission panel (READ-ONLY — roles are fixed system-wide) ─────────
 
-  if (has('settings', 'view')) return ['all', 'home'];
-
-  const modes = [];
-  if (has('home',    'view'))                        modes.push('home');
-  if (has('opd', 'view') || has('ipd', 'view'))     modes.push('doctor');
-  if (has('stock', 'view'))                          modes.push('pharmacy');
-  if (has('finance', 'view'))                        modes.push('finance');
-  if (has('queue', 'view') || has('pos', 'view'))    modes.push('counter');
-
-  return modes.length ? [...new Set(modes)] : ['counter'];
-}
-
-// ─── Role & Permission panel ──────────────────────────────────────────────────
-
-function _openRolesPanel(storeId) {
-  const category = storage.get(STORAGE_KEYS.STORE_CATEGORY) || 'vet_clinic';
-  const presets  = ROLE_PRESETS[category] || [];
-
+async function _openRolesPanel(storeId) {
   const panel = document.createElement('div');
   panel.className = 'fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto';
   panel.innerHTML = `
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8">
-
-      <!-- Header -->
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl my-8">
       <div class="flex items-center justify-between p-6 border-b border-slate-100">
         <div>
           <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('shield-alt','w-5 h-5')}</span> Role & Permission</h3>
-          <p class="text-sm text-slate-400 font-body mt-0.5">กำหนดตำแหน่งและสิทธิ์การเข้าถึงของพนักงาน</p>
+          <p class="text-sm text-slate-400 font-body mt-0.5">ตำแหน่งและสิทธิ์เป็นค่ามาตรฐานของระบบ (กำหนดตายตัว — แก้ไขไม่ได้)</p>
         </div>
         <button id="rp-close" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
           ${icon('times','w-4 h-4')}
         </button>
       </div>
-
-      <div class="p-6 space-y-6">
-
-        <!-- Preset section -->
-        <div>
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Preset — ใช้เป็น Template</span>
-            <div class="flex-1 border-t border-slate-100"></div>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="rp-presets">
-            ${presets.map((p, i) => `
-              <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 transition-colors">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
-                     style="background:${p.color}22">${p.icon}</div>
-                <div class="flex-1 min-w-0">
-                  <div class="font-semibold text-navy text-sm">${p.name}</div>
-                  <div class="text-xs text-slate-400 font-body truncate">${p.desc}</div>
-                </div>
-                <button data-use-preset="${i}"
-                  class="text-xs border border-primary text-primary px-2.5 py-1.5 rounded-lg
-                         hover:bg-primary-subtle transition-colors flex-shrink-0 whitespace-nowrap">
-                  + ใช้
-                </button>
-              </div>`).join('')}
-          </div>
-        </div>
-
-        <!-- Custom roles section -->
-        <div>
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Role ของร้านนี้</span>
-            <div class="flex-1 border-t border-slate-100"></div>
-            <button id="rp-add-btn" class="text-xs border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg
-                                           hover:border-primary hover:text-primary transition-colors">
-              + สร้างใหม่
-            </button>
-          </div>
-          <div id="rp-loading" class="text-slate-400 font-body text-sm py-2">กำลังโหลด...</div>
-          <div id="rp-list" class="space-y-2 hidden"></div>
-        </div>
-
+      <div class="p-6">
+        <div id="rp-loading" class="text-slate-400 font-body text-sm py-4">กำลังโหลด...</div>
+        <div id="rp-list" class="space-y-4 hidden"></div>
       </div>
     </div>`;
   document.body.appendChild(panel);
@@ -846,198 +517,48 @@ function _openRolesPanel(storeId) {
   panel.querySelector('#rp-close').addEventListener('click', close);
   panel.addEventListener('click', e => { if (e.target === panel) close(); });
 
-  const reload = () => _loadRolesIntoPanel(panel, storeId);
-
-  // Use preset → open modal pre-filled, save as new role
-  panel.querySelector('#rp-presets').addEventListener('click', e => {
-    const btn = e.target.closest('[data-use-preset]');
-    if (!btn) return;
-    const preset = presets[+btn.dataset.usePreset];
-    _openRoleModal({ ...preset, id: null }, storeId, reload);
-  });
-
-  panel.querySelector('#rp-add-btn').addEventListener('click', () => _openRoleModal(null, storeId, reload));
-  reload();
-}
-
-async function _loadRolesIntoPanel(panel, storeId) {
-  const loadingEl = panel.querySelector('#rp-loading');
-  const listEl    = panel.querySelector('#rp-list');
-  if (!loadingEl || !listEl) return;
-
-  loadingEl.classList.remove('hidden');
-  listEl.classList.add('hidden');
-
   const res   = await apiFetch(`/api/roles?store_id=${storeId}`);
   const roles = res?.data || [];
 
+  const loadingEl = panel.querySelector('#rp-loading');
+  const listEl    = panel.querySelector('#rp-list');
   loadingEl.classList.add('hidden');
   listEl.classList.remove('hidden');
 
-  if (!roles.length) {
-    listEl.innerHTML = `
-      <div class="text-center py-6 text-slate-400 font-body text-sm border border-dashed border-slate-200 rounded-xl">
-        ยังไม่มี Role — กด "+ สร้างใหม่" หรือเลือก Template จาก Preset ด้านบน
-      </div>`;
-    return;
-  }
+  const actionLabels = { view: 'ดู', create: 'สร้าง', edit: 'แก้ไข', delete: 'ลบ' };
+  const dot = (on) => on
+    ? `<span class="inline-flex w-5 h-5 rounded-md bg-primary/15 text-primary items-center justify-center text-xs font-bold">✓</span>`
+    : `<span class="inline-flex w-5 h-5 rounded-md bg-slate-100 text-slate-300 items-center justify-center text-xs">–</span>`;
 
   listEl.innerHTML = roles.map(r => {
     const perms = r.permissions || {};
-    const canView = PERM_MODULES.filter(m => (perms[m] || []).length > 0)
-      .map(m => MODULE_LABELS[m] || m).join(', ') || '—';
     return `
-      <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
-        <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${r.color || '#6B7280'}"></div>
-        <div class="flex-1 min-w-0">
-          <div class="font-semibold text-navy text-sm">${r.name}</div>
-          <div class="text-xs text-slate-400 font-body truncate">เข้าถึง: ${canView}</div>
+      <div class="rounded-xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center gap-3 px-4 py-3 bg-slate-50/60 border-b border-slate-100">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+               style="background:${(r.color || '#6B7280')}22">${r.icon || '👤'}</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-navy text-sm">${r.name}</div>
+            <div class="text-xs text-slate-400 font-body truncate">${r.desc || ''}</div>
+          </div>
         </div>
-        <div class="flex gap-1.5 flex-shrink-0">
-          <button data-edit-role="${r.id}" data-role='${JSON.stringify(r).replace(/'/g,"&#39;")}'
-            class="text-xs border border-slate-200 text-slate-500 px-2.5 py-1.5 rounded-lg
-                   hover:border-primary hover:text-primary transition-colors">แก้ไข</button>
-          <button data-delete-role="${r.id}"
-            class="text-xs border border-red-200 text-red-400 px-2.5 py-1.5 rounded-lg
-                   hover:bg-red-50 transition-colors">ลบ</button>
-        </div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-slate-400">
+              <th class="text-left px-4 py-2 font-semibold">Module</th>
+              ${PERM_ACTIONS.map(a => `<th class="text-center px-2 py-2 font-semibold">${actionLabels[a] || a}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${PERM_MODULES.map((mod, i) => `
+              <tr class="${i % 2 === 1 ? 'bg-slate-50/40' : ''}">
+                <td class="px-4 py-2 font-medium text-navy">${MODULE_LABELS[mod] || mod}</td>
+                ${PERM_ACTIONS.map(act => `<td class="text-center px-2 py-2">${dot((perms[mod] || []).includes(act))}</td>`).join('')}
+              </tr>`).join('')}
+          </tbody>
+        </table>
       </div>`;
   }).join('');
-
-  // Replace listener to avoid stacking (clone node trick)
-  const fresh = listEl.cloneNode(true);
-  listEl.replaceWith(fresh);
-  panel.querySelector('#rp-list')?.addEventListener('click', async e => {
-    const editBtn = e.target.closest('[data-edit-role]');
-    const delBtn  = e.target.closest('[data-delete-role]');
-    const reload  = () => _loadRolesIntoPanel(panel, storeId);
-
-    if (editBtn) {
-      const role = JSON.parse(editBtn.dataset.role.replace(/&#39;/g,"'"));
-      _openRoleModal(role, storeId, reload);
-    }
-    if (delBtn) {
-      if (!confirm('ลบ Role นี้?')) return;
-      const res = await apiFetch(`/api/roles/${delBtn.dataset.deleteRole}`, { method: 'DELETE' });
-      if (res?.success) { showToast('ลบ Role แล้ว', 'info'); reload(); }
-      else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
-    }
-  });
-}
-
-function _openRoleModal(role, storeId, onSave) {
-  const isEdit   = !!(role?.id);
-  const perms    = role?.permissions || {};
-  const modal    = document.createElement('div');
-  modal.className = 'fixed inset-0 z-[60] flex items-start justify-center bg-black/40 p-4 overflow-y-auto';
-
-  const actionLabels = { view: 'ดู', create: 'สร้าง', edit: 'แก้ไข', delete: 'ลบ' };
-
-  modal.innerHTML = `
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-xl my-8">
-
-      <!-- Header -->
-      <div class="flex items-center justify-between p-6 border-b border-slate-100">
-        <h3 class="font-bold text-navy text-lg">
-          ${isEdit ? `แก้ไข Role — ${role.name}` : '+ สร้าง Role ใหม่'}
-        </h3>
-        <button id="rl-x" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
-          ${icon('times','w-4 h-4')}
-        </button>
-      </div>
-
-      <div class="p-6 space-y-5">
-
-        <!-- Name + color -->
-        <div class="grid grid-cols-3 gap-3">
-          <div class="col-span-2">
-            <label class="input-label">ชื่อตำแหน่ง *</label>
-            <input id="rl-name" class="input-field" value="${role?.name || ''}" placeholder="เช่น สัตวแพทย์">
-          </div>
-          <div>
-            <label class="input-label">สี</label>
-            <input id="rl-color" class="input-field h-[42px]" type="color" value="${role?.color || '#6B7280'}">
-          </div>
-        </div>
-
-        <!-- Permission matrix -->
-        <div>
-          <label class="input-label mb-3">สิทธิ์การเข้าถึง</label>
-          <div class="rounded-xl border border-slate-100 overflow-hidden">
-            <table class="w-full text-sm">
-              <thead class="bg-slate-50">
-                <tr>
-                  <th class="text-left px-4 py-2.5 text-slate-500 font-semibold">Module</th>
-                  ${PERM_ACTIONS.map(a => `
-                    <th class="text-center px-2 py-2.5 text-slate-500 font-semibold text-xs">
-                      ${actionLabels[a] || a}
-                    </th>`).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${PERM_MODULES.map((mod, i) => `
-                  <tr class="${i % 2 === 1 ? 'bg-slate-50/50' : ''}">
-                    <td class="px-4 py-2.5 font-medium text-navy text-sm">
-                      ${MODULE_LABELS[mod] || mod}
-                    </td>
-                    ${PERM_ACTIONS.map(act => `
-                      <td class="text-center px-2 py-2.5">
-                        <input type="checkbox" class="perm-cb w-4 h-4 accent-primary cursor-pointer"
-                               data-mod="${mod}" data-act="${act}"
-                               ${(perms[mod] || []).includes(act) ? 'checked' : ''}>
-                      </td>`).join('')}
-                  </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
-          <p class="text-xs text-slate-400 font-body mt-2">
-            เลือก "ดู" อย่างน้อย 1 module เพื่อให้พนักงานเข้าหน้านั้นได้
-          </p>
-        </div>
-
-      </div>
-
-      <!-- Footer -->
-      <div class="flex gap-3 p-6 border-t border-slate-100">
-        <button id="rl-cancel" class="btn-outline flex-1">ยกเลิก</button>
-        <button id="rl-save" class="btn-primary flex-1">${isEdit ? 'บันทึก' : 'สร้าง Role'}</button>
-      </div>
-    </div>`;
-
-  document.body.appendChild(modal);
-  const close = () => modal.remove();
-  modal.querySelector('#rl-cancel').addEventListener('click', close);
-  modal.querySelector('#rl-x').addEventListener('click', close);
-  modal.addEventListener('click', e => { if (e.target === modal) close(); });
-
-  modal.querySelector('#rl-save').addEventListener('click', async () => {
-    const name  = modal.querySelector('#rl-name').value.trim();
-    const color = modal.querySelector('#rl-color').value;
-    if (!name) { showToast('กรุณากรอกชื่อตำแหน่ง', 'error'); return; }
-
-    const permissions = {};
-    PERM_MODULES.forEach(mod => { permissions[mod] = []; });
-    modal.querySelectorAll('.perm-cb:checked').forEach(cb => {
-      const { mod, act } = cb.dataset;
-      if (!permissions[mod].includes(act)) permissions[mod].push(act);
-    });
-
-    const btn = modal.querySelector('#rl-save');
-    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-
-    const res = isEdit
-      ? await apiFetch(`/api/roles/${role.id}`, { method: 'PATCH', body: JSON.stringify({ name, color, permissions }) })
-      : await apiFetch('/api/roles', { method: 'POST', body: JSON.stringify({ store_id: storeId, name, color, permissions }) });
-
-    if (res?.success) {
-      showToast(isEdit ? `บันทึก "${name}" แล้ว ✓` : `สร้าง "${name}" แล้ว ✓`);
-      modal.remove();
-      onSave();
-    } else {
-      showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
-      btn.disabled = false; btn.textContent = isEdit ? 'บันทึก' : 'สร้าง Role';
-    }
-  });
 }
 
 // ─── Modal helper ─────────────────────────────────────────────────────────────

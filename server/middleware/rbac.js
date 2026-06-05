@@ -8,6 +8,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { toRbacRole } from '../config/roles.js';
 
 // Admin (service-role) client — bypasses RLS for ownership verification.
 // Lazy-init so env vars are available when first used.
@@ -55,35 +56,21 @@ export async function attachStoreRole(req, res, next) {
       return next();
     }
 
-    // Not the owner — check staff table.
-    // The DB role column stores long-form names (veterinarian, receptionist, manager, …)
-    // but requireRole() calls use short-form names (vet, reception, owner, …).
-    // Translate to short-form so all checks are consistent.
-    const DB_TO_RBAC = {
-      veterinarian: 'vet',
-      receptionist: 'reception',
-      manager:      'owner',
-      pharmacist:   'staff',
-      groomer:      'counter',
-      staff:        'staff',
-      counter:      'counter',
-      vet:          'vet',
-      reception:    'reception',
-      owner:        'owner',
-    };
-
-    const { data: staff } = await req.supabase
+    // Not the owner — check staff table. The DB `role` column stores the fixed
+    // role key (veterinarian, receptionist, …); translate to the short-form
+    // rbac name (vet, reception, …) that requireRole() guards expect.
+    // Use admin client + maybeSingle so a missing/duplicate row never throws.
+    const { data: staffRows } = await _admin()
       .from('staff')
-      .select('role, roles')
+      .select('role')
       .eq('store_id', storeId)
       .eq('email', req.user.email)
       .eq('is_active', true)
-      .single();
+      .order('updated_at', { ascending: false })
+      .limit(1);
 
-    const raw = (Array.isArray(staff?.roles) && staff.roles.length)
-      ? staff.roles[0]
-      : (staff?.role || null);
-    req.staffRole = (raw && DB_TO_RBAC[raw]) ? DB_TO_RBAC[raw] : raw;
+    const dbRole = staffRows?.[0]?.role || null;
+    req.staffRole = dbRole ? toRbacRole(dbRole) : null;
     next();
   } catch {
     req.staffRole = null;
