@@ -28,5 +28,7 @@ export const storage = {
 
   clearSession() {
     Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+    // Clear extra keys not tracked in STORAGE_KEYS
+    ['fufu_mode', 'fufu_staff_roles', 'fufu_staff_name', 'fufu_staff_permissions', 'fufu_sidebar'].forEach(k => localStorage.removeItem(k));
   },
 };

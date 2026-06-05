@@ -4,11 +4,11 @@ import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { icon } from '../utils/icons.js';
 
-const PERM_MODULES = ['queue','opd','ipd','stock','finance','pos','settings'];
+const PERM_MODULES = ['home','queue','opd','ipd','stock','finance','pos','settings'];
 const PERM_ACTIONS = ['view','create','edit','delete'];
 
 const MODULE_LABELS = {
-  queue: 'คิว', opd: 'OPD', ipd: 'IPD', stock: 'สต็อก',
+  home: 'ภาพรวม', queue: 'คิว', opd: 'OPD', ipd: 'IPD', stock: 'สต็อก',
   finance: 'การเงิน', pos: 'POS / ขายหน้าร้าน', settings: 'ตั้งค่า',
 };
 
@@ -19,6 +19,7 @@ const ROLE_PRESETS = {
       name: 'สัตวแพทย์', color: '#0EA5E9', icon: '👨‍⚕️',
       desc: 'ดู OPD, บันทึกประวัติ, สั่งยา',
       permissions: {
+        home:    [],
         queue:   ['view'],
         opd:     ['view','create','edit'],
         ipd:     ['view','create','edit'],
@@ -32,6 +33,7 @@ const ROLE_PRESETS = {
       name: 'พยาบาลสัตว์', color: '#10B981', icon: '🩺',
       desc: 'รับคิว, ช่วย OPD, ดูสต็อก',
       permissions: {
+        home:    [],
         queue:   ['view','create','edit'],
         opd:     ['view','create'],
         ipd:     ['view'],
@@ -45,6 +47,7 @@ const ROLE_PRESETS = {
       name: 'เคาน์เตอร์', color: '#8B5CF6', icon: '📋',
       desc: 'รับคิว, POS, ดูการเงิน',
       permissions: {
+        home:    [],
         queue:   ['view','create','edit','delete'],
         opd:     ['view'],
         ipd:     [],
@@ -58,6 +61,7 @@ const ROLE_PRESETS = {
       name: 'สต็อก / เภสัช', color: '#F59E0B', icon: '📦',
       desc: 'จัดยา, รับ-จ่ายสินค้า',
       permissions: {
+        home:    [],
         queue:   ['view'],
         opd:     ['view'],
         ipd:     [],
@@ -71,6 +75,7 @@ const ROLE_PRESETS = {
       name: 'การเงิน', color: '#EF4444', icon: '💰',
       desc: 'รายได้, ใบเสร็จ, รายงาน',
       permissions: {
+        home:    [],
         queue:   ['view'],
         opd:     [],
         ipd:     [],
@@ -87,6 +92,7 @@ const ROLE_PRESETS = {
       name: 'ผู้จัดการ', color: '#6366F1', icon: '👔',
       desc: 'เข้าถึงทุกส่วนของร้าน',
       permissions: {
+        home:    ['view'],
         queue:   ['view','create','edit','delete'],
         opd:     [],
         ipd:     [],
@@ -100,6 +106,7 @@ const ROLE_PRESETS = {
       name: 'พนักงานขาย', color: '#10B981', icon: '🛍️',
       desc: 'POS, ดูสต็อก',
       permissions: {
+        home:    [],
         queue:   ['view','create'],
         opd:     [],
         ipd:     [],
@@ -113,6 +120,7 @@ const ROLE_PRESETS = {
       name: 'สต็อก', color: '#F59E0B', icon: '📦',
       desc: 'รับ-จ่าย, นับสต็อก',
       permissions: {
+        home:    [],
         queue:   [],
         opd:     [],
         ipd:     [],
@@ -126,6 +134,7 @@ const ROLE_PRESETS = {
       name: 'การเงิน', color: '#EF4444', icon: '💰',
       desc: 'รายได้, ใบเสร็จ',
       permissions: {
+        home:    [],
         queue:   ['view'],
         opd:     [],
         ipd:     [],
@@ -142,6 +151,7 @@ const ROLE_PRESETS = {
       name: 'ผู้จัดการ', color: '#6366F1', icon: '👔',
       desc: 'เข้าถึงทุกส่วนของโรงแรม',
       permissions: {
+        home:    ['view'],
         queue:   ['view','create','edit','delete'],
         opd:     [],
         ipd:     [],
@@ -155,6 +165,7 @@ const ROLE_PRESETS = {
       name: 'พนักงานต้อนรับ', color: '#8B5CF6', icon: '🏨',
       desc: 'เช็คอิน/เช็คเอาท์, คิว',
       permissions: {
+        home:    [],
         queue:   ['view','create','edit'],
         opd:     [],
         ipd:     [],
@@ -168,6 +179,7 @@ const ROLE_PRESETS = {
       name: 'ดูแลสัตว์', color: '#10B981', icon: '🐾',
       desc: 'ดูข้อมูลห้องพัก, บันทึกการดูแล',
       permissions: {
+        home:    [],
         queue:   ['view','edit'],
         opd:     [],
         ipd:     [],
@@ -181,6 +193,7 @@ const ROLE_PRESETS = {
       name: 'การเงิน', color: '#EF4444', icon: '💰',
       desc: 'รายได้, ใบเสร็จ',
       permissions: {
+        home:    [],
         queue:   ['view'],
         opd:     [],
         ipd:     [],
@@ -197,6 +210,7 @@ const ROLE_PRESETS = {
       name: 'ผู้จัดการ', color: '#6366F1', icon: '👔',
       desc: 'เข้าถึงทุกส่วน',
       permissions: {
+        home:    ['view'],
         queue:   ['view','create','edit','delete'],
         opd:     [],
         ipd:     [],
@@ -210,6 +224,7 @@ const ROLE_PRESETS = {
       name: 'ช่างตัดแต่ง', color: '#EC4899', icon: '✂️',
       desc: 'รับงาน, บันทึกผลงาน',
       permissions: {
+        home:    [],
         queue:   ['view','create','edit'],
         opd:     [],
         ipd:     [],
@@ -223,6 +238,7 @@ const ROLE_PRESETS = {
       name: 'พนักงานต้อนรับ', color: '#8B5CF6', icon: '📋',
       desc: 'รับคิว, POS',
       permissions: {
+        home:    [],
         queue:   ['view','create','edit'],
         opd:     [],
         ipd:     [],
@@ -236,6 +252,7 @@ const ROLE_PRESETS = {
       name: 'สต็อก', color: '#F59E0B', icon: '📦',
       desc: 'จัดการวัสดุอุปกรณ์',
       permissions: {
+        home:    [],
         queue:   [],
         opd:     [],
         ipd:     [],
@@ -249,6 +266,7 @@ const ROLE_PRESETS = {
       name: 'การเงิน', color: '#EF4444', icon: '💰',
       desc: 'รายได้, ใบเสร็จ',
       permissions: {
+        home:    [],
         queue:   ['view'],
         opd:     [],
         ipd:     [],
@@ -307,8 +325,8 @@ async function _render(container) {
           <p class="text-sm text-slate-400 font-body mt-0.5">Active ${active.length} คน</p>
         </div>
         <div class="flex gap-2">
-          <button id="manage-roles-btn" class="btn-outline px-4 py-2 text-sm">
-            <span class="opacity-70 mr-1">${icon('shield-alt','w-3.5 h-3.5')}</span>จัดการสิทธิ์
+          <button id="manage-roles-btn" class="btn-outline px-4 py-2 text-sm flex items-center gap-1.5">
+            ${icon('shield-alt','w-3.5 h-3.5')}จัดการสิทธิ์
           </button>
           <button id="add-staff-btn" class="btn-primary px-4 py-2">+ เพิ่มพนักงาน</button>
         </div>
@@ -479,6 +497,7 @@ async function _openAddModal(container) {
         user_email: email,
         name,
         roles: _permissionsToModes(selectedRole.permissions),
+        role_id: selectedRole.id,
         phone,
         position: selectedRole.name,
         role_color: selectedRole.color,
@@ -611,6 +630,7 @@ async function _openEditModal(member, container) {
       body: JSON.stringify({
         name,
         roles: _permissionsToModes(selectedRole.permissions),
+        role_id: selectedRole.id,
         phone,
         position: selectedRole.name,
         role_color: selectedRole.color,
@@ -744,13 +764,14 @@ function _permissionsToModes(permissions) {
   if (!permissions) return ['counter'];
   const has = (mod, act) => (permissions[mod] || []).includes(act);
 
-  if (has('settings', 'view')) return ['all'];
+  if (has('settings', 'view')) return ['all', 'home'];
 
   const modes = [];
-  if (has('opd', 'view') || has('ipd', 'view'))    modes.push('doctor');
-  if (has('stock', 'view'))                         modes.push('pharmacy');
-  if (has('finance', 'view'))                       modes.push('finance');
-  if (has('queue', 'view') || has('pos', 'view'))   modes.push('counter');
+  if (has('home',    'view'))                        modes.push('home');
+  if (has('opd', 'view') || has('ipd', 'view'))     modes.push('doctor');
+  if (has('stock', 'view'))                          modes.push('pharmacy');
+  if (has('finance', 'view'))                        modes.push('finance');
+  if (has('queue', 'view') || has('pos', 'view'))    modes.push('counter');
 
   return modes.length ? [...new Set(modes)] : ['counter'];
 }

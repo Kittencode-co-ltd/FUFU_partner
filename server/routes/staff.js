@@ -6,7 +6,45 @@ import { createClient } from '@supabase/supabase-js';
 const router = Router();
 router.use(requireAuth);
 
-// GET /api/staff?store_id=UUID
+// ── Role mappings ─────────────────────────────────────────────────────────────
+// Frontend uses roles[] array; DB uses a single role string with CHECK constraint
+
+const FRONTEND_TO_DB = {
+  all:      'manager',
+  doctor:   'veterinarian',
+  pharmacy: 'pharmacist',
+  counter:  'receptionist',
+  finance:  'staff',
+};
+const DB_TO_FRONTEND = {
+  manager:      ['all'],
+  owner:        ['all'],
+  veterinarian: ['doctor'],
+  pharmacist:   ['pharmacy'],
+  receptionist: ['counter'],
+  groomer:      ['counter'],
+  staff:        ['counter'],
+};
+
+function toDbRole(roles) {
+  const arr = Array.isArray(roles) ? roles : [roles || 'counter'];
+  for (const key of ['all', 'doctor', 'pharmacy', 'counter', 'finance']) {
+    if (arr.includes(key)) return FRONTEND_TO_DB[key];
+  }
+  return 'staff';
+}
+
+function normalize(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    name:       row.full_name  ?? row.name       ?? '',
+    user_email: row.email      ?? row.user_email  ?? '',
+    roles:      DB_TO_FRONTEND[row.role] ?? ['counter'],
+  };
+}
+
+// ── GET /api/staff?store_id=UUID ──────────────────────────────────────────────
 router.get('/', async (req, res) => {
   const { store_id } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
@@ -18,192 +56,258 @@ router.get('/', async (req, res) => {
     .order('created_at', { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ success: true, data: data || [] });
+  res.json({ success: true, data: (data || []).map(normalize) });
 });
 
-// POST /api/staff — invite/add staff member
+// ── POST /api/staff — add staff member ────────────────────────────────────────
 router.post('/', requireRole('owner'), async (req, res) => {
-  const { store_id, user_email, name, roles, pin, password } = req.body;
-  if (!store_id || !user_email || !name) {
-    return res.status(400).json({ error: 'store_id, user_email, name required' });
-  }
-  // Optional owner-chosen permanent password; otherwise a random temp is generated.
-  if (password != null && password !== '' && String(password).length < 6) {
-    return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
-  }
+  const { store_id, user_email, name, roles, password, phone, position,
+          role_color, start_date, notes } = req.body;
 
-  // Create Supabase Auth account for staff (invite)
+  if (!store_id || !user_email || !name)
+    return res.status(400).json({ error: 'store_id, user_email, name required' });
+
+  if (password != null && password !== '' && String(password).length < 6)
+    return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+
+  const email = user_email.toLowerCase();
+
+  // ── 1. Create/find Auth account ───────────────────────────────────────────
   const adminSb = createClient(
     process.env.Project_URL,
     process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
-  // Check if user already exists in auth
   const { data: existingUsers } = await adminSb.auth.admin.listUsers();
-  const existingUser = existingUsers?.users?.find(u => u.email === user_email);
-
+  const existingUser = existingUsers?.users?.find(u => u.email === email);
   let authUserId = existingUser?.id;
+  let tempPassword = null;
 
   if (!existingUser) {
-    // Use the owner-chosen password if given, otherwise generate a random one.
-    const accountPassword = (password != null && password !== '')
+    tempPassword = (password != null && password !== '')
       ? String(password)
       : `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
     const { data: newUser, error: createErr } = await adminSb.auth.admin.createUser({
-      email: user_email,
-      password: accountPassword,
+      email,
+      password: tempPassword,
       email_confirm: true,
-      user_metadata: { name, is_staff: true },
+      user_metadata: { full_name: name, is_staff: true },
     });
     if (createErr) return res.status(500).json({ error: createErr.message });
     authUserId = newUser.user.id;
-
-    // Return the password to the owner so they can share it with the staff member.
-    req._tempPassword = accountPassword;
   }
 
-  // Add to staff
-  const { data, error } = await req.supabase
+  // ── 2. Check if staff row already exists ─────────────────────────────────
+  const { data: existing } = await req.supabase
     .from('staff')
-    .upsert([{
-      store_id,
-      user_email: user_email.toLowerCase(),
-      name,
-      roles: roles || ['counter'],
-      pin:   pin || null,
-      invited_by: req.user.email,
-      is_active: true,
-    }], { onConflict: 'store_id,user_email' })
-    .select()
-    .single();
+    .select('id')
+    .eq('store_id', store_id)
+    .eq('email', email)
+    .maybeSingle();
+
+  const staffPayload = {
+    store_id,
+    email,
+    full_name:  name,
+    role:       toDbRole(roles),
+    phone:      phone      || null,
+    position:   position   || null,
+    role_color: role_color || null,
+    start_date: start_date || null,
+    notes:      notes      || null,
+    user_id:    authUserId || null,
+    is_active:  true,
+    updated_at: new Date().toISOString(),
+  };
+
+  let data, error;
+
+  if (existing?.id) {
+    // Update existing (re-activate if deactivated)
+    ({ data, error } = await req.supabase
+      .from('staff')
+      .update(staffPayload)
+      .eq('id', existing.id)
+      .select()
+      .single());
+  } else {
+    // Insert new
+    ({ data, error } = await req.supabase
+      .from('staff')
+      .insert([staffPayload])
+      .select()
+      .single());
+  }
 
   if (error) return res.status(500).json({ error: error.message });
 
+  // Link to custom role so permissions can be fetched at login
+  const roleId = req.body.role_id;
+  if (roleId && data?.id) {
+    await adminSb.from('staff_roles').delete().eq('staff_id', data.id);
+    await adminSb.from('staff_roles').insert([{ staff_id: data.id, role_id: roleId }]);
+  }
+
   res.json({
-    success: true,
-    data,
-    temp_password: req._tempPassword || null,
-    is_new_account: !!req._tempPassword,
+    success:        true,
+    data:           normalize(data),
+    temp_password:  tempPassword,
+    is_new_account: !!tempPassword,
   });
 });
 
-// PATCH /api/staff/:id — update name, roles, status, extra fields
+// ── PATCH /api/staff/:id ──────────────────────────────────────────────────────
 router.patch('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
-  const extraCols  = ['phone', 'position', 'start_date', 'notes'];
-  const baseCols   = ['name', 'roles', 'is_active', 'pin'];
+  const allowed = ['full_name','role','phone','is_active','position',
+                   'role_color','start_date','notes','pin','masking_level'];
+  const updates = { updated_at: new Date().toISOString() };
 
-  const pick = (keys) => {
-    const obj = {};
-    for (const k of keys) if (req.body[k] !== undefined) obj[k] = req.body[k];
-    return obj;
-  };
+  // Map frontend field names → DB column names
+  if (req.body.name      !== undefined) updates.full_name  = req.body.name;
+  if (req.body.roles     !== undefined) updates.role       = toDbRole(req.body.roles);
 
-  const fullUpdates = { ...pick(baseCols), ...pick(extraCols) };
-
-  const { data, error } = await req.supabase
-    .from('staff').update(fullUpdates).eq('id', req.params.id).select().single();
-
-  // If extra columns don't exist yet, retry with base columns only
-  if (error && error.message.includes('schema cache')) {
-    const { data: d2, error: e2 } = await req.supabase
-      .from('staff').update(pick(baseCols)).eq('id', req.params.id).select().single();
-    if (e2) return res.status(500).json({ error: e2.message });
-    return res.json({ success: true, data: d2, migration_needed: true });
+  for (const col of allowed) {
+    if (req.body[col] !== undefined) updates[col] = req.body[col];
   }
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ success: true, data });
-});
-
-// PATCH /api/staff/:id/reset-password — generate new temp password
-router.patch('/:id/reset-password', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
-  const { password } = req.body || {};
-  // Owner-chosen permanent password is optional; otherwise a random one is generated.
-  if (password != null && password !== '' && String(password).length < 6) {
-    return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
-  }
-
-  // 1. Get staff record
-  const { data: member, error: findErr } = await req.supabase
-    .from('staff')
-    .select('user_email, name')
-    .eq('id', req.params.id)
-    .single();
-
-  if (findErr || !member) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
-
-  const adminSb = createClient(
+  // Use service-role client so owner can always update staff (bypass RLS)
+  const admin = createClient(
     process.env.Project_URL,
     process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
-  const tempPassword = (password != null && password !== '')
-    ? String(password)
-    : `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-  // 2. Find auth user by email via auth schema
-  const authSb = createClient(
-    process.env.Project_URL,
-    process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false }, db: { schema: 'auth' } }
-  );
-
-  const { data: authUser } = await authSb
-    .from('users')
-    .select('id')
-    .eq('email', member.user_email)
-    .single();
-
-  if (authUser) {
-    // Account exists — update password
-    const { error: updateErr } = await adminSb.auth.admin.updateUserById(authUser.id, {
-      password: tempPassword,
-    });
-    if (updateErr) return res.status(500).json({ error: updateErr.message });
-  } else {
-    // No account yet — create one with temp password
-    const { error: createErr } = await adminSb.auth.admin.createUser({
-      email: member.user_email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: { name: member.name, is_staff: true },
-    });
-    if (createErr) return res.status(500).json({ error: createErr.message });
-  }
-
-  res.json({ success: true, temp_password: tempPassword, email: member.user_email, name: member.name });
-});
-
-// DELETE /api/staff/:id — deactivate (not delete)
-router.delete('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
-  const { data, error } = await req.supabase
+  const { data, error } = await admin
     .from('staff')
-    .update({ is_active: false })
+    .update(updates)
     .eq('id', req.params.id)
     .select()
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ success: true, data });
+
+  // Update custom role link when role_id is provided
+  const roleId = req.body.role_id;
+  if (roleId) {
+    await admin.from('staff_roles').delete().eq('staff_id', req.params.id);
+    await admin.from('staff_roles').insert([{ staff_id: req.params.id, role_id: roleId }]);
+  }
+
+  res.json({ success: true, data: normalize(data) });
 });
 
-// GET /api/staff/me?store_id=UUID — get my staff profile + roles for this store
+// ── PATCH /api/staff/:id/reset-password ──────────────────────────────────────
+router.patch('/:id/reset-password', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
+  try {
+    const { password } = req.body || {};
+    if (password != null && password !== '' && String(password).length < 6)
+      return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+
+    // Always use admin client to bypass RLS for staff lookup
+    const admin = createClient(
+      process.env.Project_URL,
+      process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
+    const { data: member, error: findErr } = await admin
+      .from('staff')
+      .select('id, email, full_name, user_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (findErr || !member) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+
+    const newPassword = (password != null && password !== '')
+      ? String(password)
+      : `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    let authUserId = member.user_id;
+
+    if (!authUserId) {
+      // Look up auth user by email (paginated search)
+      let found = null;
+      let page  = 1;
+      while (!found) {
+        const { data: pageData } = await admin.auth.admin.listUsers({ page, perPage: 100 });
+        const users = pageData?.users || [];
+        found = users.find(u => u.email === member.email);
+        if (found || users.length < 100) break;
+        page++;
+      }
+
+      if (found) {
+        authUserId = found.id;
+      } else {
+        // Create auth account on-the-fly
+        const { data: nu, error: ce } = await admin.auth.admin.createUser({
+          email: member.email,
+          password: newPassword,
+          email_confirm: true,
+          user_metadata: { full_name: member.full_name, is_staff: true },
+        });
+        if (ce) return res.status(500).json({ error: ce.message });
+        authUserId = nu.user.id;
+      }
+
+      // Link user_id back to staff record
+      await admin.from('staff').update({ user_id: authUserId }).eq('id', member.id);
+    }
+
+    // Update password
+    const { error: updateErr } = await admin.auth.admin.updateUserById(authUserId, { password: newPassword });
+    if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+    res.json({ success: true, temp_password: newPassword, email: member.email, name: member.full_name });
+  } catch (err) {
+    console.error('[reset-password]', err);
+    res.status(500).json({ error: err.message || 'เกิดข้อผิดพลาดภายใน' });
+  }
+});
+
+// ── DELETE /api/staff/:id — soft delete ──────────────────────────────────────
+router.delete('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
+  const { data, error } = await req.supabase
+    .from('staff')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data: normalize(data) });
+});
+
+// ── GET /api/staff/me?store_id=UUID ──────────────────────────────────────────
 router.get('/me', async (req, res) => {
   const { store_id } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
-  const { data, error } = await req.supabase
-    .from('staff')
-    .select('*')
-    .eq('store_id', store_id)
-    .eq('user_email', req.user.email)
-    .eq('is_active', true)
-    .single();
+  // Use admin client so staff can always read their own row + join regardless of RLS
+  const admin = createClient(
+    process.env.Project_URL,
+    process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
 
-  if (error) return res.json({ success: true, data: null }); // not a staff member = owner
-  res.json({ success: true, data });
+  const { data, error } = await admin
+    .from('staff')
+    .select('*, staff_roles(role_id, roles(name, permissions))')
+    .eq('store_id', store_id)
+    .eq('email', req.user.email)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error) return res.json({ success: true, data: null });
+
+  if (!data) return res.json({ success: true, data: null });
+
+  const normalized = normalize(data);
+  // Attach the custom role's permissions if linked
+  normalized.permissions = data.staff_roles?.[0]?.roles?.permissions || null;
+  res.json({ success: true, data: normalized });
 });
 
 export default router;

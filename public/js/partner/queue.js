@@ -4,6 +4,7 @@ import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { escapeHtml } from '../utils/formatters.js';
 import { icon } from '../utils/icons.js';
+import { can } from '../utils/permissions.js';
 
 const SERVICE_TYPES = ['ตรวจทั่วไป', 'วัคซีน', 'ผ่าตัด', 'ทำฟัน', 'ตรวจเลือด', 'อาบน้ำ-ตัดขน', 'อื่นๆ'];
 
@@ -55,7 +56,7 @@ export async function renderQueue(container) {
     <div id="appt-inbox" class="mb-3 sm:mb-4"></div>
 
     <!-- Walk-in quick-add bar -->
-    <div class="card p-3 sm:p-4 mb-3 sm:mb-4">
+    <div class="card p-3 sm:p-4 mb-3 sm:mb-4" ${!can('queue','create') ? 'style="display:none"' : ''}>
       <div class="flex flex-wrap gap-2 sm:gap-3 items-end">
         <div class="relative flex-1 min-w-0 w-full sm:w-auto sm:min-w-52">
           <label class="input-label">ค้นหาสัตว์เลี้ยง / เจ้าของ / เบอร์โทร</label>
@@ -455,6 +456,13 @@ async function _handleCardAction(e) {
   _container?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open'));
 
   const { action, id } = btn.dataset;
+
+  // Gate write actions to users with queue edit permission
+  const writeActions = ['call','recall','start','complete','noshow'];
+  if (writeActions.includes(action) && !can('queue','edit')) {
+    showToast('คุณไม่มีสิทธิ์แก้ไขคิว', 'error');
+    return;
+  }
 
   const STATUS_MAP = { call: 'called', recall: 'called', start: 'in_progress', complete: 'completed', noshow: 'no_show' };
   const newStatus = STATUS_MAP[action];

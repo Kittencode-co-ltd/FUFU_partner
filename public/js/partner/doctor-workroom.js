@@ -3,6 +3,7 @@ import { showToast } from '../utils/toast.js';
 import { apiFetch } from '../utils/api-client.js';
 import { storage } from '../utils/storage.js';
 import { formatThaiDate, formatHN } from '../utils/formatters.js';
+import { can } from '../utils/permissions.js';
 
 const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
 
@@ -176,7 +177,7 @@ function _buildLayout() {
     ` : '<div class="wr-patient-chip" style="background:#f1f5f9;color:#64748b;border-color:#e2e8f0;">🔍 ยังไม่มีผู้ป่วย</div>'}
     <div class="wr-spacer"></div>
     <span class="wr-autosave" id="wr-autosave"></span>
-    <button class="wr-btn-done" id="wr-done-btn"${!q ? ' disabled' : ''}>✓ เสร็จสิ้น</button>
+    ${can('opd','edit') ? `<button class="wr-btn-done" id="wr-done-btn"${!q ? ' disabled' : ''}>✓ เสร็จสิ้น</button>` : `<span style="font-size:12px;color:#d97706;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:4px 10px;">👁 ดูข้อมูลเท่านั้น</span>`}
   </div>
 
   <div class="wr-body">
@@ -245,13 +246,13 @@ async function _handleDone() {
     }).catch(() => {});
   }
 
-  // ── ไม่ reset workroom — แสดง "บันทึกแล้ว" และเปิดปุ่มส่งชำระเงิน ──────────
+  // ── บันทึกแล้ว — เปิดให้บันทึกซ้ำได้จนกว่าจะชำระเงิน ───────────────────────
   if (btn) {
-    btn.textContent = '✅ บันทึกเสร็จสิ้น';
-    btn.style.background = '#dcfce7';
-    btn.style.color      = '#166534';
-    btn.style.border     = '1px solid #86efac';
-    btn.disabled = true;
+    btn.textContent = '💾 บันทึกอีกครั้ง';
+    btn.style.background = '';
+    btn.style.color      = '';
+    btn.style.border     = '';
+    btn.disabled = false;
   }
 
   // แสดงปุ่ม "ส่งชำระเงิน" ในแถบบน (ถัดจากปุ่มเสร็จสิ้น)
@@ -638,9 +639,120 @@ function _bindPanelSearch(panel) {
     _doSearch('');
     inp.focus();
   });
-  walkin?.addEventListener('click', () => _selectPatientFromSearch(null, null));
+  walkin?.addEventListener('click', () => _showWalkinForm(panel));
 
   setTimeout(() => inp?.focus(), 80);
+}
+
+// ── Walk-in: show new patient form in left panel ──────────────────────────────
+
+function _showWalkinForm(panel) {
+  panel.innerHTML = `
+    <div style="margin-bottom:10px;">
+      <button id="wr-wk-back"
+        style="background:none;border:none;color:#64748b;cursor:pointer;font-size:12px;
+               font-family:inherit;padding:0;display:flex;align-items:center;gap:4px;">
+        ← กลับค้นหา
+      </button>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:2px;">🚶 Walk-in</div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:14px;">ระบบจะสร้างประวัติและ HN ให้อัตโนมัติ</div>
+
+    <div class="wr-form-group">
+      <label class="wr-form-label">ชื่อสัตว์เลี้ยง *</label>
+      <input id="wr-wk-pet" class="wr-form-input" placeholder="เช่น มะลิ, โดนัท" autocomplete="off">
+    </div>
+    <div class="wr-form-group">
+      <label class="wr-form-label">ประเภท *</label>
+      <select id="wr-wk-species" class="wr-form-input">
+        ${Object.entries(SPECIES_EMOJI).map(([k, v]) => `<option value="${k}">${v} ${k}</option>`).join('')}
+      </select>
+    </div>
+    <div class="wr-form-group">
+      <label class="wr-form-label">สายพันธุ์</label>
+      <input id="wr-wk-breed" class="wr-form-input" placeholder="เช่น Golden, ไทย">
+    </div>
+    <div class="wr-form-group">
+      <label class="wr-form-label">เพศ</label>
+      <select id="wr-wk-gender" class="wr-form-input">
+        <option value="">— ไม่ระบุ —</option>
+        <option value="male">♂ เพศผู้</option>
+        <option value="female">♀ เพศเมีย</option>
+      </select>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #f1f5f9;margin:10px 0;">
+
+    <div class="wr-form-group">
+      <label class="wr-form-label">ชื่อเจ้าของ *</label>
+      <input id="wr-wk-owner" class="wr-form-input" placeholder="ชื่อ-นามสกุลเจ้าของ">
+    </div>
+    <div class="wr-form-group">
+      <label class="wr-form-label">เบอร์โทรศัพท์</label>
+      <input id="wr-wk-phone" class="wr-form-input" placeholder="08x-xxx-xxxx" type="tel">
+    </div>
+
+    <button id="wr-wk-confirm" class="wr-submit-btn" style="margin-top:4px;">
+      ✓ ยืนยัน / เริ่มตรวจ
+    </button>`;
+
+  panel.querySelector('#wr-wk-back')?.addEventListener('click', () => _renderEmptyPetPanel());
+  panel.querySelector('#wr-wk-confirm')?.addEventListener('click', () => _confirmWalkin(panel));
+  panel.querySelector('#wr-wk-pet')?.focus();
+}
+
+async function _confirmWalkin(panel) {
+  const get = id => panel.querySelector(`#${id}`)?.value.trim() || '';
+  const petName   = get('wr-wk-pet');
+  const ownerName = get('wr-wk-owner');
+  const species   = panel.querySelector('#wr-wk-species')?.value || 'dog';
+  const breed     = get('wr-wk-breed');
+  const gender    = panel.querySelector('#wr-wk-gender')?.value || '';
+  const phone     = get('wr-wk-phone');
+
+  if (!petName)   { showToast('กรุณากรอกชื่อสัตว์เลี้ยง', 'error'); return; }
+  if (!ownerName) { showToast('กรุณากรอกชื่อเจ้าของ', 'error');    return; }
+
+  const btn = panel.querySelector('#wr-wk-confirm');
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังสร้างประวัติ...'; }
+
+  const storeId = storage.get(STORAGE_KEYS.STORE_ID);
+
+  // 1. สร้างเจ้าของ
+  const ownerRes = await apiFetch('/api/pets/owners', {
+    method: 'POST',
+    body: JSON.stringify({ name: ownerName, phone: phone || null }),
+  });
+  if (!ownerRes?.success) {
+    showToast('สร้างข้อมูลเจ้าของไม่สำเร็จ' + (ownerRes?.error ? ': ' + ownerRes.error : ''), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ ยืนยัน / เริ่มตรวจ'; }
+    return;
+  }
+  const ownerId = ownerRes.data?.id;
+
+  // 2. สร้างสัตว์เลี้ยง (ได้ HN อัตโนมัติ)
+  const petRes = await apiFetch('/api/pets', {
+    method: 'POST',
+    body: JSON.stringify({
+      owner_id: ownerId,
+      store_id: storeId,
+      name:     petName,
+      species,
+      breed:    breed  || null,
+      gender:   gender || null,
+    }),
+  });
+  if (!petRes?.success) {
+    showToast('สร้างข้อมูลสัตว์เลี้ยงไม่สำเร็จ' + (petRes?.error ? ': ' + petRes.error : ''), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ ยืนยัน / เริ่มตรวจ'; }
+    return;
+  }
+
+  const newPet   = petRes.data;
+  const newOwner = { id: ownerId, name: ownerName, phone: phone || '' };
+
+  showToast(`สร้างประวัติ "${petName}" สำเร็จ${newPet.hn ? ' · HN: ' + newPet.hn : ''}`);
+  _selectPatientFromSearch(newPet, newOwner);
 }
 
 // ── Select patient from search result ────────────────────────────────────────
@@ -1469,7 +1581,13 @@ async function _openRxModal() {
         <div>
           <label style="${labelStyle}">วิธีใช้</label>
           <select id="rx-route" style="${inputStyle}">
-            ${['PO','SC','IM','IV','TOP'].map(r => `<option value="${r}">${r}</option>`).join('')}
+            ${[
+              ['PO',  'PO — กินทางปาก'],
+              ['SC',  'SC — ฉีดใต้ผิวหนัง'],
+              ['IM',  'IM — ฉีดเข้ากล้ามเนื้อ'],
+              ['IV',  'IV — ฉีดเข้าเส้นเลือด'],
+              ['TOP', 'TOP — ทาภายนอก'],
+            ].map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
           </select>
         </div>
       </div>

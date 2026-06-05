@@ -235,6 +235,8 @@ function _switchStore(id, name, category) {
   storage.remove(STORAGE_KEYS.STAFF_ROLE);
   storage.remove(STORAGE_KEYS.STORE_INFO);
   localStorage.removeItem('fufu_staff_roles');
+  localStorage.removeItem('fufu_mode');
+  localStorage.removeItem('fufu_staff_permissions');
 
   showToast(`สลับไปยัง ${name}`, 'info');
   setTimeout(() => window.location.reload(), 300);
@@ -270,17 +272,24 @@ export async function initDashboard() {
 
   if (myStaff) {
     // Staff member — set primary role as the authoritative staff role
-    const primaryRole = (myStaff.roles || ['counter'])[0];
-    _currentMode = storage.get(MODE_KEY) || primaryRole;
+    const allowedModes = myStaff.roles || ['counter'];
+    const primaryRole  = allowedModes[0];
+    const savedMode    = storage.get(MODE_KEY);
+    // Clamp: only restore saved mode if it is one the staff is actually allowed to use.
+    _currentMode = (savedMode && allowedModes.includes(savedMode)) ? savedMode : primaryRole;
+    storage.set(MODE_KEY, _currentMode);
     storage.set(STORAGE_KEYS.STAFF_ROLE, primaryRole);
-    storage.set('fufu_staff_roles',      JSON.stringify(myStaff.roles));
+    storage.set('fufu_staff_roles',      JSON.stringify(allowedModes));
     storage.set('fufu_staff_name',       myStaff.name);
-    if (q('sb-user-role')) q('sb-user-role').textContent = myStaff.roles.join(', ');
+    if (myStaff.permissions) storage.set('fufu_staff_permissions', JSON.stringify(myStaff.permissions));
+    else storage.remove('fufu_staff_permissions');
+    if (q('sb-user-role')) q('sb-user-role').textContent = allowedModes.join(', ');
   } else {
     // Owner — full access
     _currentMode = storage.get(MODE_KEY) || 'all';
     storage.set(STORAGE_KEYS.STAFF_ROLE, 'owner');
     storage.remove('fufu_staff_roles');
+    storage.remove('fufu_staff_permissions');
   }
 
   _buildNav(role);
@@ -299,7 +308,10 @@ export async function initDashboard() {
   document.addEventListener('fufu:openPetProfile', (e) => navigate('pet-profile', e.detail));
 
   const lastPage = sessionStorage.getItem(_PAGE_KEY);
-  navigate(lastPage && _RESTORABLE_PAGES.has(lastPage) ? lastPage : 'home');
+  const staffRolesInit = storage.getJSON('fufu_staff_roles');
+  const canHomeInit    = !staffRolesInit || staffRolesInit.includes('home') || staffRolesInit.includes('all');
+  const defaultPage    = canHomeInit ? 'home' : (MODES[_currentMode]?.defaultPage || 'queue');
+  navigate(lastPage && _RESTORABLE_PAGES.has(lastPage) && (lastPage !== 'home' || canHomeInit) ? lastPage : defaultPage);
 
   _initOfflineBadge();
   startSyncEngine();
@@ -377,11 +389,17 @@ function _initSidebarToggle() {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function _buildNav(role) {
-  const allItems  = NAV[role] || NAV.vet;
-  const modeCfg   = MODES[_currentMode];
-  const items     = modeCfg?.pages
+  const allItems    = NAV[role] || NAV.vet;
+  const modeCfg     = MODES[_currentMode];
+  const staffRoles  = storage.getJSON('fufu_staff_roles'); // null = owner
+  const canHome     = !staffRoles || staffRoles.includes('home') || staffRoles.includes('all');
+
+  let items = modeCfg?.pages
     ? allItems.filter(i => modeCfg.pages.includes(i.id))
     : allItems;
+
+  // Gate home/overview: only owner or staff explicitly granted 'home' view permission
+  if (!canHome) items = items.filter(i => i.id !== 'home');
 
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;

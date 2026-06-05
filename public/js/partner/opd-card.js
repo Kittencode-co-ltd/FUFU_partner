@@ -4,6 +4,7 @@ import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { printDrugLabels, printReferralLetter } from '../utils/print-docs.js';
 import { formatHN } from '../utils/formatters.js';
+import { can } from '../utils/permissions.js';
 
 const VITALS_NORMAL = {
   temp: { min: 37.5, max: 39.2, unit: '°C' },
@@ -133,8 +134,14 @@ function _buildHTML() {
   // Search panel is shown when no patient has been linked yet
   const hasPatient = !!(r.pet_id || q?.pet_id || r.id);
 
+  const viewOnly = !can('opd','create') && !can('opd','edit');
+
   return `
   <div class="space-y-5 w-full">
+
+    ${viewOnly ? `<div class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-body">
+      <span class="text-base">👁</span> โหมดดูข้อมูลเท่านั้น — สิทธิ์ของคุณไม่อนุญาตให้แก้ไข OPD
+    </div>` : ''}
 
     <!-- ══ Patient Search Panel ══════════════════════════════════════════════ -->
     <div id="opd-search-panel" class="${hasPatient ? 'hidden' : ''} card p-5 border-2 border-dashed border-primary/40">
@@ -177,53 +184,6 @@ function _buildHTML() {
       <div class="mt-4 border-t border-slate-100 pt-3">
         <p class="text-xs font-semibold text-slate-400 font-body mb-2">🟢 คิวที่กำลังตรวจอยู่</p>
         <div id="opd-queue-list" class="space-y-1.5"></div>
-      </div>
-    </div>
-
-    <!-- ══ Walk-in: New Patient Form ════════════════════════════════════════════ -->
-    <div id="opd-walkin-form" class="hidden card p-5 border-2 border-dashed border-amber-300 bg-amber-50/30">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="text-xl leading-none">🚶</span>
-        <h3 class="font-semibold text-navy">Walk-in — กรอกข้อมูลสัตว์เลี้ยง</h3>
-        <span class="text-xs text-slate-400 font-body">ระบบจะสร้างประวัติและ HN ให้อัตโนมัติ</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label class="input-label">ชื่อสัตว์เลี้ยง *</label>
-          <input id="wk-pet-name" class="input-field" placeholder="เช่น มะลิ, โดนัท" autocomplete="off">
-        </div>
-        <div>
-          <label class="input-label">ประเภท *</label>
-          <select id="wk-species" class="input-field">
-            ${Object.entries(SPECIES_EMOJI).map(([k, v]) =>
-              `<option value="${k}">${v} ${k}</option>`
-            ).join('')}
-          </select>
-        </div>
-        <div>
-          <label class="input-label">สายพันธุ์</label>
-          <input id="wk-breed" class="input-field" placeholder="เช่น Golden Retriever, ไทย">
-        </div>
-        <div>
-          <label class="input-label">เพศ</label>
-          <select id="wk-gender" class="input-field">
-            <option value="">— ไม่ระบุ —</option>
-            <option value="male">♂ เพศผู้</option>
-            <option value="female">♀ เพศเมีย</option>
-          </select>
-        </div>
-        <div>
-          <label class="input-label">ชื่อเจ้าของ *</label>
-          <input id="wk-owner-name" class="input-field" placeholder="ชื่อ-นามสกุลเจ้าของ">
-        </div>
-        <div>
-          <label class="input-label">เบอร์โทรศัพท์</label>
-          <input id="wk-owner-phone" class="input-field" placeholder="08x-xxx-xxxx" type="tel">
-        </div>
-      </div>
-      <div class="flex gap-3 mt-4">
-        <button id="wk-cancel-btn" class="btn-outline px-5">← กลับ</button>
-        <button id="wk-confirm-btn" class="btn-primary flex-1 px-5">✓ ยืนยัน / เริ่มตรวจ</button>
       </div>
     </div>
 
@@ -272,9 +232,9 @@ function _buildHTML() {
         ${!r.id ? `<button id="opd-change-patient" class="${hasPatient ? '' : 'hidden'} btn-outline text-sm px-3 py-2" title="เลือกผู้ป่วยใหม่">🔄 เปลี่ยน</button>` : ''}
         <button id="opd-back-btn"     class="btn-outline text-sm px-3 py-2">← กลับ</button>
         <button id="opd-referral-btn" class="btn-outline text-sm px-4 py-2">📋 ส่งตัว</button>
-        <button id="opd-save-btn"     class="btn-outline text-sm px-4 py-2">💾 บันทึก</button>
-        <button id="opd-complete-btn" class="btn-primary text-sm px-4 py-2">✓ เสร็จสิ้น</button>
-        <button id="opd-goto-pos"     class="hidden btn-primary text-sm px-4 py-2">💳 ไปชำระเงิน</button>
+        ${can('opd','create') || can('opd','edit') ? `<button id="opd-save-btn" class="btn-outline text-sm px-4 py-2">💾 บันทึก</button>` : ''}
+        ${can('opd','edit') ? `<button id="opd-complete-btn" class="btn-primary text-sm px-4 py-2">✓ เสร็จสิ้น</button>` : ''}
+        <button id="opd-goto-pos" class="hidden btn-primary text-sm px-4 py-2">💳 ไปชำระเงิน</button>
       </div>
     </div>
 
@@ -293,7 +253,7 @@ function _buildHTML() {
         <option value="">— เลือกแม่แบบ (โหลดจาก template) —</option>
       </select>
       <button id="soap-tmpl-load" class="btn-outline text-sm py-1.5 px-3 flex-shrink-0">โหลด</button>
-      <button id="soap-tmpl-save" class="text-xs text-slate-400 hover:text-primary transition-colors flex-shrink-0 font-body">+ บันทึกเป็นแม่แบบ</button>
+      ${can('opd','create') || can('opd','edit') ? `<button id="soap-tmpl-save" class="text-xs text-slate-400 hover:text-primary transition-colors flex-shrink-0 font-body">+ บันทึกเป็นแม่แบบ</button>` : ''}
     </div>
 
     <!-- Medical Notes (HX / PE / Dx / Tx) -->
@@ -308,12 +268,12 @@ function _buildHTML() {
     <div class="card p-4">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-semibold text-navy">🖼 ภาพถ่าย / ผลแลป / X-Ray</h3>
-        <label id="img-upload-label"
+        ${can('opd','create') || can('opd','edit') ? `<label id="img-upload-label"
           class="cursor-pointer text-sm text-primary border border-primary px-3 py-1 rounded-lg
                  hover:bg-primary-subtle transition-colors font-semibold">
           + แนบภาพ
           <input id="img-upload-input" type="file" accept="image/*" class="hidden" multiple>
-        </label>
+        </label>` : ''}
       </div>
       <div id="medical-images-grid" class="flex flex-wrap gap-3">
         <p class="text-slate-400 font-body text-sm py-2">ยังไม่มีภาพ</p>
@@ -331,11 +291,11 @@ function _buildHTML() {
                    hover:bg-slate-50 transition-colors">
             🏷 ฉลากยา
           </button>
-          <button id="add-rx-btn"
+          ${can('opd','create') || can('opd','edit') ? `<button id="add-rx-btn"
             class="text-sm text-primary border border-primary px-3 py-1 rounded-lg
                    hover:bg-primary-subtle transition-colors">
             + เพิ่มยา
-          </button>
+          </button>` : ''}
         </div>
       </div>
       <div id="rx-list" class="space-y-2">
@@ -347,7 +307,8 @@ function _buildHTML() {
 }
 
 function _vitalInput(id, icon, label, value, key) {
-  const normal = VITALS_NORMAL[key];
+  const normal   = VITALS_NORMAL[key];
+  const readonly = !can('opd','create') && !can('opd','edit');
   return `
     <div class="card p-3">
       <div class="text-xs text-slate-400 font-body mb-1.5">${icon} ${label}</div>
@@ -356,13 +317,15 @@ function _vitalInput(id, icon, label, value, key) {
           class="w-full font-bold text-navy text-lg bg-transparent outline-none
                  border-b border-transparent focus:border-primary transition-colors"
           type="number" step="0.1" placeholder="—"
-          ${normal?.min != null ? `data-min="${normal.min}" data-max="${normal.max}"` : ''}>
+          ${normal?.min != null ? `data-min="${normal.min}" data-max="${normal.max}"` : ''}
+          ${readonly ? 'readonly' : ''}>
         <span class="text-xs text-slate-400 flex-shrink-0">${normal?.unit || ''}</span>
       </div>
     </div>`;
 }
 
 function _noteBox(id, letter, title, borderCls, badgeCls, placeholder, value = '') {
+  const readonly = !can('opd','create') && !can('opd','edit');
   return `
     <div class="card border-t-4 ${borderCls} p-4">
       <div class="flex items-center gap-2 mb-2">
@@ -374,7 +337,8 @@ function _noteBox(id, letter, title, borderCls, badgeCls, placeholder, value = '
                border border-slate-100 focus:border-primary focus:bg-white outline-none
                resize-y transition-colors placeholder:text-slate-300"
         style="min-height:120px"
-        placeholder="${placeholder}">${value}</textarea>
+        placeholder="${placeholder}"
+        ${readonly ? 'readonly' : ''}>${value}</textarea>
     </div>`;
 }
 
@@ -383,16 +347,18 @@ function _noteBox(id, letter, title, borderCls, badgeCls, placeholder, value = '
 function _bindEvents() {
   const c = _container;
 
-  // Autosave on note input
-  c.querySelectorAll('textarea.note-textarea').forEach(ta => {
-    ta.addEventListener('input', () => {
-      _isDirty = true;
-      _updateSaveStatus('● กำลังบันทึก...');
-      clearTimeout(_autosaveTimer);
-      _autosaveTimer = setTimeout(() => _saveRecord('in_progress'), 1500);
-      _saveDraft();
+  // Autosave on note input (view-only users: skip)
+  if (can('opd','create') || can('opd','edit')) {
+    c.querySelectorAll('textarea.note-textarea').forEach(ta => {
+      ta.addEventListener('input', () => {
+        _isDirty = true;
+        _updateSaveStatus('● กำลังบันทึก...');
+        clearTimeout(_autosaveTimer);
+        _autosaveTimer = setTimeout(() => _saveRecord('in_progress'), 1500);
+        _saveDraft();
+      });
     });
-  });
+  }
 
   // Vitals color coding on input
   c.querySelectorAll('input[data-min]').forEach(inp => {
@@ -482,14 +448,6 @@ function _bindEvents() {
     _isDirty = true;
     _saveDraft();
   });
-
-  // ── Walk-in form ───────────────────────────────────────────────────────────
-  c.querySelector('#wk-cancel-btn')?.addEventListener('click', () => {
-    c.querySelector('#opd-walkin-form')?.classList.add('hidden');
-    c.querySelector('#opd-search-panel')?.classList.remove('hidden');
-    c.querySelector('#opd-main-search')?.focus();
-  });
-  c.querySelector('#wk-confirm-btn')?.addEventListener('click', () => _confirmWalkin(c));
 
   // ── Main patient search panel ──────────────────────────────────────────────
   _bindMainSearch(c);
@@ -676,14 +634,9 @@ function _bindMainSearch(c) {
     }
   }, { signal: _bindAbort.signal });
 
-  // Walk-in: show new patient form
+  // Walk-in: dismiss search panel, use manual entry
   walkinBtn?.addEventListener('click', () => {
-    c.querySelector('#opd-search-panel')?.classList.add('hidden');
-    const form = c.querySelector('#opd-walkin-form');
-    if (form) {
-      form.classList.remove('hidden');
-      form.querySelector('#wk-pet-name')?.focus();
-    }
+    _selectPatient(null, c);
   });
 }
 
@@ -836,76 +789,6 @@ function _bindPetSearch(container) {
       dropdown.classList.add('hidden');
     }
   }, { signal: _bindAbort.signal });
-}
-
-// ─── Walk-in: create new pet + owner ─────────────────────────────────────────
-
-async function _confirmWalkin(c) {
-  const petName   = c.querySelector('#wk-pet-name')?.value.trim();
-  const ownerName = c.querySelector('#wk-owner-name')?.value.trim();
-  const species   = c.querySelector('#wk-species')?.value || 'dog';
-  const breed     = c.querySelector('#wk-breed')?.value.trim() || '';
-  const gender    = c.querySelector('#wk-gender')?.value || '';
-  const phone     = c.querySelector('#wk-owner-phone')?.value.trim() || '';
-
-  if (!petName)   { showToast('กรุณากรอกชื่อสัตว์เลี้ยง', 'error'); return; }
-  if (!ownerName) { showToast('กรุณากรอกชื่อเจ้าของ', 'error'); return; }
-
-  const btn = c.querySelector('#wk-confirm-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'กำลังสร้างประวัติ...'; }
-
-  const storeId = storage.get(STORAGE_KEYS.STORE_ID);
-
-  // 1. Create owner
-  const ownerRes = await apiFetch('/api/pets/owners', {
-    method: 'POST',
-    body: JSON.stringify({ name: ownerName, phone: phone || null }),
-  });
-
-  if (!ownerRes?.success) {
-    showToast('สร้างข้อมูลเจ้าของไม่สำเร็จ' + (ownerRes?.error ? ': ' + ownerRes.error : ''), 'error');
-    if (btn) { btn.disabled = false; btn.textContent = '✓ ยืนยัน / เริ่มตรวจ'; }
-    return;
-  }
-
-  const ownerId = ownerRes.data?.id;
-
-  // 2. Create pet
-  const petRes = await apiFetch('/api/pets', {
-    method: 'POST',
-    body: JSON.stringify({
-      owner_id: ownerId,
-      store_id: storeId,
-      name: petName,
-      species,
-      breed: breed || null,
-      gender: gender || null,
-    }),
-  });
-
-  if (!petRes?.success) {
-    showToast('สร้างข้อมูลสัตว์เลี้ยงไม่สำเร็จ' + (petRes?.error ? ': ' + petRes.error : ''), 'error');
-    if (btn) { btn.disabled = false; btn.textContent = '✓ ยืนยัน / เริ่มตรวจ'; }
-    return;
-  }
-
-  const pet = petRes.data;
-
-  // 3. Hide form and populate patient bar
-  c.querySelector('#opd-walkin-form')?.classList.add('hidden');
-  _selectPatient({
-    pet_id:      pet.id,
-    pet_name:    pet.name,
-    owner_name:  ownerName,
-    species:     pet.species || species,
-    hn:          pet.hn || null,
-    breed,
-    allergies:   '',
-    owner_phone: phone,
-  }, c);
-
-  showToast(`สร้างประวัติ "${petName}" สำเร็จ${pet.hn ? ' · HN: ' + pet.hn : ''}`);
-  if (pet.id) _loadPetProfile(pet.id);
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────

@@ -55,20 +55,35 @@ export async function attachStoreRole(req, res, next) {
       return next();
     }
 
-    // Not the owner — check staff table (supports both `role` TEXT and `roles` TEXT[]).
-    // The app's multi-role model lives in `roles[]`, so prefer it; fall back to the
-    // single `role` column only when no array roles are set.
+    // Not the owner — check staff table.
+    // The DB role column stores long-form names (veterinarian, receptionist, manager, …)
+    // but requireRole() calls use short-form names (vet, reception, owner, …).
+    // Translate to short-form so all checks are consistent.
+    const DB_TO_RBAC = {
+      veterinarian: 'vet',
+      receptionist: 'reception',
+      manager:      'owner',
+      pharmacist:   'staff',
+      groomer:      'counter',
+      staff:        'staff',
+      counter:      'counter',
+      vet:          'vet',
+      reception:    'reception',
+      owner:        'owner',
+    };
+
     const { data: staff } = await req.supabase
       .from('staff')
       .select('role, roles')
       .eq('store_id', storeId)
-      .eq('user_email', req.user.email)
+      .eq('email', req.user.email)
       .eq('is_active', true)
       .single();
 
-    req.staffRole = (Array.isArray(staff?.roles) && staff.roles.length)
+    const raw = (Array.isArray(staff?.roles) && staff.roles.length)
       ? staff.roles[0]
       : (staff?.role || null);
+    req.staffRole = (raw && DB_TO_RBAC[raw]) ? DB_TO_RBAC[raw] : raw;
     next();
   } catch {
     req.staffRole = null;

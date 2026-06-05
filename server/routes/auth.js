@@ -71,22 +71,25 @@ router.post('/login', async (req, res) => {
   // 2. If not owner → check staff membership
   let isStaffMember = false;
   if (!stores?.length) {
-    const { data: staffRows } = await userSb
+    // Use admin client — bypass RLS so staff can always find their own record
+    const { data: staffRows } = await adminSb()
       .from('staff')
-      .select('store_id, roles, name')
-      .eq('user_email', data.user.email)
+      .select('store_id, role, full_name')
+      .eq('email', data.user.email)
       .eq('is_active', true);
 
     if (staffRows?.length) {
       isStaffMember = true;
       const storeIds = [...new Set(staffRows.map(s => s.store_id))];
-      const { data: staffStores } = await userSb
+      const { data: staffStores } = await adminSb()
         .from('stores')
         .select('id, name, category')
         .in('id', storeIds);
       stores = (staffStores || []).map(store => {
         const staffRow = staffRows.find(s => s.store_id === store.id);
-        return { ...store, staff_roles: staffRow?.roles, is_staff: true };
+        // normalize role → roles[] for frontend compatibility
+        const roleArr = staffRow?.role ? [staffRow.role] : ['staff'];
+        return { ...store, staff_roles: roleArr, staff_role: staffRow?.role, is_staff: true };
       });
     }
   }
