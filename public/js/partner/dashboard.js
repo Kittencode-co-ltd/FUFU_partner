@@ -4,34 +4,35 @@ import { apiFetch }       from '../utils/api-client.js';
 import { storage }        from '../utils/storage.js';
 import { STORAGE_KEYS, CATEGORY_MAP } from '../utils/config.js';
 import { startSyncEngine } from '../utils/sync-engine.js';
+import { escapeHtml } from '../utils/formatters.js';
 
 // ─── Staff Mode config ────────────────────────────────────────────────────────
 
 const MODES = {
   all: {
-    label: 'ทั่วไป', icon: '🏥',
+    label: 'ทั่วไป', icon: 'fas fa-th-large',
     description: 'เข้าถึงทุกส่วน',
   },
   counter: {
-    label: 'เคาน์เตอร์', icon: '📋',
+    label: 'เคาน์เตอร์', icon: 'fas fa-clipboard-list',
     description: 'รับคนไข้ นัดหมาย เก็บเงิน',
     defaultPage: 'queue',
     pages: ['home', 'queue', 'pets', 'pos', 'income'],
   },
   doctor: {
-    label: 'แพทย์', icon: '👨‍⚕️',
+    label: 'แพทย์', icon: 'fas fa-stethoscope',
     description: 'ตรวจ บันทึก OPD',
     defaultPage: 'opd',
     pages: ['home', 'queue', 'opd', 'medical', 'pets', 'inventory'],
   },
   pharmacy: {
-    label: 'สต็อก/เภสัช', icon: '📦',
+    label: 'สต็อก/เภสัช', icon: 'fas fa-box',
     description: 'จัดยา รับสินค้า สต็อก',
     defaultPage: 'inventory',
     pages: ['home', 'inventory'],
   },
   finance: {
-    label: 'การเงิน', icon: '💰',
+    label: 'การเงิน', icon: 'fas fa-coins',
     description: 'รายได้ ใบเสร็จ',
     defaultPage: 'income',
     pages: ['home', 'income'],
@@ -58,44 +59,44 @@ function _setMode(mode, role) {
 
 const NAV = {
   vet: [
-    { id: 'home',      icon: '📊', label: 'ภาพรวม' },
-    { id: 'queue',     icon: '📋', label: 'คิวตรวจ' },
-    { id: 'pets',      icon: '🐾', label: 'สัตว์เลี้ยง / นัดหมาย' },
-    { id: 'opd',       icon: '🩺', label: 'ห้องตรวจ' },
-    { id: 'ipd',       icon: '🏥', label: 'IPD Ward' },
-    { id: 'medical',   icon: '📂', label: 'ประวัติการรักษา' },
-    { id: 'inventory', icon: '📦', label: 'สต็อก / ยา' },
-    { id: 'income',    icon: '💰', label: 'รายได้' },
-    { id: 'documents', icon: '📄', label: 'เอกสาร' },
-    { id: 'kanban',    icon: '📌', label: 'Task Board' },
-    { id: 'staff',     icon: '👥', label: 'จัดการพนักงาน' },
-    { id: 'settings',  icon: '⚙️',  label: 'ตั้งค่า' },
+    { id: 'home',      icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
+    { id: 'queue',     icon: 'fas fa-clipboard-list',   label: 'คิวตรวจ' },
+    { id: 'pets',      icon: 'fas fa-paw',              label: 'สัตว์เลี้ยง / นัดหมาย' },
+    { id: 'opd',       icon: 'fas fa-stethoscope',      label: 'ห้องตรวจ' },
+    { id: 'ipd',       icon: 'fas fa-hospital',         label: 'IPD Ward' },
+    { id: 'medical',   icon: 'fas fa-folder-open',      label: 'ประวัติการรักษา' },
+    { id: 'inventory', icon: 'fas fa-box',              label: 'สต็อก / ยา' },
+    { id: 'income',    icon: 'fas fa-coins',            label: 'รายได้' },
+    { id: 'documents', icon: 'fas fa-file-alt',         label: 'เอกสาร' },
+    { id: 'kanban',    icon: 'fas fa-tasks',            label: 'Task Board' },
+    { id: 'staff',     icon: 'fas fa-users',            label: 'จัดการพนักงาน' },
+    { id: 'settings',  icon: 'fas fa-cog',              label: 'ตั้งค่า' },
   ],
   shop: [
-    { id: 'home',      icon: '📊', label: 'ภาพรวม' },
-    { id: 'queue',     icon: '📋', label: 'คิว' },
-    { id: 'inventory', icon: '📦', label: 'สต็อก' },
-    { id: 'income',    icon: '💰', label: 'รายได้' },
-    { id: 'settings',  icon: '⚙️',  label: 'ตั้งค่า' },
+    { id: 'home',      icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
+    { id: 'queue',     icon: 'fas fa-clipboard-list',   label: 'คิว' },
+    { id: 'inventory', icon: 'fas fa-box',              label: 'สต็อก' },
+    { id: 'income',    icon: 'fas fa-coins',            label: 'รายได้' },
+    { id: 'settings',  icon: 'fas fa-cog',              label: 'ตั้งค่า' },
   ],
   hotel: [
-    { id: 'home',     icon: '📊', label: 'ภาพรวม' },
-    { id: 'queue',    icon: '📋', label: 'คิว' },
-    { id: 'pets',     icon: '🐾', label: 'สัตว์เลี้ยง / นัดหมาย' },
-    { id: 'hotel',    icon: '🏨', label: 'ห้องพัก' },
-    { id: 'income',   icon: '💰', label: 'รายได้' },
-    { id: 'settings', icon: '⚙️',  label: 'ตั้งค่า' },
+    { id: 'home',     icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
+    { id: 'queue',    icon: 'fas fa-clipboard-list',   label: 'คิว' },
+    { id: 'pets',     icon: 'fas fa-paw',              label: 'สัตว์เลี้ยง / นัดหมาย' },
+    { id: 'hotel',    icon: 'fas fa-bed',              label: 'ห้องพัก' },
+    { id: 'income',   icon: 'fas fa-coins',            label: 'รายได้' },
+    { id: 'settings', icon: 'fas fa-cog',              label: 'ตั้งค่า' },
   ],
   grooming: [
-    { id: 'home',     icon: '📊', label: 'ภาพรวม' },
-    { id: 'grooming', icon: '✂️',  label: 'คิว Grooming' },
-    { id: 'pets',     icon: '🐾', label: 'สัตว์เลี้ยง / นัดหมาย' },
-    { id: 'income',   icon: '💰', label: 'รายได้' },
-    { id: 'settings', icon: '⚙️',  label: 'ตั้งค่า' },
+    { id: 'home',     icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
+    { id: 'grooming', icon: 'fas fa-cut',              label: 'คิว Grooming' },
+    { id: 'pets',     icon: 'fas fa-paw',              label: 'สัตว์เลี้ยง / นัดหมาย' },
+    { id: 'income',   icon: 'fas fa-coins',            label: 'รายได้' },
+    { id: 'settings', icon: 'fas fa-cog',              label: 'ตั้งค่า' },
   ],
   admin: [
-    { id: 'home',      icon: '📊', label: 'ภาพรวม' },
-    { id: 'settings',  icon: '⚙️',  label: 'ตั้งค่า' },
+    { id: 'home',     icon: 'fas fa-chart-bar',       label: 'ภาพรวม' },
+    { id: 'settings', icon: 'fas fa-cog',              label: 'ตั้งค่า' },
   ],
 };
 
@@ -138,14 +139,104 @@ export function navigate(pageId, detail = null) {
 
   document.querySelectorAll('[data-nav]').forEach(el => {
     const active = el.dataset.nav === pageId;
-    el.classList.toggle('bg-white/10',    active);
-    el.classList.toggle('text-white',     active);
-    el.classList.toggle('text-slate-400', !active);
+    el.classList.toggle('bg-white/10',      active);
+    el.classList.toggle('text-white',       active);
+    el.classList.toggle('text-slate-400',   !active);
+    el.classList.toggle('border-l-2',       active);
+    el.classList.toggle('border-primary',   active);
+    el.classList.toggle('border-l-0',       !active);
   });
 
   if (_RESTORABLE_PAGES.has(pageId)) sessionStorage.setItem(_PAGE_KEY, pageId);
 
   _renderPage(pageId, detail);
+}
+
+// ─── Store switcher (multi-branch) ──────────────────────────────────────────────
+
+async function _initStoreSwitcher() {
+  const btn  = document.getElementById('sb-store-switcher');
+  const dd   = document.getElementById('sb-store-dropdown');
+  const chev = document.getElementById('sb-store-chevron');
+  if (!btn || !dd) return;
+
+  // Prefer the cached stores list saved at login time — it includes ALL accessible
+  // stores (owned + staff). Falling back to /api/stores only returns owned stores,
+  // which makes staff accounts always see length≤1 and hides the chevron even when
+  // they can access multiple branches.
+  const cachedRaw = storage.get(STORAGE_KEYS.STORES_LIST);
+  let stores = cachedRaw ? JSON.parse(cachedRaw) : null;
+
+  if (!stores) {
+    const res = await apiFetch('/api/stores');
+    stores = res?.data || [];
+    if (stores.length) storage.set(STORAGE_KEYS.STORES_LIST, JSON.stringify(stores));
+  }
+
+  const currentId = storage.get(STORAGE_KEYS.STORE_ID);
+
+  // Only one store (or none) → nothing to switch; keep it static.
+  if (stores.length <= 1) {
+    chev?.classList.add('hidden');
+    btn.style.cursor = 'default';
+    return;
+  }
+
+  const check = `<svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
+
+  dd.innerHTML = stores.map(s => {
+    const cat    = CATEGORY_MAP[s.category] || { label: s.category || '', icon: 'fas fa-store' };
+    const active = s.id === currentId;
+    const branch = s.branch_name ? ` · ${s.branch_name}` : '';
+    return `
+      <button data-store-id="${s.id}" data-store-name="${escapeHtml(s.name)}" data-store-category="${escapeHtml(s.category)}"
+        class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${active ? 'bg-primary-subtle' : 'hover:bg-slate-50'}">
+        <i class="${cat.icon} w-4 text-center flex-shrink-0 text-slate-400"></i>
+        <span class="flex-1 min-w-0">
+          <span class="block text-sm font-semibold text-navy truncate">${escapeHtml(s.name)}${escapeHtml(branch)}</span>
+          <span class="block text-xs text-slate-400 truncate">${cat.label}</span>
+        </span>
+        ${active ? check : ''}
+      </button>`;
+  }).join('');
+
+  const setOpen = (open) => {
+    dd.classList.toggle('hidden', !open);
+    if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+  };
+
+  btn.addEventListener('click', () => {
+    setOpen(dd.classList.contains('hidden'));
+  });
+  // Close on any click outside the switcher/dropdown. Using closest() rather than
+  // stopPropagation guarantees the same click that opens it won't also close it.
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#sb-store-switcher') || e.target.closest('#sb-store-dropdown')) return;
+    setOpen(false);
+  });
+  dd.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-store-id]');
+    if (!item) return;
+    const { storeId, storeName, storeCategory } = item.dataset;
+    if (storeId === currentId) { setOpen(false); return; }
+    _switchStore(storeId, storeName, storeCategory);
+  });
+}
+
+function _switchStore(id, name, category) {
+  const cat = CATEGORY_MAP[category] || {};
+  storage.set(STORAGE_KEYS.STORE_ID,       id);
+  storage.set(STORAGE_KEYS.STORE_NAME,     name);
+  storage.set(STORAGE_KEYS.STORE_CATEGORY, category);
+  storage.set(STORAGE_KEYS.ROLE,           cat.role || 'vet');
+
+  // Per-store context must be re-resolved for the new store.
+  storage.remove(STORAGE_KEYS.STAFF_ROLE);
+  storage.remove(STORAGE_KEYS.STORE_INFO);
+  localStorage.removeItem('fufu_staff_roles');
+
+  showToast(`สลับไปยัง ${name}`, 'info');
+  setTimeout(() => window.location.reload(), 300);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -154,13 +245,15 @@ export async function initDashboard() {
   const role    = getCurrentRole();
   const user    = getCurrentUser();
   const store   = getCurrentStore();
-  const catInfo = CATEGORY_MAP[store.category] || { label: store.category || '', icon: '🏪' };
+  const catInfo = CATEGORY_MAP[store.category] || { label: store.category || '', icon: 'fas fa-store' };
 
   const q = (id) => document.getElementById(id);
   if (q('sb-store-name')) q('sb-store-name').textContent = store.name || 'ร้านของคุณ';
-  if (q('sb-store-type')) q('sb-store-type').textContent = `${catInfo.icon} ${catInfo.label}`;
+  if (q('sb-store-type')) q('sb-store-type').innerHTML = `<i class="${catInfo.icon} mr-1 opacity-60"></i>${catInfo.label}`;
   if (q('sb-user-email')) q('sb-user-email').textContent = user.email || '';
   if (q('sb-user-role'))  q('sb-user-role').textContent  = role;
+
+  _initStoreSwitcher();
 
   const dateEl = q('topbar-date');
   if (dateEl) {
@@ -294,9 +387,10 @@ function _buildNav(role) {
 
   nav.innerHTML = items.map(item => `
     <button data-nav="${item.id}"
-      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
-             transition-colors duration-150 text-slate-400 hover:bg-white/10 hover:text-white">
-      <span class="w-5 text-center text-base">${item.icon}</span>
+      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+             transition-all duration-150 text-slate-400 hover:bg-white/8 hover:text-slate-200
+             relative group">
+      <i class="${item.icon} w-4 text-center flex-shrink-0 text-sm opacity-75 group-[.active]:opacity-100"></i>
       <span class="flex-1 text-left">${item.label}</span>
       ${item.id === 'queue' ? '<span id="appt-nav-badge" style="display:none;background:#F97316;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 5px;"></span>' : ''}
     </button>
@@ -346,11 +440,11 @@ function _renderModeSwitcher(role) {
     const active = m === _currentMode;
     return `
       <button data-sb-mode="${m}" title="${cfg.description}"
-        class="flex items-center gap-1.5 px-2 py-2 rounded-lg text-xs font-semibold transition-all
+        class="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all
                ${active
                  ? 'bg-primary text-white'
                  : 'bg-white/10 text-slate-400 hover:bg-white/20 hover:text-white'}">
-        <span class="flex-shrink-0">${cfg.icon}</span>
+        <i class="${cfg.icon} flex-shrink-0 text-xs"></i>
         <span class="truncate">${cfg.label}</span>
       </button>`;
   }).join('');

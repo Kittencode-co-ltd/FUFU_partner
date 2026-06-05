@@ -4,8 +4,6 @@ import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
 const DAYS_TH = { mon:'จันทร์', tue:'อังคาร', wed:'พุธ', thu:'พฤหัส', fri:'ศุกร์', sat:'เสาร์', sun:'อาทิตย์' };
-const PERM_MODULES = ['queue','opd','ipd','stock','finance','settings'];
-const PERM_ACTIONS = ['view','create','edit','delete'];
 
 export async function renderSettings(container) {
   const user    = storage.getJSON(STORAGE_KEYS.USER) || {};
@@ -158,18 +156,6 @@ export async function renderSettings(container) {
         <button id="save-rates" class="btn-primary px-6 py-2 hidden">บันทึกค่ารักษา</button>
       </div>
 
-      <!-- ── FEAT-04: Role & Permission ── -->
-      <div class="card p-5 space-y-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="font-bold text-navy text-lg">🔐 Role & Permission</h3>
-            <p class="text-sm text-slate-400 font-body mt-0.5">กำหนด Role และสิทธิ์การเข้าถึงของพนักงาน</p>
-          </div>
-          <button id="add-role-btn" class="btn-primary text-sm px-3 py-2">+ เพิ่ม Role</button>
-        </div>
-        <div id="roles-loading" class="text-slate-400 font-body text-sm">กำลังโหลด...</div>
-        <div id="roles-list" class="space-y-2 hidden"></div>
-      </div>
       ` : ''}
 
       <!-- ── เปลี่ยนรหัสผ่าน ── -->
@@ -314,7 +300,6 @@ export async function renderSettings(container) {
   if (canManage) {
     _loadBizHours(container, storeId, store);
     _loadRates(container, storeId, store);
-    _loadRoles(container, storeId);
   }
 }
 
@@ -426,152 +411,6 @@ async function _loadRates(container, storeId, store) {
   });
 }
 
-// ─── Role management (FEAT-04) ────────────────────────────────────────────────
-
-async function _loadRoles(container, storeId) {
-  const loadingEl = container.querySelector('#roles-loading');
-  const listEl    = container.querySelector('#roles-list');
-  if (!loadingEl || !listEl) return;
-
-  const res   = await apiFetch(`/api/roles?store_id=${storeId}`);
-  const roles = res?.data || [];
-
-  loadingEl.classList.add('hidden');
-  listEl.classList.remove('hidden');
-  _renderRoleList(listEl, roles, storeId, container);
-
-  container.querySelector('#add-role-btn')?.addEventListener('click', () => {
-    _openRoleModal(null, storeId, () => _loadRoles(container, storeId));
-  });
-}
-
-function _renderRoleList(el, roles, storeId, container) {
-  if (!roles.length) {
-    el.innerHTML = `<p class="text-sm text-slate-400 font-body">ยังไม่มี Role — กด "+ เพิ่ม Role"</p>`;
-    return;
-  }
-
-  el.innerHTML = roles.map(r => {
-    const perms = r.permissions || {};
-    const permSummary = PERM_MODULES.filter(m => (perms[m] || []).includes('view')).join(', ') || '—';
-    return `
-      <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
-        <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:${r.color || '#6B7280'}"></div>
-        <div class="flex-1 min-w-0">
-          <div class="font-semibold text-navy text-sm">${r.name}</div>
-          <div class="text-xs text-slate-400 font-body truncate">เข้าถึง: ${permSummary}</div>
-        </div>
-        <div class="flex gap-1.5 flex-shrink-0">
-          <button data-edit-role="${r.id}" data-role='${JSON.stringify(r)}'
-            class="text-xs border border-slate-200 text-slate-500 px-2.5 py-1.5 rounded-lg
-                   hover:border-primary hover:text-primary transition-colors">แก้ไข</button>
-          <button data-delete-role="${r.id}"
-            class="text-xs border border-red-200 text-red-400 px-2.5 py-1.5 rounded-lg
-                   hover:bg-red-50 transition-colors">ลบ</button>
-        </div>
-      </div>`;
-  }).join('');
-
-  el.addEventListener('click', async e => {
-    const editBtn = e.target.closest('[data-edit-role]');
-    const delBtn  = e.target.closest('[data-delete-role]');
-
-    if (editBtn) {
-      const role = JSON.parse(editBtn.dataset.role);
-      _openRoleModal(role, storeId, () => _loadRoles(container, storeId));
-    }
-    if (delBtn) {
-      if (!confirm('ลบ Role นี้?')) return;
-      const res = await apiFetch(`/api/roles/${delBtn.dataset.deleteRole}`, { method: 'DELETE' });
-      if (res?.success) { showToast('ลบ Role แล้ว', 'info'); _loadRoles(container, storeId); }
-      else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
-    }
-  });
-}
-
-function _openRoleModal(role, storeId, onSave) {
-  const isEdit  = !!role;
-  const perms   = role?.permissions || {};
-  const modal   = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
-  modal.innerHTML = `
-    <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-lg space-y-4 my-4">
-      <h3 class="font-bold text-navy text-lg">${isEdit ? 'แก้ไข Role' : '+ สร้าง Role ใหม่'}</h3>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="input-label">ชื่อ Role *</label>
-          <input id="rl-name" class="input-field" value="${role?.name || ''}" placeholder="สัตวแพทย์">
-        </div>
-        <div>
-          <label class="input-label">สี</label>
-          <input id="rl-color" class="input-field h-10" type="color" value="${role?.color || '#6B7280'}">
-        </div>
-      </div>
-      <div>
-        <label class="input-label mb-2">สิทธิ์การเข้าถึง</label>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="border-b border-slate-100">
-                <th class="text-left py-2 text-slate-500 font-semibold">Module</th>
-                ${PERM_ACTIONS.map(a => `<th class="text-center py-2 text-slate-500 font-semibold capitalize">${a}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${PERM_MODULES.map(mod => `
-                <tr class="border-b border-slate-50">
-                  <td class="py-2 font-semibold text-navy">${mod}</td>
-                  ${PERM_ACTIONS.map(act => `
-                    <td class="text-center py-2">
-                      <input type="checkbox" class="perm-cb accent-primary"
-                             data-mod="${mod}" data-act="${act}"
-                             ${(perms[mod] || []).includes(act) ? 'checked' : ''}>
-                    </td>`).join('')}
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="flex gap-3 pt-2">
-        <button id="rl-cancel" class="btn-outline flex-1">ยกเลิก</button>
-        <button id="rl-save" class="btn-primary flex-1">${isEdit ? 'บันทึก' : 'สร้าง Role'}</button>
-      </div>
-    </div>`;
-
-  document.body.appendChild(modal);
-  modal.querySelector('#rl-cancel').addEventListener('click', () => modal.remove());
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-
-  modal.querySelector('#rl-save').addEventListener('click', async () => {
-    const name  = modal.querySelector('#rl-name').value.trim();
-    const color = modal.querySelector('#rl-color').value;
-    if (!name) { showToast('กรุณากรอกชื่อ Role', 'error'); return; }
-
-    const permissions = {};
-    PERM_MODULES.forEach(mod => { permissions[mod] = []; });
-    modal.querySelectorAll('.perm-cb:checked').forEach(cb => {
-      const { mod, act } = cb.dataset;
-      if (!permissions[mod]) permissions[mod] = [];
-      if (!permissions[mod].includes(act)) permissions[mod].push(act);
-    });
-
-    const btn = modal.querySelector('#rl-save');
-    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-
-    const res = isEdit
-      ? await apiFetch(`/api/roles/${role.id}`, { method: 'PATCH', body: JSON.stringify({ name, color, permissions }) })
-      : await apiFetch('/api/roles', { method: 'POST', body: JSON.stringify({ store_id: storeId, name, color, permissions }) });
-
-    if (res?.success) {
-      showToast(isEdit ? 'บันทึก Role แล้ว ✓' : `สร้าง Role "${name}" แล้ว ✓`);
-      modal.remove();
-      onSave();
-    } else {
-      showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
-      btn.disabled = false; btn.textContent = isEdit ? 'บันทึก' : 'สร้าง Role';
-    }
-  });
-}
 
 function _pwScore(pw) {
   let s = 0;

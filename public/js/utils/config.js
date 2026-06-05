@@ -17,6 +17,7 @@ export const STORAGE_KEYS = {
   PROMPTPAY_ID:   'fufu_promptpay_id',
   STORE_INFO:     'fufu_store_info',
   REMEMBER:       'fufu_remember',       // '1' = keep me signed in (cleared on explicit logout)
+  STORES_LIST:    'fufu_stores_list',    // JSON array of all accessible stores (owned + staff)
 };
 
 // Remembered login email — kept OUTSIDE STORAGE_KEYS so it survives logout
@@ -38,8 +39,8 @@ export const FEATURE_FLAGS = {
 };
 
 export const CATEGORY_MAP = {
-  vet_clinic:   { label: 'คลินิกสัตว์แพทย์', role: 'vet',      icon: '🏥' },
-  pet_shop:     { label: 'ร้านค้าสัตว์เลี้ยง', role: 'shop',    icon: '🛍' },
-  pet_hotel:    { label: 'โรงแรมสัตว์เลี้ยง', role: 'hotel',   icon: '🏨' },
-  pet_grooming: { label: 'บริการอาบน้ำตัดขน', role: 'grooming', icon: '✂️' },
+  vet_clinic:   { label: 'คลินิกสัตว์แพทย์', role: 'vet',      icon: 'fas fa-hospital-alt' },
+  pet_shop:     { label: 'ร้านค้าสัตว์เลี้ยง', role: 'shop',    icon: 'fas fa-store' },
+  pet_hotel:    { label: 'โรงแรมสัตว์เลี้ยง', role: 'hotel',   icon: 'fas fa-bed' },
+  pet_grooming: { label: 'บริการอาบน้ำตัดขน', role: 'grooming', icon: 'fas fa-cut' },
 };

@@ -1,7 +1,7 @@
 import { apiFetch }                  from './utils/api-client.js';
 import { storage }                    from './utils/storage.js';
 import { showToast }                  from './utils/toast.js';
-import { STORAGE_KEYS, CATEGORY_MAP } from './utils/config.js';
+import { STORAGE_KEYS, CATEGORY_MAP, REMEMBER_EMAIL_KEY } from './utils/config.js';
 
 // ─── Guards ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +37,12 @@ export async function doLogin(email, password) {
   storage.set(STORAGE_KEYS.TOKEN,          data.token);
   storage.set(STORAGE_KEYS.REFRESH_TOKEN,  data.refresh_token || '');
   storage.set(STORAGE_KEYS.USER,           JSON.stringify(data.user));
+  // Cache the full list of accessible stores (owned + staff) so the sidebar
+  // store-switcher can show all branches without a separate API call that would
+  // only return owned stores.
+  if (data.stores?.length) {
+    storage.set(STORAGE_KEYS.STORES_LIST, JSON.stringify(data.stores));
+  }
 
   return { success: true, stores: data.stores, token: data.token, user: data.user };
 }
