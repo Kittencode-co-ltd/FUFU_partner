@@ -849,7 +849,7 @@ function _registerThenAdmit(parentModal, onDone) {
 
     const res = await apiFetch('/api/pets/owners', {
       method: 'POST',
-      body: JSON.stringify({ name, phone, email: m1.querySelector('#r-email').value.trim() || null }),
+      body: JSON.stringify({ name, phone, email: m1.querySelector('#r-email').value.trim() || null, store_id: _storeId }),
     });
 
     if (!res?.success) {

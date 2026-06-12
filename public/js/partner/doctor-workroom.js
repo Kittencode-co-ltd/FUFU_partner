@@ -721,7 +721,7 @@ async function _confirmWalkin(panel) {
   // 1. สร้างเจ้าของ
   const ownerRes = await apiFetch('/api/pets/owners', {
     method: 'POST',
-    body: JSON.stringify({ name: ownerName, phone: phone || null }),
+    body: JSON.stringify({ name: ownerName, phone: phone || null, store_id: storeId }),
   });
   if (!ownerRes?.success) {
     showToast('สร้างข้อมูลเจ้าของไม่สำเร็จ' + (ownerRes?.error ? ': ' + ownerRes.error : ''), 'error');

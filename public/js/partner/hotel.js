@@ -416,7 +416,7 @@ function _hotelRegister(parentModal, onDone) {
     const phone = m1.querySelector('#ho-phone').value.trim();
     if (!name||!phone) { showToast('กรุณากรอกชื่อและเบอร์','error'); return; }
     const btn = m1.querySelector('#ho-next'); btn.disabled=true; btn.textContent='กำลังบันทึก...';
-    const res = await apiFetch('/api/pets/owners',{method:'POST',body:JSON.stringify({name,phone,email:m1.querySelector('#ho-email').value.trim()||null})});
+    const res = await apiFetch('/api/pets/owners',{method:'POST',body:JSON.stringify({name,phone,email:m1.querySelector('#ho-email').value.trim()||null,store_id:_storeId})});
     if (!res?.success) { showToast(res?.error||'เกิดข้อผิดพลาด','error'); btn.disabled=false; btn.textContent='ถัดไป →'; return; }
     m1.remove();
     const owner = res.data;

@@ -438,9 +438,31 @@ async function _checkin(apptId, el) {
 }
 
 async function _cancelAppt(apptId, el) {
+  // Confirmation popup
+  const confirmed = await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:28px 28px 24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
+        <div style="font-size:40px;margin-bottom:12px;">📅</div>
+        <div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:8px;">ยืนยันการยกเลิกนัดหมาย</div>
+        <div style="font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.5;">คุณต้องการยกเลิกนัดหมายนี้ใช่ไหม?<br>การดำเนินการนี้ไม่สามารถย้อนกลับได้</div>
+        <div style="display:flex;gap:10px;">
+          <button id="cancel-no"  style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:14px;font-weight:600;color:#475569;cursor:pointer;">ไม่ยกเลิก</button>
+          <button id="cancel-yes" style="flex:1;padding:10px;border:none;border-radius:10px;background:#ef4444;font-size:14px;font-weight:600;color:#fff;cursor:pointer;">ยืนยันยกเลิก</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#cancel-yes').addEventListener('click', () => { overlay.remove(); resolve(true);  });
+    overlay.querySelector('#cancel-no') .addEventListener('click', () => { overlay.remove(); resolve(false); });
+    overlay.addEventListener('click', e => { if (e.target === overlay) { overlay.remove(); resolve(false); } });
+  });
+
+  if (!confirmed) return;
+
   const res = await apiFetch(`/api/pets/appointments/${apptId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ status: 'cancelled' }),
+    body: JSON.stringify({ status: 'Cancelled' }),
   });
   if (res?.success) {
     showToast('ยกเลิกนัดหมายแล้ว', 'info');
@@ -1195,6 +1217,7 @@ function _openCreateOwnerThenPet(el, prefillName = '') {
         name,
         phone: modal.querySelector('#co-phone').value.trim() || null,
         email: modal.querySelector('#co-email').value.trim() || null,
+        store_id: _storeId,
       }),
     });
     if (!res?.success) {
@@ -1384,10 +1407,11 @@ function _openOwnerModal(el) {
       method: 'POST',
       body: JSON.stringify({
         name,
-        phone:   modal.querySelector('#ow-phone').value.trim()   || null,
-        line_id: modal.querySelector('#ow-line').value.trim()    || null,
-        email:   modal.querySelector('#ow-email').value.trim()   || null,
-        address: modal.querySelector('#ow-address').value.trim() || null,
+        phone:    modal.querySelector('#ow-phone').value.trim()   || null,
+        line_id:  modal.querySelector('#ow-line').value.trim()    || null,
+        email:    modal.querySelector('#ow-email').value.trim()   || null,
+        address:  modal.querySelector('#ow-address').value.trim() || null,
+        store_id: _storeId,
       }),
     });
 

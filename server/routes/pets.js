@@ -83,6 +83,8 @@ router.get('/owners/search', async (req, res) => {
 });
 
 // POST /api/pets/owners
+// store_id is accepted in the body solely so attachStoreRole can resolve the caller's role.
+// pet_owners is a global table (no store_id column) — the value is not stored.
 router.post('/owners', requireRole('owner', 'vet', 'reception', 'staff'), async (req, res) => {
   const { name, phone, line_id, address, notes } = req.body;
   const email = req.body.email?.trim().toLowerCase() || null;
@@ -314,6 +316,9 @@ router.post('/appointments', requireRole('owner', 'vet', 'reception'), async (re
 router.patch('/appointments/:id', resolveStoreId('appointments'), requireRole('owner', 'vet', 'reception'), async (req, res) => {
   const updates = { ...req.body, updated_at: new Date().toISOString() };
   delete updates.id;
+  // Normalize status to Pascal case to satisfy DB CHECK constraint
+  const STATUS_MAP = { pending:'Pending', confirmed:'Confirmed', cancelled:'Cancelled', completed:'Completed' };
+  if (updates.status) updates.status = STATUS_MAP[updates.status.toLowerCase()] ?? updates.status;
 
   const { data, error } = await req.supabase
     .from('appointments')

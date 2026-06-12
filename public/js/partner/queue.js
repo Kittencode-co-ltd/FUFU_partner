@@ -697,7 +697,7 @@ function _openQuickRegister(container) {
 
     const res = await apiFetch('/api/pets/owners', {
       method: 'POST',
-      body: JSON.stringify({ name, phone, email: modal.querySelector('#qr-email').value.trim() || null }),
+      body: JSON.stringify({ name, phone, email: modal.querySelector('#qr-email').value.trim() || null, store_id: _storeId }),
     });
 
     if (!res?.success) {
