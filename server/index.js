@@ -24,19 +24,34 @@ import serviceItemsRoutes  from './routes/service-items.js';
 import expensesRoutes       from './routes/expenses.js';
 import soapTemplatesRoutes  from './routes/soap-templates.js';
 import rewardsRoutes        from './routes/rewards.js';
+import clinicRoutes         from './routes/clinic.js';
+import publicClinicRoutes   from './routes/public-clinics.js';
+import visitsRoutes         from './routes/visits.js';
+import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
+import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
+import { validateEnvironment } from './config/env.js';
 
 dotenv.config();
+validateEnvironment();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+app.use(requestContext);
+app.use(securityHeaders);
+app.use(cors(corsOptions()));
+app.use(express.json({ limit: '100kb' }));
+app.use('/api', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return mutationRateLimit(req, res, next);
+  next();
+});
 app.use(express.static(join(__dirname, '../public')));
 
 // API routes
 app.use('/api/auth',            authRoutes);
+app.use('/api/public/clinics',  publicClinicRoutes);
+app.use('/api/clinic',          clinicRoutes);
 app.use('/api/queue',           queueRoutes);
 app.use('/api/medical-records', medicalRoutes);
 app.use('/api/finance',         financeRoutes);
@@ -52,11 +67,21 @@ app.use('/api/ipd',             ipdRoutes);
 app.use('/api/documents',       documentsRoutes);
 app.use('/api/tasks',           tasksRoutes);
 app.use('/api/appointments',    appointmentsRoutes);
+app.use('/api/visits',          visitsRoutes);
 app.use('/api/roles',           rolesRoutes);
 app.use('/api/service-items',   serviceItemsRoutes);
 app.use('/api/expenses',        expensesRoutes);
 app.use('/api/soap-templates',  soapTemplatesRoutes);
 app.use('/api/rewards',         rewardsRoutes);
+
+app.use('/api', (req, res) => res.status(404).json({
+  success: false,
+  error: 'API endpoint not found',
+  code: 'NOT_FOUND',
+  request_id: req.requestId,
+}));
+
+app.use(sanitizedErrorHandler);
 
 // SPA fallback — serve login for unknown routes
 app.get('*', (req, res) => {

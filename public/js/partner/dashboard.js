@@ -2,7 +2,7 @@ import { getCurrentRole, getCurrentUser, getCurrentStore, logout } from '../auth
 import { showToast } from '../utils/toast.js';
 import { apiFetch }       from '../utils/api-client.js';
 import { storage }        from '../utils/storage.js';
-import { STORAGE_KEYS, CATEGORY_MAP } from '../utils/config.js';
+import { STORAGE_KEYS, CATEGORY_MAP, FEATURE_FLAGS } from '../utils/config.js';
 import { startSyncEngine } from '../utils/sync-engine.js';
 import { escapeHtml } from '../utils/formatters.js';
 import { icon } from '../utils/icons.js';
@@ -51,7 +51,8 @@ function _setMode(mode, role) {
   _buildNav(role);
   _renderModeSwitcher(role);
   const cfg = MODES[mode];
-  if (cfg?.defaultPage) navigate(cfg.defaultPage);
+  if (FEATURE_FLAGS.MVP_MODE) navigate('home');
+  else if (cfg?.defaultPage) navigate(cfg.defaultPage);
   else navigate('home');
   showToast(`โหมด: ${cfg?.label || mode}`);
 }
@@ -101,8 +102,32 @@ const NAV = {
   ],
 };
 
+const MVP_NAV = [
+  { id: 'home',         icon: 'chart-bar',      label: 'ภาพรวม' },
+  { id: 'appointments', icon: 'clipboard-list', label: 'นัดหมาย' },
+  { id: 'calendar',     icon: 'calendar-alt',   label: 'ปฏิทิน' },
+  { id: 'patients',     icon: 'paw',            label: 'สัตว์ที่เข้ารับบริการ' },
+  { id: 'summaries',    icon: 'folder-open',    label: 'สรุปการเข้ารับบริการ' },
+  { id: 'clinic',       icon: 'hospital-alt',   label: 'ข้อมูลคลินิก' },
+  { id: 'users',        icon: 'users',          label: 'ผู้ใช้งาน' },
+];
+
+// Checked before rendering so an out-of-scope module is never lazy-loaded.
+const MVP_NAV_PAGES = new Set([...MVP_NAV.map(item => item.id), 'pet-profile']);
+const MVP_ROLE_PAGES = {
+  owner: new Set(MVP_NAV.map(item => item.id)),
+  reception: new Set(['home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
+  vet: new Set(['home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
+};
+
 const PAGE_TITLES = {
   home:         'ภาพรวม',
+  appointments: 'นัดหมาย',
+  calendar:     'ปฏิทิน',
+  patients:     'สัตว์ที่เข้ารับบริการ',
+  summaries:    'สรุปการเข้ารับบริการ',
+  clinic:       'ข้อมูลคลินิก',
+  users:        'ผู้ใช้งาน',
   queue:        'คิวตรวจ',
   pets:         'สัตว์เลี้ยง & นัดหมาย',
   'pet-profile':'โปรไฟล์สัตว์เลี้ยง',
@@ -126,10 +151,12 @@ const PAGE_TITLES = {
 const _RESTORABLE_PAGES = new Set([
   'home','queue','medical','pets','hotel','grooming',
   'inventory','finance','ipd','documents','kanban','settings','users','staff','opd',
+  'appointments','calendar','patients','summaries','clinic',
 ]);
 const _PAGE_KEY = 'fufu_current_page';
 
 export function navigate(pageId, detail = null) {
+  if (FEATURE_FLAGS.MVP_MODE && !MVP_NAV_PAGES.has(pageId)) pageId = 'home';
   document.dispatchEvent(new CustomEvent('fufu:navigate', { detail: pageId }));
   document.querySelectorAll('main section').forEach(s => s.classList.add('hidden'));
   const target = document.getElementById(`page-${pageId}`);
@@ -290,6 +317,7 @@ export async function initDashboard() {
     storage.set(STORAGE_KEYS.STAFF_ROLE, 'owner');
     storage.remove('fufu_staff_roles');
     storage.remove('fufu_staff_permissions');
+    if (q('sb-user-role')) q('sb-user-role').textContent = 'owner';
   }
 
   _buildNav(role);
@@ -310,8 +338,13 @@ export async function initDashboard() {
   const lastPage = sessionStorage.getItem(_PAGE_KEY);
   const staffRolesInit = storage.getJSON('fufu_staff_roles');
   const canHomeInit    = !staffRolesInit || staffRolesInit.includes('home') || staffRolesInit.includes('all');
-  const defaultPage    = canHomeInit ? 'home' : (MODES[_currentMode]?.defaultPage || 'queue');
-  navigate(lastPage && _RESTORABLE_PAGES.has(lastPage) && (lastPage !== 'home' || canHomeInit) ? lastPage : defaultPage);
+  const defaultPage = FEATURE_FLAGS.MVP_MODE
+    ? 'home'
+    : canHomeInit ? 'home' : (MODES[_currentMode]?.defaultPage || 'queue');
+  const canRestore = lastPage && _RESTORABLE_PAGES.has(lastPage) &&
+    (!FEATURE_FLAGS.MVP_MODE || MVP_NAV_PAGES.has(lastPage)) &&
+    (lastPage !== 'home' || canHomeInit);
+  navigate(canRestore ? lastPage : defaultPage);
 
   _initOfflineBadge();
   startSyncEngine();
@@ -389,8 +422,8 @@ function _initSidebarToggle() {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function _buildNav(role) {
-  const allItems    = NAV[role] || NAV.vet;
-  const modeCfg     = MODES[_currentMode];
+  const allItems = FEATURE_FLAGS.MVP_MODE ? MVP_NAV : (NAV[role] || NAV.vet);
+  const modeCfg = FEATURE_FLAGS.MVP_MODE ? null : MODES[_currentMode];
   const staffRoles  = storage.getJSON('fufu_staff_roles'); // null = owner
   const canHome     = !staffRoles || staffRoles.includes('home') || staffRoles.includes('all');
 
@@ -398,8 +431,14 @@ function _buildNav(role) {
     ? allItems.filter(i => modeCfg.pages.includes(i.id))
     : allItems;
 
+  if (FEATURE_FLAGS.MVP_MODE) {
+    const mvpRole = storage.get(STORAGE_KEYS.STAFF_ROLE) || 'owner';
+    const allowedPages = MVP_ROLE_PAGES[mvpRole] || new Set();
+    items = items.filter(item => allowedPages.has(item.id));
+  }
+
   // Gate home/overview: only owner or staff explicitly granted 'home' view permission
-  if (!canHome) items = items.filter(i => i.id !== 'home');
+  if (!FEATURE_FLAGS.MVP_MODE && !canHome) items = items.filter(i => i.id !== 'home');
 
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;
@@ -412,7 +451,7 @@ function _buildNav(role) {
         ${icon(item.icon, 'w-4 h-4')}
       </span>
       <span class="flex-1 text-left">${item.label}</span>
-      ${item.id === 'queue' ? '<span id="appt-nav-badge" style="display:none;background:#F97316;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 5px;"></span>' : ''}
+      ${item.id === 'appointments' ? '<span id="appt-nav-badge" style="display:none;background:#F97316;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 5px;"></span>' : ''}
     </button>
   `).join('');
 
@@ -445,6 +484,12 @@ function _renderModeSwitcher(role) {
   const sbEl    = document.getElementById('sidebar-mode-switcher');
   const section = document.getElementById('sb-mode-section');
   if (!sbEl) return;
+
+  if (FEATURE_FLAGS.MVP_MODE) {
+    if (section) section.classList.add('hidden');
+    sbEl.replaceChildren();
+    return;
+  }
 
   const staffRoles = storage.getJSON('fufu_staff_roles');
   const availableModes = staffRoles
@@ -481,6 +526,32 @@ async function _renderPage(pageId, detail = null) {
   if (pageId === 'home') {
     const { renderHome } = await import('./home.js');
     await renderHome(document.getElementById('page-home'));
+    return;
+  }
+  if (pageId === 'appointments' || pageId === 'calendar') {
+    const { renderAppointments } = await import('./appointments-mvp.js');
+    await renderAppointments(document.getElementById(`page-${pageId}`), pageId === 'calendar' ? 'calendar' : 'inbox');
+    _loadApptBadge();
+    return;
+  }
+  if (pageId === 'patients') {
+    const { renderPets } = await import('./pets.js');
+    await renderPets(document.getElementById('page-patients'), 'pets');
+    return;
+  }
+  if (pageId === 'summaries') {
+    const { renderVisitSummaries } = await import('./visit-summaries.js');
+    await renderVisitSummaries(document.getElementById('page-summaries'));
+    return;
+  }
+  if (pageId === 'clinic') {
+    const { renderClinicProfile } = await import('./clinic-profile.js');
+    await renderClinicProfile(document.getElementById('page-clinic'));
+    return;
+  }
+  if (pageId === 'users') {
+    const { renderStaff } = await import('./staff.js');
+    await renderStaff(document.getElementById('page-users'));
     return;
   }
   if (pageId === 'queue') {
@@ -560,4 +631,3 @@ async function _renderPage(pageId, detail = null) {
     return;
   }
 }
-

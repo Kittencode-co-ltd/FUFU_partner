@@ -9,17 +9,21 @@ router.use(requireAuth);
 
 // ── Fixed roles ───────────────────────────────────────────────────────────────
 // `staff.role` stores a fixed role key (see config/roles.js). The role is chosen
-// directly from the fixed set — stores no longer create custom roles.
+// directly from the three-role MVP set — stores cannot create custom roles.
 
 // Resolve an incoming role to a valid fixed DB role key. Accepts the role key
-// directly; falls back to 'staff' when missing/invalid.
+// directly; invalid values fail closed.
 function resolveRole(role) {
-  return (role && isValidRole(role) && role !== 'owner') ? role : 'staff';
+  return role && isValidRole(role) ? role : null;
 }
 
 function normalize(row) {
   if (!row) return row;
-  const cfg = FIXED_ROLES[row.role] || FIXED_ROLES.staff;
+  const normalizedRole = row.role === 'veterinarian' ? 'vet'
+    : row.role === 'receptionist' ? 'reception'
+    : row.role;
+  const cfg = FIXED_ROLES[normalizedRole];
+  if (!cfg) return { ...row, roles: [], permissions: null, unsupported_role: true };
   return {
     ...row,
     name:       row.full_name ?? row.name       ?? '',
@@ -31,7 +35,7 @@ function normalize(row) {
 }
 
 // ── GET /api/staff?store_id=UUID ──────────────────────────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', requireRole('owner'), async (req, res) => {
   const { store_id } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
@@ -55,6 +59,9 @@ router.post('/', requireRole('owner'), async (req, res) => {
 
   if (password != null && password !== '' && String(password).length < 6)
     return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+
+  const dbRole = resolveRole(role);
+  if (!dbRole) return res.status(400).json({ error: 'role must be reception or vet' });
 
   const email = user_email.toLowerCase();
 
@@ -93,7 +100,6 @@ router.post('/', requireRole('owner'), async (req, res) => {
     .eq('email', email)
     .maybeSingle();
 
-  const dbRole = resolveRole(role);
   const staffPayload = {
     store_id,
     email,
@@ -150,6 +156,7 @@ router.patch('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, 
   // Role change — accept fixed role key directly
   if (req.body.role !== undefined) {
     const dbRole = resolveRole(req.body.role);
+    if (!dbRole) return res.status(400).json({ error: 'role must be reception or vet' });
     updates.role       = dbRole;
     updates.position   = req.body.position   || FIXED_ROLES[dbRole].label;
     updates.role_color = req.body.role_color || FIXED_ROLES[dbRole].color;
@@ -159,14 +166,7 @@ router.patch('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, 
     if (req.body[col] !== undefined) updates[col] = req.body[col];
   }
 
-  // Use service-role client so owner can always update staff (bypass RLS)
-  const admin = createClient(
-    process.env.Project_URL,
-    process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
-
-  const { data, error } = await admin
+  const { data, error } = await req.supabase
     .from('staff')
     .update(updates)
     .eq('id', req.params.id)
@@ -185,20 +185,20 @@ router.patch('/:id/reset-password', resolveStoreId('staff'), requireRole('owner'
     if (password != null && password !== '' && String(password).length < 6)
       return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
 
-    // Always use admin client to bypass RLS for staff lookup
-    const admin = createClient(
-      process.env.Project_URL,
-      process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false } }
-    );
-
-    const { data: member, error: findErr } = await admin
+    const { data: member, error: findErr } = await req.supabase
       .from('staff')
       .select('id, email, full_name, user_id')
       .eq('id', req.params.id)
       .single();
 
     if (findErr || !member) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+
+    // Admin privileges are limited to the trusted Auth password operation.
+    const admin = createClient(
+      process.env.Project_URL,
+      process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
 
     const newPassword = (password != null && password !== '')
       ? String(password)
@@ -233,7 +233,7 @@ router.patch('/:id/reset-password', resolveStoreId('staff'), requireRole('owner'
       }
 
       // Link user_id back to staff record
-      await admin.from('staff').update({ user_id: authUserId }).eq('id', member.id);
+      await req.supabase.from('staff').update({ user_id: authUserId }).eq('id', member.id);
     }
 
     // Update password
@@ -265,14 +265,7 @@ router.get('/me', async (req, res) => {
   const { store_id } = req.query;
   if (!store_id) return res.status(400).json({ error: 'store_id required' });
 
-  // Use admin client so staff can always read their own row + join regardless of RLS
-  const admin = createClient(
-    process.env.Project_URL,
-    process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
-
-  const { data, error } = await admin
+  const { data, error } = await req.supabase
     .from('staff')
     .select('*')
     .eq('store_id', store_id)

@@ -193,6 +193,13 @@ async function bootRegister() {
       return;
     }
 
+    if (result.needs_email_verification) {
+      showToast('สร้างบัญชีสำเร็จ กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ');
+      form.reset();
+      setTimeout(() => { window.location.href = '/login.html'; }, 1800);
+      return;
+    }
+
     // ✅ Success — save token + select store immediately (no login redirect)
     storage.set(STORAGE_KEYS.TOKEN,         result.token);
     storage.set(STORAGE_KEYS.REFRESH_TOKEN, result.refresh_token || '');

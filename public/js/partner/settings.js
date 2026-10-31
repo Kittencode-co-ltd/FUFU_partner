@@ -1,7 +1,7 @@
 import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
-import { STORAGE_KEYS } from '../utils/config.js';
+import { STORAGE_KEYS, FEATURE_FLAGS } from '../utils/config.js';
 import { icon } from '../utils/icons.js';
 
 const DAYS_TH = { mon:'จันทร์', tue:'อังคาร', wed:'พุธ', thu:'พฤหัส', fri:'ศุกร์', sat:'เสาร์', sun:'อาทิตย์' };
@@ -33,7 +33,7 @@ export async function renderSettings(container) {
       <div class="card p-5 space-y-4">
         <div>
           <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('hospital-alt','w-5 h-5')}</span> ข้อมูลร้านค้า</h3>
-          <p class="text-sm text-slate-400 font-body mt-0.5">ข้อมูลนี้ปรากฏบนใบเสร็จ, ฉลากยา และเอกสารทั้งหมด</p>
+          <p class="text-sm text-slate-400 font-body mt-0.5">ข้อมูลคลินิกที่ใช้ใน Partner และแสดงแก่ลูกค้า</p>
         </div>
         <div class="space-y-3">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -51,10 +51,10 @@ export async function renderSettings(container) {
               <label class="input-label">เบอร์โทรศัพท์</label>
               <input id="si-phone" class="input-field" value="${store.phone || ''}" placeholder="02-xxx-xxxx">
             </div>
-            <div>
+            ${!FEATURE_FLAGS.MVP_MODE ? `<div>
               <label class="input-label">เลขประจำตัวผู้เสียภาษี (Tax ID)</label>
               <input id="si-taxid" class="input-field" value="${store.tax_id || ''}" placeholder="0000000000000">
-            </div>
+            </div>` : ''}
           </div>
           <div>
             <label class="input-label">ที่อยู่</label>
@@ -66,10 +66,10 @@ export async function renderSettings(container) {
               <label class="input-label">เว็บไซต์ / Line</label>
               <input id="si-website" class="input-field" value="${store.website || ''}" placeholder="@fufuvet หรือ fufuvet.com">
             </div>
-            <div>
+            ${!FEATURE_FLAGS.MVP_MODE ? `<div>
               <label class="input-label">หมายเหตุบนใบเสร็จ</label>
               <input id="si-note" class="input-field" value="${store.receipt_header_note || ''}" placeholder="เช่น ขอบคุณที่ไว้วางใจ">
-            </div>
+            </div>` : ''}
           </div>
         </div>
         <button id="save-store-info" class="btn-primary px-6 py-2">บันทึกข้อมูลร้านค้า</button>
@@ -94,7 +94,7 @@ export async function renderSettings(container) {
         </div>
       </div>
 
-      <!-- ── PromptPay QR ── -->
+      ${!FEATURE_FLAGS.MVP_MODE ? `<!-- ── PromptPay QR ── -->
       <div class="card p-5 space-y-4">
         <div>
           <h3 class="font-bold text-navy text-lg">PromptPay QR</h3>
@@ -107,7 +107,7 @@ export async function renderSettings(container) {
           <p class="text-xs text-slate-400 font-body mt-1">เบอร์มือถือ 10 หลัก หรือเลขภาษี 13 หลัก</p>
         </div>
         <button id="save-pp" class="btn-primary px-6 py-2">บันทึก PromptPay ID</button>
-      </div>
+      </div>` : ''}
 
       <!-- ── Data Masking ── -->
       <div class="card p-5 space-y-4">
@@ -146,7 +146,7 @@ export async function renderSettings(container) {
         <button id="save-biz-hours" class="btn-primary px-6 py-2 hidden">บันทึกเวลาทำการ</button>
       </div>
 
-      <!-- ── FEAT-05: ค่ารักษาเบื้องต้น ── -->
+      ${!FEATURE_FLAGS.MVP_MODE ? `<!-- ── FEAT-05: ค่ารักษาเบื้องต้น ── -->
       <div class="card p-5 space-y-4">
         <div>
           <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('pills','w-5 h-5')}</span> ค่ารักษาเริ่มต้น</h3>
@@ -155,7 +155,7 @@ export async function renderSettings(container) {
         <div id="rates-loading" class="text-slate-400 font-body text-sm">กำลังโหลด...</div>
         <div id="rates-rows" class="space-y-2 hidden"></div>
         <button id="save-rates" class="btn-primary px-6 py-2 hidden">บันทึกค่ารักษา</button>
-      </div>
+      </div>` : ''}
 
       ` : ''}
 
@@ -300,7 +300,7 @@ export async function renderSettings(container) {
 
   if (canManage) {
     _loadBizHours(container, storeId, store);
-    _loadRates(container, storeId, store);
+    if (!FEATURE_FLAGS.MVP_MODE) _loadRates(container, storeId, store);
   }
 }
 

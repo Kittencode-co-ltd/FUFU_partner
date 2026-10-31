@@ -1,5 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { requireRole, useStoreIdParam } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -48,7 +49,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/stores/:id — update store settings (business_hours, default_service_rates, etc.)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', useStoreIdParam('id'), requireRole('owner'), async (req, res) => {
   const ALLOWED = new Set(['name', 'branch_name', 'phone', 'address', 'tax_id', 'website', 'receipt_header_note', 'business_hours', 'default_service_rates']);
   const updates = {};
   for (const [k, v] of Object.entries(req.body)) {

@@ -1,6 +1,14 @@
 # FUFU Partner
 
-ระบบหลังบ้านสำหรับพาร์ทเนอร์ของ FUFU Pet Care — รองรับ คลินิกสัตวแพทย์, ร้านขายอาหาร/ของสัตว์เลี้ยง, ร้านเสริมสวย (grooming) และโรงแรมสัตว์ พร้อมระบบ POS, จัดคิว, สต็อก และรายงานการเงิน
+ระบบหลังบ้านสำหรับคลินิกใน FUFU MVP ใช้รับและจัดการนัดหมายจาก Mobile
+โมดูลเดิมสำหรับ POS, inventory, finance, grooming และ hotel ยังอยู่ใน source แต่ถูกซ่อน
+จาก navigation เมื่อ `FEATURE_FLAGS.MVP_MODE` เป็น `true`.
+
+Production-safe default คือ `PARTNER_MVP_MODE=true` และ sidebar จะแสดงเฉพาะ
+ภาพรวม, นัดหมาย, ปฏิทิน, สัตว์ที่เข้ารับบริการ, สรุปการเข้ารับบริการ,
+ข้อมูลคลินิก, ผู้ใช้งาน และออกจากระบบ โมดูลเดิมจะไม่ถูก lazy-load ใน MVP path.
+การปิด MVP mode ทำได้เฉพาะ development runtime โดย inject
+`window.__FUFU_FEATURES__ = { PARTNER_MVP_MODE: false }` ก่อนโหลด `config.js`.
 
 ---
 
@@ -48,7 +56,8 @@ FUFU_partner/
 
 ## 🚀 Quick Start
 
-ต้องมี Node.js 20+ และโปรเจกต์ Supabase พร้อม anon key
+ต้องมี Node.js 20+ และ Supabase development/staging project ห้ามใช้ production
+credential ระหว่างงาน Phase 0–1
 
 ```bash
 # 1. ติดตั้ง dependencies
@@ -74,11 +83,22 @@ npm run watch:css
 | `Project_URL` | URL ของ Supabase project, เช่น `https://xxx.supabase.co` |
 | `publishable_key` | Supabase anon key |
 
+service-role key และ AI secret ห้ามอยู่ใน browser bundle หรือ `.env.example`.
+
+ใช้ template แยกตาม environment: `.env.development.example`,
+`.env.staging.example` และ `.env.production.example` โดยคัดลอกเป็น `.env`
+เฉพาะในเครื่องหรือ deployment secret store เท่านั้น
+
 ### Build CSS สำหรับ production
 
 ```bash
 npm run build:css   # minified output → public/css/main.css
+npm test            # security foundation/static regression tests
 ```
+
+Schema ที่เป็น source of truth อยู่ใน `supabase/migrations/` และ seed สำหรับ local/staging
+อยู่ที่ `supabase/seed.sql` ห้ามใช้ไฟล์ seed กับ production ดู data model และ security
+report ที่ `docs/MVP-SCHEMA.md` และ `docs/PHASE-1-SECURITY-REPORT.md`.
 
 ---
 

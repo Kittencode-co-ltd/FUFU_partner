@@ -221,6 +221,15 @@ function _renderInbox(appointments) {
       if (res?.success) { showToast('ปฏิเสธการจองแล้ว', 'info'); await _loadQueue(); }
       else { showToast(res?.error || 'เกิดข้อผิดพลาด', 'error'); btn.disabled = false; btn.textContent = '✕'; }
     }
+
+    if (['complete', 'cancel', 'no_show'].includes(apptAction)) {
+      btn.disabled = true; btn.textContent = '...';
+      const res = await apiFetch(`/api/appointments/${apptId}/status`, {
+        method: 'PATCH', body: JSON.stringify({ status: apptAction === 'complete' ? 'completed' : apptAction }),
+      });
+      if (res?.success) { showToast('อัปเดตสถานะแล้ว'); await _loadQueue(); }
+      else { showToast(res?.error || 'อัปเดตไม่สำเร็จ', 'error'); btn.disabled = false; }
+    }
   });
 }
 
@@ -230,6 +239,7 @@ function _apptRow(a, today) {
   const time = a.appt_time_slot || a.appt_time || '—';
   const service = (a.services?.length ? a.services.join(', ') : null) || a.service_type || a.category || '—';
   const dropoff = a.drop_off_method ? ` · ${a.drop_off_method}` : '';
+  const pending = a.status === 'Pending';
 
   return `
     <div class="flex items-center gap-3 px-4 py-2 ${isToday ? 'bg-orange-50/50' : 'hover:bg-amber-50/30'} transition-colors">
@@ -251,12 +261,17 @@ function _apptRow(a, today) {
 
       <!-- Actions -->
       <div class="flex gap-1.5 flex-shrink-0">
-        <button data-appt-action="confirm" data-appt-id="${a.id}"
+        ${pending ? `<button data-appt-action="confirm" data-appt-id="${a.id}"
           class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors bg-primary text-white hover:bg-primary-dark flex items-center gap-1">
           ${IC.check} ยืนยัน</button>
         <button data-appt-action="reject" data-appt-id="${a.id}"
           class="text-xs px-2.5 py-1 rounded-lg font-semibold border border-red-200 text-red-500 hover:bg-red-50 transition-colors flex items-center gap-1">
-          ${IC.xmark}</button>
+          ${IC.xmark}</button>` : `<button data-appt-action="complete" data-appt-id="${a.id}"
+          class="text-xs px-2 py-1 rounded-lg bg-primary text-white">เสร็จสิ้น</button>
+        <button data-appt-action="no_show" data-appt-id="${a.id}"
+          class="text-xs px-2 py-1 rounded-lg border border-slate-300">ไม่มา</button>
+        <button data-appt-action="cancel" data-appt-id="${a.id}"
+          class="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500">ยกเลิก</button>`}
       </div>
     </div>`;
 }

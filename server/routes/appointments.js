@@ -1,175 +1,36 @@
-import { Router }      from 'express';
-import { createClient } from '@supabase/supabase-js';
+import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole, resolveStoreId } from '../middleware/rbac.js';
-import { insertWithSeqRetry } from '../utils/seq-retry.js';
+const router=Router(); router.use(requireAuth);
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const transitions={requested:['confirmed','reschedule_proposed','rejected','cancelled'],reschedule_proposed:['confirmed','rejected','cancelled'],confirmed:['checked_in','cancelled','no_show'],checked_in:['completed','cancelled']};
+const actionRoles={confirmed:['owner','reception'],reschedule_proposed:['owner','reception'],rejected:['owner','reception'],checked_in:['owner','reception'],completed:['owner','vet'],cancelled:['owner','reception'],no_show:['owner','reception']};
+const key=req=>String(req.get('Idempotency-Key')||req.body?.idempotency_key||'').trim();
 
-const router = Router();
-router.use(requireAuth);
-
-// Service-role client for reading cross-store appointment data (bypasses RLS)
-const adminSb = createClient(
-  process.env.Project_URL,
-  process.env.service_role_key,
-  { auth: { persistSession: false, autoRefreshToken: false } },
-);
-
-// Map store category → appointment category values from mobile app
-const STORE_TO_APPT_CAT = {
-  vet_clinic:   ['Vet', 'vet', 'VET'],
-  vet_hospital: ['Vet', 'vet', 'VET'],
-  pet_grooming: ['Grooming', 'grooming', 'GROOMING'],
-  pet_hotel:    ['Hotel', 'hotel', 'HOTEL'],
-  pet_shop:     ['Shop', 'shop', 'SHOP', 'Retail'],
-};
-
-// ─── GET /api/appointments/inbox?store_id=UUID ────────────────────────────────
-// การจองที่รอการยืนยันจากแอปลูกค้า
-router.get('/inbox', requireRole('owner', 'vet', 'reception'), async (req, res) => {
-  const { store_id, days_ahead = 7 } = req.query;
-  if (!store_id) return res.status(400).json({ error: 'store_id required' });
-
-  // Get store category — use adminSb to bypass RLS (stores table may have no policies)
-  const { data: store, error: storeErr } = await adminSb
-    .from('stores').select('category').eq('id', store_id).single();
-  if (storeErr || !store) return res.status(404).json({ error: 'Store not found' });
-
-  const apptCategories = STORE_TO_APPT_CAT[store.category] || [];
-  if (!apptCategories.length) return res.json({ success: true, data: [], store_category: store.category });
-
-  const today   = new Date().toISOString().split('T')[0];
-  const maxDate = new Date(Date.now() + parseInt(days_ahead) * 86400000).toISOString().split('T')[0];
-
-  // Find pending appointments: store's OR unassigned (store_id IS NULL) + matching category
-  // Use adminSb to bypass RLS (partner needs to see null-store_id appointments from mobile app)
-  const { data, error } = await adminSb
-    .from('appointments')
-    .select('*')
-    .in('category', apptCategories)
-    .eq('status', 'Pending')
-    .gte('appt_date', today)
-    .lte('appt_date', maxDate)
-    .or(`store_id.eq.${store_id},store_id.is.null`)
-    .order('appt_date', { ascending: true })
-    .order('appt_time_slot', { ascending: true });
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ success: true, data: data || [], store_category: store.category });
+router.get('/',requireRole('owner','vet','reception'),async(req,res)=>{
+ const {store_id,bucket='requested',search=''}=req.query;if(!UUID.test(store_id||''))return res.status(400).json({error:'valid store_id required'});
+ const page=Math.max(parseInt(req.query.page,10)||1,1),limit=Math.min(Math.max(parseInt(req.query.limit,10)||20,1),100);
+ let q=req.supabase.from('appointments').select('*',{count:'exact'}).eq('store_id',store_id);
+ if(bucket==='requested')q=q.in('status',['requested','reschedule_proposed']);else if(bucket==='upcoming')q=q.in('status',['confirmed','checked_in']).gte('starts_at',new Date().toISOString());else q=q.in('status',['completed','cancelled','no_show','rejected']);
+ if(search.trim())q=q.ilike('pet_name',`%${search.trim().replaceAll('%','')}%`);
+ const {data,error,count}=await q.order('starts_at',{ascending:bucket!=='history'}).range((page-1)*limit,page*limit-1);
+ if(error)return res.status(500).json({error:error.message});res.json({success:true,data:data||[],pagination:{page,limit,total:count||0}});
 });
-
-// ─── PATCH /api/appointments/:id/confirm ─────────────────────────────────────
-// ยืนยันการจอง → สร้าง queue_entry + อัปเดต appointment
-router.patch('/:id/confirm', requireRole('owner', 'vet', 'reception'), async (req, res) => {
-  const { store_id, notes } = req.body;
-  if (!store_id) return res.status(400).json({ error: 'store_id required' });
-
-  // Get appointment (use adminSb — may have null store_id from mobile app)
-  const { data: appt, error: apptErr } = await adminSb
-    .from('appointments').select('*').eq('id', req.params.id).single();
-  if (apptErr || !appt) return res.status(404).json({ error: 'Appointment not found' });
-
-  // Guard: already confirmed — return existing queue entry
-  if (appt.status === 'Confirmed' && appt.queue_entry_id) {
-    const { data: existingQ } = await adminSb
-      .from('queue_entries').select('*').eq('id', appt.queue_entry_id).single();
-    return res.json({ success: true, data: { appointment: appt, queue_entry: existingQ } });
-  }
-
-  // Guard: queue entry already exists for this appointment (orphaned from failed update)
-  const { data: orphanQ } = await adminSb
-    .from('queue_entries').select('*').eq('appointment_id', appt.id).maybeSingle();
-  if (orphanQ) {
-    // Just update the appointment status to link it properly
-    await adminSb.from('appointments').update({
-      status: 'Confirmed', store_id, queue_entry_id: orphanQ.id,
-    }).eq('id', req.params.id);
-    return res.json({ success: true, data: { appointment: appt, queue_entry: orphanQ } });
-  }
-
-  // Auto-assign queue number for the appointment date. Guarded by the UNIQUE
-  // (store_id, queue_date, queue_number) constraint + retry on concurrent dupes.
-  const queueDate = appt.appt_date;
-  const entryNotes = notes || appt.pet_name;
-
-  const { data: qEntry, error: qErr } = await insertWithSeqRetry(async () => {
-    const { data: existing } = await req.supabase
-      .from('queue_entries')
-      .select('queue_number')
-      .eq('store_id', store_id)
-      .eq('queue_date', queueDate)
-      .order('queue_number', { ascending: false })
-      .limit(1);
-    const nextNum = ((existing?.[0]?.queue_number) || 0) + 1;
-
-    return req.supabase
-      .from('queue_entries')
-      .insert([{
-        store_id,
-        appointment_id: appt.id,
-        queue_number:   nextNum,
-        queue_date:     queueDate,
-        service_type:   (appt.services || [])[0] || appt.category,
-        priority:       'normal',
-        source:         'app_booking',
-        status:         'waiting',
-        notes:          entryNotes,
-      }])
-      .select().single();
-  });
-
-  if (qErr) return res.status(500).json({ error: qErr.message });
-
-  // Update appointment
-  const { error: updErr } = await adminSb
-    .from('appointments')
-    .update({
-      status:         'Confirmed',
-      store_id,
-      queue_entry_id: qEntry.id,
-    })
-    .eq('id', req.params.id);
-
-  if (updErr) return res.status(500).json({ error: updErr.message });
-
-  res.json({ success: true, data: { appointment: appt, queue_entry: qEntry } });
+router.get('/calendar',requireRole('owner','vet','reception'),async(req,res)=>{
+ const {store_id,from,to}=req.query;if(!UUID.test(store_id||'')||!from||!to)return res.status(400).json({error:'store_id, from and to required'});
+ const {data,error}=await req.supabase.from('appointments').select('*').eq('store_id',store_id).gte('starts_at',from).lt('starts_at',to).order('starts_at');
+ if(error)return res.status(500).json({error:error.message});res.json({success:true,data:data||[]});
 });
-
-// ─── PATCH /api/appointments/:id/reject ──────────────────────────────────────
-router.patch('/:id/reject', resolveStoreId('appointments'), requireRole('owner', 'vet', 'reception'), async (req, res) => {
-  const { reason } = req.body;
-
-  const { error } = await adminSb
-    .from('appointments')
-    .update({ status: 'Cancelled', reject_reason: reason || null })
-    .eq('id', req.params.id);
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ success: true });
+router.post('/',async(req,res)=>{
+ const idempotency=key(req);if(!idempotency)return res.status(400).json({error:'Idempotency-Key required'});
+ const {store_id,service_id,pet_id,pet_name,starts_at,customer_notes}=req.body;if(![store_id,service_id,pet_id].every(v=>UUID.test(v||''))||!pet_name||!starts_at)return res.status(400).json({error:'invalid appointment payload'});
+ const {data,error}=await req.supabase.rpc('create_appointment',{p_store_id:store_id,p_service_id:service_id,p_pet_id:pet_id,p_pet_name:pet_name,p_starts_at:starts_at,p_customer_notes:customer_notes||null,p_idempotency_key:idempotency});
+ if(error?.code==='23505'||error?.code==='23514')return res.status(409).json({error:error.message});if(error)return res.status(500).json({error:error.message});res.status(201).json({success:true,data});
 });
-
-// ─── GET /api/appointments/count?store_id=UUID ────────────────────────────────
-// จำนวน pending สำหรับแสดง badge
-router.get('/count', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), async (req, res) => {
-  const { store_id } = req.query;
-  if (!store_id) return res.status(400).json({ error: 'store_id required' });
-
-  const { data: store } = await req.supabase
-    .from('stores').select('category').eq('id', store_id).single();
-
-  const apptCategories = STORE_TO_APPT_CAT[store?.category] || [];
-  if (!apptCategories.length) return res.json({ success: true, count: 0 });
-
-  const today = new Date().toISOString().split('T')[0];
-  const { count, error } = await adminSb
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .in('category', apptCategories)
-    .eq('status', 'Pending')
-    .gte('appt_date', today)
-    .or(`store_id.eq.${store_id},store_id.is.null`);
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ success: true, count: count || 0 });
+router.patch('/:id/transition',resolveStoreId('appointments'),requireRole('owner','vet','reception'),async(req,res)=>{
+ const to=String(req.body.status||'').toLowerCase(),idempotency=key(req),role=req.staffRole;if(!idempotency)return res.status(400).json({error:'Idempotency-Key required'});if(!actionRoles[to]?.includes(role))return res.status(403).json({error:'Role cannot perform this action'});
+ const {data:current,error:readErr}=await req.supabase.from('appointments').select('status').eq('id',req.params.id).single();if(readErr)return res.status(404).json({error:'Appointment not found'});if(current.status===to)return res.json({success:true,data:current,idempotent:true});if(!transitions[current.status]?.includes(to))return res.status(409).json({error:'Invalid appointment transition'});if(to==='reschedule_proposed'&&!req.body.proposed_starts_at)return res.status(400).json({error:'proposed_starts_at required'});
+ const {data,error}=await req.supabase.rpc('transition_appointment',{p_appointment_id:req.params.id,p_to_status:to,p_reason:req.body.reason||null,p_idempotency_key:idempotency,p_proposed_starts_at:req.body.proposed_starts_at||null});if(error?.code==='23514'||error?.code==='23505')return res.status(409).json({error:error.message});if(error)return res.status(500).json({error:error.message});res.json({success:true,data});
 });
-
+router.get('/count',requireRole('owner','vet','reception'),async(req,res)=>{if(!UUID.test(req.query.store_id||''))return res.status(400).json({error:'valid store_id required'});const {count,error}=await req.supabase.from('appointments').select('*',{count:'exact',head:true}).eq('store_id',req.query.store_id).in('status',['requested','reschedule_proposed']);if(error)return res.status(500).json({error:error.message});res.json({success:true,count:count||0});});
 export default router;

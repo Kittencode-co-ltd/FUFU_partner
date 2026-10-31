@@ -79,11 +79,12 @@
       </div>
       <button id="logout-btn"
         title="ออกจากระบบ"
-        class="flex-shrink-0 text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+        class="flex-shrink-0 flex items-center gap-2 text-slate-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-white/10">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
         </svg>
+        <span class="text-xs font-body">ออกจากระบบ</span>
       </button>
     </div>
   </div>
@@ -128,6 +129,12 @@
   <!-- Pages -->
   <main class="flex-1 p-3 sm:p-5 md:p-6">
     <section id="page-home"      class="hidden"></section>
+    <section id="page-appointments" class="hidden"></section>
+    <section id="page-calendar"     class="hidden"></section>
+    <section id="page-patients"     class="hidden"></section>
+    <section id="page-summaries"    class="hidden"></section>
+    <section id="page-clinic"       class="hidden"></section>
+    <section id="page-users"        class="hidden"></section>
     <section id="page-queue"     class="hidden"></section>
     <section id="page-opd"       class="hidden" style="margin:-12px;overflow:hidden;"><div id="doctor-workroom-root"></div></section>
     <section id="page-pets"         class="hidden"></section>

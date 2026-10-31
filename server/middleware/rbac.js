@@ -7,25 +7,7 @@
  * Store owners are identified via stores.owner_id (UUID) OR stores.owner_email (fallback).
  */
 
-import { createClient } from '@supabase/supabase-js';
 import { toRbacRole } from '../config/roles.js';
-
-// Admin (service-role) client — bypasses RLS for ownership verification.
-// Lazy-init so env vars are available when first used.
-let _adminSb = null;
-function _admin() {
-  if (!_adminSb) {
-    _adminSb = createClient(
-      process.env.Project_URL,
-      // .env defines the key as lowercase `service_role_key`; accept either casing
-      // so owner-role resolution (which relies on this admin client) never silently
-      // breaks and 403s legitimate store owners.
-      process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false } },
-    );
-  }
-  return _adminSb;
-}
 
 /**
  * Resolves the current user's role for the given store and attaches it as req.staffRole.
@@ -40,9 +22,8 @@ export async function attachStoreRole(req, res, next) {
   }
 
   try {
-    // Use admin client so RLS on the `stores` table never blocks ownership lookup.
-    // Check both owner_id (UUID match) and owner_email (legacy / email-only stores).
-    const { data: store } = await _admin()
+    // User-scoped queries keep authorization fail-closed under RLS.
+    const { data: store } = await req.supabase
       .from('stores')
       .select('owner_id, owner_email')
       .eq('id', storeId)
@@ -59,8 +40,7 @@ export async function attachStoreRole(req, res, next) {
     // Not the owner — check staff table. The DB `role` column stores the fixed
     // role key (veterinarian, receptionist, …); translate to the short-form
     // rbac name (vet, reception, …) that requireRole() guards expect.
-    // Use admin client + maybeSingle so a missing/duplicate row never throws.
-    const { data: staffRows } = await _admin()
+    const { data: staffRows } = await req.supabase
       .from('staff')
       .select('role')
       .eq('store_id', storeId)
@@ -120,10 +100,8 @@ export function resolveStoreId(table, idParam = 'id') {
     if (!recordId) return next();
 
     try {
-      // Use admin client to bypass RLS — the user-scoped client may not be able
-      // to read the record (e.g. queue_entries with restrictive RLS), which would
-      // silently leave store_id unset and cause a 403 downstream.
-      const { data } = await _admin()
+      // A cross-store record is intentionally indistinguishable from not found.
+      const { data } = await req.supabase
         .from(table).select('store_id').eq('id', recordId).single();
 
       if (!data?.store_id) return next(); // record not found — let requireRole 403
@@ -135,5 +113,16 @@ export function resolveStoreId(table, idParam = 'id') {
     } catch {
       next();
     }
+  };
+}
+
+/** Use a route parameter that is itself the store id, then verify membership in requireRole. */
+export function useStoreIdParam(param = 'id') {
+  return (req, _res, next) => {
+    const storeId = req.params[param];
+    req.body = req.body || {};
+    req.body.store_id = storeId;
+    req.query.store_id = storeId;
+    next();
   };
 }

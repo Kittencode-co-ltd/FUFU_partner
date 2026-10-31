@@ -24,18 +24,23 @@ export const STORAGE_KEYS = {
 // (clearSession wipes every STORAGE_KEYS entry) and can pre-fill the email field.
 export const REMEMBER_EMAIL_KEY = 'fufu_remember_email';
 
+// Production-safe default. Legacy modules can only be exposed by an explicit
+// runtime override in a development environment.
+export const PARTNER_MVP_MODE = window.__FUFU_FEATURES__?.PARTNER_MVP_MODE !== false;
+
 export const FEATURE_FLAGS = {
+  MVP_MODE:                 PARTNER_MVP_MODE,
   ENABLE_RBAC:              true,
-  ENABLE_MEDICAL_MODULE:    true,
-  ENABLE_HOTEL_MODULE:      true,
-  ENABLE_OPD_CARD:          true,
-  ENABLE_IPD_WARD:          true,
-  ENABLE_INVENTORY_ALERTS:  true,
-  ENABLE_PROMPTPAY:         true,
-  ENABLE_POS:               true,
+  ENABLE_MEDICAL_MODULE:    !PARTNER_MVP_MODE,
+  ENABLE_HOTEL_MODULE:      !PARTNER_MVP_MODE,
+  ENABLE_OPD_CARD:          !PARTNER_MVP_MODE,
+  ENABLE_IPD_WARD:          !PARTNER_MVP_MODE,
+  ENABLE_INVENTORY_ALERTS:  !PARTNER_MVP_MODE,
+  ENABLE_PROMPTPAY:         !PARTNER_MVP_MODE,
+  ENABLE_POS:               !PARTNER_MVP_MODE,
   ENABLE_CRM:               false,
-  ENABLE_DOCUMENTS:         true,
-  ENABLE_KANBAN:            true,
+  ENABLE_DOCUMENTS:         !PARTNER_MVP_MODE,
+  ENABLE_KANBAN:            !PARTNER_MVP_MODE,
 };
 
 export const CATEGORY_MAP = {

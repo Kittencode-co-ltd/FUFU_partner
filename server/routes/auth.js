@@ -1,5 +1,6 @@
 import { Router }       from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { authRateLimit } from '../middleware/security.js';
 
 const router   = Router();
 const supabase = createClient(
@@ -8,25 +9,15 @@ const supabase = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } },
 );
 
-// Lazy admin client (needs SERVICE_ROLE_KEY — bypass RLS + email confirm)
-let _adminSb = null;
-function adminSb() {
-  if (!_adminSb) {
-    _adminSb = createClient(
-      process.env.Project_URL,
-      // .env uses lowercase `service_role_key`; accept either casing.
-      process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false } },
-    );
-  }
-  return _adminSb;
-}
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const validEmail = value => typeof value === 'string' && value.length <= 254 && EMAIL.test(value);
+const validPassword = value => typeof value === 'string' && value.length >= 8 && value.length <= 128;
 
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
-router.post('/login', async (req, res) => {
+router.post('/login', authRateLimit, async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
+  if (!validEmail(email) || typeof password !== 'string' || password.length > 128) {
     return res.status(400).json({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' });
   }
 
@@ -71,8 +62,7 @@ router.post('/login', async (req, res) => {
   // 2. If not owner → check staff membership
   let isStaffMember = false;
   if (!stores?.length) {
-    // Use admin client — bypass RLS so staff can always find their own record
-    const { data: staffRows } = await adminSb()
+    const { data: staffRows } = await userSb
       .from('staff')
       .select('store_id, role, full_name')
       .eq('email', data.user.email)
@@ -81,7 +71,7 @@ router.post('/login', async (req, res) => {
     if (staffRows?.length) {
       isStaffMember = true;
       const storeIds = [...new Set(staffRows.map(s => s.store_id))];
-      const { data: staffStores } = await adminSb()
+      const { data: staffStores } = await userSb
         .from('stores')
         .select('id, name, category')
         .in('id', storeIds);
@@ -112,28 +102,26 @@ router.post('/login', async (req, res) => {
 });
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
-// Creates auth account + first store in one step.
-// Uses SERVICE_ROLE_KEY so email confirmation is skipped — no email needed.
+// Creates an Auth account through the public signup flow. Email verification is
+// never bypassed; store onboarding happens after the first verified login.
 
-router.post('/register', async (req, res) => {
+router.post('/register', authRateLimit, async (req, res) => {
   const { email, password, name, phone, store_name, store_category } = req.body;
 
-  if (!email || !password || !name || !store_name) {
+  if (!validEmail(email) || !password || !name || !store_name || name.length > 120 || store_name.length > 160) {
     return res.status(400).json({
       success: false,
       error: 'กรุณากรอกข้อมูลให้ครบ: ชื่อ, อีเมล, รหัสผ่าน, และชื่อร้าน',
     });
   }
-  if (password.length < 8) {
+  if (!validPassword(password)) {
     return res.status(400).json({ success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
   }
 
-  // Step 1: Create auth account via admin API (email_confirm: true = skip email verification)
-  const { data: newUser, error: createErr } = await adminSb().auth.admin.createUser({
+  const { data: newUser, error: createErr } = await supabase.auth.signUp({
     email,
     password,
-    email_confirm: true,
-    user_metadata: { name, phone: phone || null, is_partner: true },
+    options: { data: { name, phone: phone || null, is_partner: true } },
   });
 
   if (createErr) {
@@ -148,17 +136,20 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ success: false, error: createErr.message });
   }
 
-  // Step 2: Sign in immediately to get a valid session token
-  const { data: session, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-  if (signInErr || !session?.session) {
-    // Account created but can't sign in — shouldn't happen but handle gracefully
-    return res.status(500).json({
-      success: false,
-      error:   'สร้างบัญชีสำเร็จ แต่เข้าสู่ระบบไม่ได้ กรุณาลอง login ใหม่',
+  if (!newUser.user) {
+    return res.status(502).json({ success: false, error: 'ไม่สามารถสร้างบัญชีได้ กรุณาลองอีกครั้ง' });
+  }
+
+  if (!newUser.session) {
+    return res.status(202).json({
+      success: true,
+      needs_email_verification: true,
+      user: { id: newUser.user.id, email: newUser.user.email },
+      stores: [],
     });
   }
 
-  const token    = session.session.access_token;
+  const token    = newUser.session.access_token;
   const userId   = newUser.user.id;
   const userEmail = email.toLowerCase().trim();
 
@@ -191,7 +182,7 @@ router.post('/register', async (req, res) => {
       success: true,
       needs_onboarding: true,
       token,
-      refresh_token: session.session.refresh_token,
+      refresh_token: newUser.session.refresh_token,
       user: { id: userId, email: userEmail },
       stores: [],
       warning: 'สร้างบัญชีสำเร็จแต่สร้างร้านไม่ได้ กรุณาสร้างร้านในหน้า Dashboard',
@@ -201,7 +192,7 @@ router.post('/register', async (req, res) => {
   res.json({
     success:       true,
     token,
-    refresh_token: session.session.refresh_token,
+    refresh_token: newUser.session.refresh_token,
     user:  { id: userId, email: userEmail },
     stores: [store],
   });
@@ -226,7 +217,11 @@ router.post('/change-password', async (req, res) => {
     return res.status(401).json({ success: false, error: 'Token ไม่ถูกต้อง' });
   }
 
-  const { error } = await adminSb().auth.admin.updateUserById(user.id, { password: new_password });
+  const userSb = createClient(process.env.Project_URL, process.env.publishable_key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error } = await userSb.auth.updateUser({ password: new_password });
   if (error) return res.status(500).json({ success: false, error: error.message });
 
   res.json({ success: true });
@@ -234,7 +229,7 @@ router.post('/change-password', async (req, res) => {
 
 // ─── POST /api/auth/refresh ───────────────────────────────────────────────────
 
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', authRateLimit, async (req, res) => {
   const { refresh_token } = req.body;
   if (!refresh_token) {
     return res.status(400).json({ success: false, error: 'refresh_token required' });

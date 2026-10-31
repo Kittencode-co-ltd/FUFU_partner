@@ -1,6 +1,6 @@
 import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
-import { STORAGE_KEYS } from '../utils/config.js';
+import { STORAGE_KEYS, FEATURE_FLAGS } from '../utils/config.js';
 import { icon } from '../utils/icons.js';
 
 // ─── Date range presets ───────────────────────────────────────────────────────
@@ -41,6 +41,11 @@ export async function renderHome(container) {
     return;
   }
 
+  if (FEATURE_FLAGS.MVP_MODE) {
+    await _renderMvpHome(container, storeId);
+    return;
+  }
+
   // Default range: 7 วัน
   let activeRange = '7d';
   let customFrom  = '';
@@ -66,6 +71,114 @@ export async function renderHome(container) {
       if (customFrom && customTo) await doRender();
     }
   });
+}
+
+async function _renderMvpHome(container, storeId) {
+  container.innerHTML = `
+    <div class="space-y-4">
+      <div>
+        <h2 class="text-xl font-bold text-navy">สิ่งที่ต้องทำวันนี้</h2>
+        <p class="text-sm text-slate-400 font-body mt-1">ข้อมูลนัดหมายจริงจากระบบ ไม่มีข้อมูลตัวอย่าง</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        ${[1, 2, 3].map(() => '<div class="card p-5 h-28 animate-pulse bg-slate-50"></div>').join('')}
+      </div>
+    </div>`;
+
+  let result;
+  try {
+    result = await apiFetch(`/api/appointments/inbox?store_id=${encodeURIComponent(storeId)}&days_ahead=31`);
+  } catch {
+    result = null;
+  }
+
+  if (!result?.success) {
+    container.innerHTML = `
+      <div class="card p-8 text-center space-y-3">
+        <div class="font-semibold text-navy">โหลดข้อมูลนัดหมายไม่สำเร็จ</div>
+        <p class="text-sm text-slate-500 font-body">ตรวจสอบการเชื่อมต่อ แล้วลองใหม่อีกครั้ง</p>
+        <button id="retry-mvp-home" class="btn-primary px-4 py-2 text-sm">ลองใหม่</button>
+      </div>`;
+    container.querySelector('#retry-mvp-home')?.addEventListener('click', () => _renderMvpHome(container, storeId));
+    return;
+  }
+
+  const appointments = Array.isArray(result.data) ? result.data : [];
+  const today = new Date().toISOString().slice(0, 10);
+  const statusOf = item => String(item.status || '').toLowerCase();
+  const requested = appointments.filter(item => ['pending', 'requested'].includes(statusOf(item)));
+  const todayAppointments = appointments.filter(item => {
+    const date = item.appt_date || item.starts_at?.slice(0, 10);
+    return date === today;
+  });
+  const confirmedToday = todayAppointments.filter(item => statusOf(item) === 'confirmed');
+
+  container.innerHTML = `
+    <div class="space-y-5">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 class="text-xl font-bold text-navy">สิ่งที่ต้องทำวันนี้</h2>
+          <p class="text-sm text-slate-400 font-body mt-1">อัปเดตล่าสุด ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+        <button id="refresh-mvp-home" class="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary">รีเฟรช</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        ${_mvpMetric('นัดรอยืนยัน', requested.length, 'ควรตอบกลับก่อน', 'text-orange-600', true)}
+        ${_mvpMetric('นัดวันนี้', todayAppointments.length, 'รายการทั้งหมดวันนี้', 'text-blue-600')}
+        ${_mvpMetric('ยืนยันแล้ววันนี้', confirmedToday.length, 'เตรียมรับบริการ', 'text-primary')}
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <h3 class="font-semibold text-navy">นัดที่ต้องดำเนินการ</h3>
+          <button id="open-mvp-appointments" class="text-sm font-semibold text-primary hover:underline">ดูนัดหมายทั้งหมด →</button>
+        </div>
+        ${requested.length === 0
+          ? '<div class="py-8 text-center text-sm text-slate-400 font-body">ไม่มีนัดรอยืนยัน</div>'
+          : requested.slice(0, 5).map(_mvpAppointmentRow).join('')}
+      </div>
+    </div>`;
+
+  container.querySelector('#refresh-mvp-home')?.addEventListener('click', () => _renderMvpHome(container, storeId));
+  container.querySelector('#open-mvp-appointments')?.addEventListener('click', () => {
+    import('./dashboard.js').then(({ navigate }) => navigate('appointments'));
+  });
+}
+
+function _mvpMetric(label, value, detail, color, urgent = false) {
+  return `
+    <div class="card p-5 ${urgent && value > 0 ? 'border border-orange-200 bg-orange-50/40' : ''}">
+      <div class="text-sm text-slate-500 font-body">${label}</div>
+      <div class="text-3xl font-bold ${color} mt-2">${value}</div>
+      <div class="text-xs text-slate-400 font-body mt-1">${detail}</div>
+    </div>`;
+}
+
+function _mvpAppointmentRow(item) {
+  const date = item.appt_date || item.starts_at?.slice(0, 10) || '';
+  const time = item.appt_time_slot || item.starts_at?.slice(11, 16) || 'ไม่ระบุเวลา';
+  const customer = item.customer_name || item.owner_name || 'ลูกค้า';
+  const pet = item.pet_name || item.notes || 'ไม่ระบุชื่อสัตว์';
+  return `
+    <div class="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
+      <div class="w-16 flex-shrink-0 text-center">
+        <div class="text-sm font-bold text-navy">${escapeText(time)}</div>
+        <div class="text-xs text-slate-400">${escapeText(date)}</div>
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="text-sm font-semibold text-navy truncate">${escapeText(pet)}</div>
+        <div class="text-xs text-slate-400 font-body truncate">${escapeText(customer)}</div>
+      </div>
+      <span class="text-xs font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-700">รอยืนยัน</span>
+    </div>`;
+}
+
+function escapeText(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 // ─── Main render ──────────────────────────────────────────────────────────────
