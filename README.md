@@ -39,7 +39,6 @@ FUFU_partner/
 ├── public/                   # Static assets ที่ Express serve ออกไป
 │   ├── login.html
 │   ├── register.html
-│   ├── index.html
 │   ├── dashboard.html
 │   ├── manifest.json
 │   ├── sw.js                 # Service worker (PWA)
@@ -142,7 +141,7 @@ report ที่ `docs/MVP-SCHEMA.md` และ `docs/PHASE-1-SECURITY-REPORT.md
 |------|-------|
 | `login.html` | Login (รองรับทุก role) |
 | `register.html` | สมัคร partner ใหม่ |
-| `app/page.jsx` | Next.js landing page at `/` (`public/index.html` redirects to it) |
+| `app/page.jsx` | Next.js landing page at `/` (`/index.html` redirects to it through Express) |
 | `dashboard.html` | แดชบอร์ดหลักหลัง login (สลับ UI ตาม role) |
 
 ---
