@@ -30,7 +30,7 @@ export default async function HomePage() {
         <ActiveNavigation />
         <div className="header-actions">
           <a className="header-login" href="/login.html">Partner Login <ArrowUpRight size={15} aria-hidden="true" /></a>
-          <a className="header-cta" href="#app-story">สำรวจ FUFU App <ArrowRight size={16} aria-hidden="true" /></a>
+          <a className="header-cta" href="https://fufu-web-app.vercel.app/">ทดลองใช้ FUFU Pet Care <ArrowRight size={16} aria-hidden="true" /></a>
         </div>
       </header>
 
