@@ -94,7 +94,7 @@ async function bootLogin() {
     btnText.textContent = 'เข้าสู่ระบบ';
 
     if (!result.success) {
-      showToast(result.error, 'error');
+      showToast(result.error, 'error', 6000);
       return;
     }
 
@@ -165,21 +165,27 @@ async function bootRegister() {
     btnText.textContent = 'กำลังสร้างบัญชี...';
     existsBanner?.classList.add('hidden');
 
-    const result = await apiFetch('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        name,
-        email,
-        phone:          fd.get('phone') || '',
-        password,
-        store_name,
-        store_category: fd.get('store_category') || 'vet_clinic',
-      }),
-    });
-
-    submitBtn.disabled  = false;
-    spinner.classList.add('hidden');
-    btnText.textContent = 'สร้างบัญชีและร้านค้า →';
+    let result;
+    try {
+      result = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          email,
+          phone:          fd.get('phone') || '',
+          password,
+          store_name,
+          store_category: fd.get('store_category') || 'vet_clinic',
+        }),
+      });
+    } catch (error) {
+      showToast(error?.message || 'เชื่อมต่อระบบสมัครสมาชิกไม่ได้ กรุณาลองใหม่', 'error');
+      return;
+    } finally {
+      submitBtn.disabled  = false;
+      spinner.classList.add('hidden');
+      btnText.textContent = 'สร้างบัญชีและร้านค้า →';
+    }
 
     // Handle "email already exists"
     if (result?.already_exists) {
@@ -189,7 +195,9 @@ async function bootRegister() {
     }
 
     if (!result?.success) {
-      showToast(result?.error || 'เกิดข้อผิดพลาด', 'error');
+      showToast(result?.error || (result === null
+        ? 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่'
+        : 'เกิดข้อผิดพลาด'), 'error');
       return;
     }
 

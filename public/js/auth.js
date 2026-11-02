@@ -31,7 +31,18 @@ export async function doLogin(email, password) {
   });
 
   if (!data) return { success: false, error: 'เกิดข้อผิดพลาดในการเชื่อมต่อ' };
-  if (!data.success) return { success: false, error: data.error };
+  if (!data.success) {
+    const waitSeconds = Number(data.retry_after_seconds);
+    const attemptsRemaining = Number.isFinite(Number(data.attempts_remaining))
+      ? Number(data.attempts_remaining)
+      : null;
+    const waitLabel = waitSeconds > 0
+      ? ` ลองใหม่ใน ${Math.floor(waitSeconds / 60) ? `${Math.floor(waitSeconds / 60)} นาที ` : ''}${waitSeconds % 60} วินาที`
+      : attemptsRemaining !== null
+        ? ` (เหลืออีก ${attemptsRemaining} ครั้งก่อนพักชั่วคราว)`
+        : '';
+    return { success: false, error: `${data.error || 'เข้าสู่ระบบไม่สำเร็จ'}${waitLabel}` };
+  }
 
   // Save session (without store yet — user picks store next)
   storage.set(STORAGE_KEYS.TOKEN,          data.token);

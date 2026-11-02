@@ -19,3 +19,6 @@ docs/*
 !docs/PILOT-FEEDBACK.md
 !docs/DEFECT-TRIAGE.md
 .claude/
+
+# Next.js landing page
+.next/

@@ -103,6 +103,7 @@ const NAV = {
 };
 
 const MVP_NAV = [
+  { id: 'screenings',   icon: 'stethoscope',    label: 'เคส AI ส่งต่อ' },
   { id: 'home',         icon: 'chart-bar',      label: 'ภาพรวม' },
   { id: 'appointments', icon: 'clipboard-list', label: 'นัดหมาย' },
   { id: 'calendar',     icon: 'calendar-alt',   label: 'ปฏิทิน' },
@@ -116,12 +117,13 @@ const MVP_NAV = [
 const MVP_NAV_PAGES = new Set([...MVP_NAV.map(item => item.id), 'pet-profile']);
 const MVP_ROLE_PAGES = {
   owner: new Set(MVP_NAV.map(item => item.id)),
-  reception: new Set(['home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
-  vet: new Set(['home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
+  reception: new Set(['screenings', 'home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
+  vet: new Set(['screenings', 'home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
 };
 
 const PAGE_TITLES = {
   home:         'ภาพรวม',
+  screenings:   'เคส AI ส่งต่อ',
   appointments: 'นัดหมาย',
   calendar:     'ปฏิทิน',
   patients:     'สัตว์ที่เข้ารับบริการ',
@@ -526,6 +528,11 @@ async function _renderPage(pageId, detail = null) {
   if (pageId === 'home') {
     const { renderHome } = await import('./home.js');
     await renderHome(document.getElementById('page-home'));
+    return;
+  }
+  if (pageId === 'screenings') {
+    const { renderScreenings } = await import('./screenings-mvp.js');
+    await renderScreenings(document.getElementById('page-screenings'));
     return;
   }
   if (pageId === 'appointments' || pageId === 'calendar') {

@@ -13,11 +13,11 @@ test('MVP mode is production-safe by default', async () => {
   }
 });
 
-test('MVP navigation contains only the seven clinic workflow destinations', async () => {
+test('MVP navigation contains the production clinic workflow destinations', async () => {
   const dashboard = await read('../public/js/partner/dashboard.js');
   const block = dashboard.match(/const MVP_NAV = \[([\s\S]*?)\n\];/)?.[1] || '';
   const ids = [...block.matchAll(/id: '([^']+)'/g)].map(match => match[1]);
-  assert.deepEqual(ids, ['home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'users']);
+  assert.deepEqual(ids, ['screenings', 'home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'users']);
   assert.match(dashboard, /MVP_NAV_PAGES\.has\(pageId\)/);
   assert.match(dashboard, /MVP_ROLE_PAGES/);
 });
@@ -25,7 +25,8 @@ test('MVP navigation contains only the seven clinic workflow destinations', asyn
 test('MVP overview uses appointment data and excludes finance execution', async () => {
   const home = await read('../public/js/partner/home.js');
   const mvpBlock = home.slice(home.indexOf('async function _renderMvpHome'), home.indexOf('function _mvpMetric'));
-  assert.match(mvpBlock, /\/api\/appointments\/inbox/);
+  assert.match(mvpBlock, /\/api\/appointments\?store_id=.*bucket=requested/);
+  assert.match(mvpBlock, /\/api\/screenings\?store_id=.*bucket=new/);
   assert.doesNotMatch(mvpBlock, /\/api\/finance|commission|รายได้/);
   assert.match(mvpBlock, /โหลดข้อมูลนัดหมายไม่สำเร็จ/);
 });

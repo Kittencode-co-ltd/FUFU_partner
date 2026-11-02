@@ -85,12 +85,14 @@ async function _renderMvpHome(container, storeId) {
       </div>
     </div>`;
 
-  let result;
-  try {
-    result = await apiFetch(`/api/appointments/inbox?store_id=${encodeURIComponent(storeId)}&days_ahead=31`);
-  } catch {
-    result = null;
-  }
+  const [appointmentsResponse, upcomingResponse, screeningResponse] = await Promise.allSettled([
+    apiFetch(`/api/appointments?store_id=${encodeURIComponent(storeId)}&bucket=requested&limit=100`),
+    apiFetch(`/api/appointments?store_id=${encodeURIComponent(storeId)}&bucket=upcoming&limit=100`),
+    apiFetch(`/api/screenings?store_id=${encodeURIComponent(storeId)}&bucket=new`),
+  ]);
+  const result = appointmentsResponse.status === 'fulfilled' ? appointmentsResponse.value : null;
+  const upcomingResult = upcomingResponse.status === 'fulfilled' ? upcomingResponse.value : null;
+  const screeningResult = screeningResponse.status === 'fulfilled' ? screeningResponse.value : null;
 
   if (!result?.success) {
     container.innerHTML = `
@@ -103,7 +105,7 @@ async function _renderMvpHome(container, storeId) {
     return;
   }
 
-  const appointments = Array.isArray(result.data) ? result.data : [];
+  const appointments = [...(Array.isArray(result.data) ? result.data : []), ...(Array.isArray(upcomingResult?.data) ? upcomingResult.data : [])];
   const today = new Date().toISOString().slice(0, 10);
   const statusOf = item => String(item.status || '').toLowerCase();
   const requested = appointments.filter(item => ['pending', 'requested'].includes(statusOf(item)));
@@ -112,6 +114,8 @@ async function _renderMvpHome(container, storeId) {
     return date === today;
   });
   const confirmedToday = todayAppointments.filter(item => statusOf(item) === 'confirmed');
+  const referrals = Array.isArray(screeningResult?.data) ? screeningResult.data : [];
+  const urgentReferrals = referrals.filter(item => item.triage_level === 'emergency');
 
   container.innerHTML = `
     <div class="space-y-5">
@@ -122,10 +126,15 @@ async function _renderMvpHome(container, storeId) {
         </div>
         <button id="refresh-mvp-home" class="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary">รีเฟรช</button>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         ${_mvpMetric('นัดรอยืนยัน', requested.length, 'ควรตอบกลับก่อน', 'text-orange-600', true)}
         ${_mvpMetric('นัดวันนี้', todayAppointments.length, 'รายการทั้งหมดวันนี้', 'text-blue-600')}
         ${_mvpMetric('ยืนยันแล้ววันนี้', confirmedToday.length, 'เตรียมรับบริการ', 'text-primary')}
+        ${_mvpMetric('เคส AI รอพิจารณา', screeningResult?.count ?? referrals.length, urgentReferrals.length ? `${urgentReferrals.length} เคสเร่งด่วน` : 'จากเจ้าของสัตว์', urgentReferrals.length ? 'text-red-700' : 'text-teal-700', urgentReferrals.length > 0)}
+      </div>
+      <div class="card p-5">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-semibold text-navy">เคสคัดกรองที่ควรดู</h3><p class="mt-1 text-xs text-slate-400">พิจารณาความเร่งด่วนและติดต่อเจ้าของสัตว์</p></div><button id="open-screening-inbox" class="min-h-10 rounded-lg px-3 text-sm font-semibold text-primary hover:bg-primary/10">เปิดกล่องรับเคส →</button></div>
+        ${referrals.length === 0 ? '<div class="py-5 text-center text-sm text-slate-400 font-body">ยังไม่มีเคส AI ที่รอพิจารณา</div>' : referrals.slice(0, 4).map(item => `<div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 py-3"><div><p class="font-semibold text-slate-800">${escapeText(item.pet?.name || 'สัตว์เลี้ยง')} · ${escapeText(item.body_part || 'ผลคัดกรอง')}</p><p class="mt-0.5 text-xs text-slate-500">${escapeText(item.owner_contact?.name || 'เจ้าของสัตว์')} · ${escapeText(item.result_json?.summary || 'รอสัตวแพทย์พิจารณา')}</p></div><span class="rounded-full px-2.5 py-1 text-xs font-bold ${item.triage_level === 'emergency' ? 'bg-red-50 text-red-700' : item.triage_level === 'vet_24_48h' ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600'}">${item.triage_level === 'emergency' ? 'เร่งด่วน' : item.triage_level === 'vet_24_48h' ? '24–48 ชม.' : 'คัดกรอง'}</span></div>`).join('')}
       </div>
       <div class="card p-5">
         <div class="flex items-center justify-between gap-3 mb-4">
@@ -141,6 +150,9 @@ async function _renderMvpHome(container, storeId) {
   container.querySelector('#refresh-mvp-home')?.addEventListener('click', () => _renderMvpHome(container, storeId));
   container.querySelector('#open-mvp-appointments')?.addEventListener('click', () => {
     import('./dashboard.js').then(({ navigate }) => navigate('appointments'));
+  });
+  container.querySelector('#open-screening-inbox')?.addEventListener('click', () => {
+    import('./dashboard.js').then(({ navigate }) => navigate('screenings'));
   });
 }
 

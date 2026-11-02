@@ -22,7 +22,7 @@ test('security foundation limits auth/mutations, restricts CORS and sets headers
   assert.match(index, /cors\(corsOptions\(\)\)/);
   assert.match(security, /Content-Security-Policy/);
   assert.match(security, /CORS_ORIGINS/);
-  assert.match(auth, /router\.post\('\/login', authRateLimit/);
+  assert.match(auth, /router\.post\('\/login', loginAttemptThrottle, authRateLimit/);
   assert.match(auth, /router\.post\('\/refresh', authRateLimit/);
 });
 

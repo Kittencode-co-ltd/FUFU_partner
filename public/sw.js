@@ -61,11 +61,15 @@ self.addEventListener('fetch', e => {
   // Let the app (api-client.js) handle all API calls — do not intercept
   if (e.request.url.includes('/api/')) return;
 
-  // For navigation requests: serve dashboard shell
+  // The public landing page must reach Next.js. Keep the portal shell available offline.
   if (e.request.mode === 'navigate') {
-    e.respondWith(
-      caches.match('/dashboard.html').then(r => r || fetch(e.request))
-    );
+    const path = new URL(e.request.url).pathname;
+    if (path === '/dashboard.html' || path === '/login.html') {
+      const shell = path;
+      e.respondWith(caches.match(shell).then(r => r || fetch(e.request)));
+    } else {
+      e.respondWith(fetch(e.request).catch(() => caches.match('/login.html')));
+    }
     return;
   }
 

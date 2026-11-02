@@ -1,11 +1,12 @@
 # FUFU Partner
 
-ระบบหลังบ้านสำหรับคลินิกใน FUFU MVP ใช้รับและจัดการนัดหมายจาก Mobile
+ระบบ Portal สำหรับร้านค้าและคลินิกใน FUFU ปัจจุบันเชื่อมกับ customer Web app
+และเตรียมโครงสร้างให้ย้ายการใช้งานต่อไปยัง Mobile ได้
 โมดูลเดิมสำหรับ POS, inventory, finance, grooming และ hotel ยังอยู่ใน source แต่ถูกซ่อน
 จาก navigation เมื่อ `FEATURE_FLAGS.MVP_MODE` เป็น `true`.
 
 Production-safe default คือ `PARTNER_MVP_MODE=true` และ sidebar จะแสดงเฉพาะ
-ภาพรวม, นัดหมาย, ปฏิทิน, สัตว์ที่เข้ารับบริการ, สรุปการเข้ารับบริการ,
+เคสคัดกรอง AI, ภาพรวม, นัดหมาย, ปฏิทิน, สัตว์ที่เข้ารับบริการ, สรุปการเข้ารับบริการ,
 ข้อมูลคลินิก, ผู้ใช้งาน และออกจากระบบ โมดูลเดิมจะไม่ถูก lazy-load ใน MVP path.
 การปิด MVP mode ทำได้เฉพาะ development runtime โดย inject
 `window.__FUFU_FEATURES__ = { PARTNER_MVP_MODE: false }` ก่อนโหลด `config.js`.
@@ -18,7 +19,7 @@ Production-safe default คือ `PARTNER_MVP_MODE=true` และ sidebar จ�
 |-------|------|
 | Server | Node.js (ES modules) + [Express 4](https://expressjs.com/) |
 | Database / Auth | [Supabase](https://supabase.com/) (`@supabase/supabase-js`) — เข้า Postgres ผ่าน `pg` ในบาง flow |
-| Frontend | Vanilla HTML + JS (Multi-page) + [Tailwind CSS 3](https://tailwindcss.com/) |
+| Frontend | Next.js + React marketing landing page, existing partner HTML/JS portal, [Tailwind CSS 3](https://tailwindcss.com/) |
 | PWA | `public/manifest.json` + `public/sw.js` |
 
 > เวอร์ชันก่อนหน้าเป็น PHP — ปัจจุบันย้ายมาเป็น Node/Express ครบทั้งหมดแล้ว
@@ -29,8 +30,10 @@ Production-safe default คือ `PARTNER_MVP_MODE=true` และ sidebar จ�
 
 ```
 FUFU_partner/
+├── app/                    # Next.js App Router landing page
+├── app/                    # Next.js App Router landing page
 ├── server/
-│   ├── index.js              # Express entrypoint, mount routes, serve public/
+│   ├── index.js              # Express entrypoint, mount routes, serve public/ and Next.js and Next.js
 │   ├── middleware/auth.js    # JWT / Supabase session check
 │   └── routes/               # 16 route modules ตามฟีเจอร์ (ดูตาราง API ด้านล่าง)
 ├── public/                   # Static assets ที่ Express serve ออกไป
@@ -127,9 +130,9 @@ report ที่ `docs/MVP-SCHEMA.md` และ `docs/PHASE-1-SECURITY-REPORT.md
 
 > รายละเอียด method/payload ของแต่ละ endpoint ดูในไฟล์ route ตรงๆ ได้
 
-### SPA fallback
+### Public route handling
 
-ทุก path ที่ไม่ใช่ `/api/*` จะถูก redirect ไปที่ `public/login.html`
+หน้า `/` ใช้ Next.js App Router ผ่าน Express entrypoint เดิม; `/_next/*` ถูกส่งให้ Next.js หลังเช็ก static assets ส่วน `/index.html` redirect ไปหน้าใหม่ `/` เส้นทาง `/login.html`, `/register.html` และ `/dashboard.html` ยังคงเสิร์ฟจาก `public/` โดยตรง Unknown non-API routes fallback ไปที่ `public/login.html`
 
 ---
 
@@ -139,7 +142,7 @@ report ที่ `docs/MVP-SCHEMA.md` และ `docs/PHASE-1-SECURITY-REPORT.md
 |------|-------|
 | `login.html` | Login (รองรับทุก role) |
 | `register.html` | สมัคร partner ใหม่ |
-| `index.html` | Landing page |
+| `app/page.jsx` | Next.js landing page at `/` (`public/index.html` redirects to it) |
 | `dashboard.html` | แดชบอร์ดหลักหลัง login (สลับ UI ตาม role) |
 
 ---
@@ -208,3 +211,8 @@ final data = await Supabase.instance.client
 ---
 
 **FUFU Partner** • Built for FUFU Pet Care Platform 🐾
+
+
+## FUFU marketing landing page
+
+หน้าแรกที่ `/` ใช้ Next.js App Router และทำงานผ่าน Express entrypoint เดิม ส่วน `/login.html`, API, dashboard, Supabase Auth และระบบพาร์ทเนอร์ยังใช้เส้นทางเดิม หน้าเว็บเข้าสู่ระบบผ่านบัญชีพาร์ทเนอร์เดิม ไม่มีการสร้างระบบ auth ซ้ำ ดู feature mapping ที่ `FEATURE-MAPPING.md`

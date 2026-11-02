@@ -1,4 +1,5 @@
 import express from 'express';
+import next from 'next';
 import cors    from 'cors';
 import dotenv  from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -27,6 +28,7 @@ import rewardsRoutes        from './routes/rewards.js';
 import clinicRoutes         from './routes/clinic.js';
 import publicClinicRoutes   from './routes/public-clinics.js';
 import visitsRoutes         from './routes/visits.js';
+import screeningsRoutes     from './routes/screenings.js';
 import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
 import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
 import { validateEnvironment } from './config/env.js';
@@ -37,6 +39,8 @@ validateEnvironment();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app  = express();
 const PORT = process.env.PORT || 3000;
+const nextApp = next({ dev: process.argv.includes('dev'), dir: join(__dirname, '..') });
+const handleNext = nextApp.getRequestHandler();
 
 app.use(requestContext);
 app.use(securityHeaders);
@@ -46,7 +50,12 @@ app.use('/api', (req, res, next) => {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return mutationRateLimit(req, res, next);
   next();
 });
-app.use(express.static(join(__dirname, '../public')));
+app.get('/index.html', (req, res) => res.redirect(301, '/'));
+app.use(express.static(join(__dirname, '../public'), { index: false }));
+app.use((req, res, nextMiddleware) => {
+  if (req.path === '/' || req.path === '/_next' || req.path.startsWith('/_next/')) return handleNext(req, res);
+  nextMiddleware();
+});
 
 // API routes
 app.use('/api/auth',            authRoutes);
@@ -68,6 +77,7 @@ app.use('/api/documents',       documentsRoutes);
 app.use('/api/tasks',           tasksRoutes);
 app.use('/api/appointments',    appointmentsRoutes);
 app.use('/api/visits',          visitsRoutes);
+app.use('/api/screenings',      screeningsRoutes);
 app.use('/api/roles',           rolesRoutes);
 app.use('/api/service-items',   serviceItemsRoutes);
 app.use('/api/expenses',        expensesRoutes);
@@ -87,6 +97,8 @@ app.use(sanitizedErrorHandler);
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, '../public/login.html'));
 });
+
+await nextApp.prepare();
 
 app.listen(PORT, () => {
   console.log(`FUFU Partner running → http://localhost:${PORT}`);

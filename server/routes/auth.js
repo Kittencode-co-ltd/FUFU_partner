@@ -1,6 +1,6 @@
 import { Router }       from 'express';
 import { createClient } from '@supabase/supabase-js';
-import { authRateLimit } from '../middleware/security.js';
+import { authRateLimit, clearFailedLoginAttempts, loginAttemptThrottle, recordFailedLogin } from '../middleware/security.js';
 
 const router   = Router();
 const supabase = createClient(
@@ -15,7 +15,7 @@ const validPassword = value => typeof value === 'string' && value.length >= 8 &&
 
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
-router.post('/login', authRateLimit, async (req, res) => {
+router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
   const { email, password } = req.body;
   if (!validEmail(email) || typeof password !== 'string' || password.length > 128) {
     return res.status(400).json({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' });
@@ -23,8 +23,28 @@ router.post('/login', authRateLimit, async (req, res) => {
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    return res.status(401).json({ success: false, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+    if (error.status === 400 || error.status === 401) {
+      const throttle = recordFailedLogin(req);
+      if (throttle.blocked) {
+        res.set('retry-after', String(throttle.retryAfterSeconds));
+        return res.status(429).json({
+          success: false,
+          error: 'ลองรหัสผ่านผิดหลายครั้ง ระบบพักการเข้าสู่ระบบชั่วคราว',
+          code: 'LOGIN_TEMPORARILY_BLOCKED',
+          retry_after_seconds: throttle.retryAfterSeconds,
+          request_id: req.requestId,
+        });
+      }
+      return res.status(401).json({
+        success: false,
+        error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+        attempts_remaining: throttle.attemptsRemaining,
+      });
+    }
+    const status = error.status === 429 ? 429 : 503;
+    return res.status(status).json({ success: false, error: status === 429 ? 'ระบบเข้าสู่ระบบจำกัดคำขอชั่วคราว กรุณารอสักครู่' : 'ระบบเข้าสู่ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' });
   }
+  clearFailedLoginAttempts(req);
 
   // Optional partner-access RPC gate — skip if function doesn't exist yet.
   // If it exists and returns false → user is purely a mobile app user, still allowed
@@ -118,11 +138,23 @@ router.post('/register', authRateLimit, async (req, res) => {
     return res.status(400).json({ success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
   }
 
-  const { data: newUser, error: createErr } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { name, phone: phone || null, is_partner: true } },
-  });
+  let signup;
+  try {
+    signup = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, phone: phone || null, is_partner: true } },
+    });
+  } catch (error) {
+    const cause = error?.cause?.code;
+    console.error('[Register] Supabase Auth request failed:', cause || error?.name || 'network error');
+    return res.status(503).json({
+      success: false,
+      error: 'เชื่อมต่อ Supabase ไม่ได้ กรุณาตรวจสอบค่า Project_URL และลองใหม่อีกครั้ง',
+      code: 'SUPABASE_UNREACHABLE',
+    });
+  }
+  const { data: newUser, error: createErr } = signup;
 
   if (createErr) {
     // Handle "User already registered" gracefully

@@ -87,7 +87,9 @@ export async function apiFetch(path, options = {}) {
   }
 
   // Token refresh on 401
-  if (res.status === 401) {
+  // Invalid credentials from the login endpoint are a normal form error. Do not
+  // treat them as an expired session and redirect away from the login page.
+  if (res.status === 401 && path !== '/api/auth/login') {
     const refreshed = await _tryRefresh();
     if (!refreshed) { _clearSession(); return null; }
     try { res = await _fetchOnce(path, options); } catch { return null; }

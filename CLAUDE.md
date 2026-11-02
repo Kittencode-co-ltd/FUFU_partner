@@ -5,41 +5,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Start dev server (port 3000)
+# Start the combined Express + Next.js dev server (port 3000)
 npm run dev
 
-# Watch Tailwind during UI development (separate terminal)
+# Build the Next.js landing page for production
+npm run build
+
+# Lint and typecheck
+npm run lint
+npm run typecheck
+
+# Watch Tailwind during legacy portal UI development (separate terminal)
 npm run watch:css
 
 # Build minified CSS for production
 npm run build:css
 ```
 
-There is no test runner. Manual API testing uses `curl` against `http://localhost:3000`. See `agents/test/CLAUDE.md` for the full API test suite and test credentials.
+Automated API tests use Node's test runner. Manual API testing uses `curl` against `http://localhost:3000`. See `agents/test/CLAUDE.md` for test coverage and environment setup; do not copy credentials into docs.
 
 ## Architecture
 
-**Stack:** Node.js 20+ / Express 4 (ES modules) · Supabase (Postgres + Auth) · Vanilla JS (ES modules) · Tailwind CSS 3 · PWA
+**Stack:** Node.js 20+ / Express 4 (ES modules) · Next.js 16 + React 19 for the public landing page · Supabase (Postgres + Auth) · Vanilla JS (ES modules) for the existing partner portal · Tailwind CSS 3 · PWA
 
 ### Request flow
 
 ```
-Browser → public/*.html → public/js/partner/dashboard.js
-                         ↓
-               apiFetch('/api/...') via public/js/utils/api-client.js
-                         ↓
-               server/index.js → server/routes/*.js
-                         ↓
-               req.supabase (user-scoped, RLS enforced)
+Browser → / → Express → Next.js App Router (app/page.jsx)
+Browser → /login.html or /dashboard.html → public/*.html → public/js/partner/*.js
+                                                      ↓
+                                   apiFetch('/api/...') via public/js/utils/api-client.js
+                                                      ↓
+                                    server/index.js → server/routes/*.js
+                                                      ↓
+                                    req.supabase (user-scoped, RLS enforced)
 ```
 
 - `server/middleware/auth.js` — `requireAuth` middleware verifies the Bearer JWT, attaches `req.user` and a **user-scoped** Supabase client (`req.supabase`) so Row Level Security is applied automatically.
 - `apiFetch` in `public/js/utils/api-client.js` — authenticated fetch wrapper; auto-attaches Bearer token from `localStorage` and redirects to `/login.html` on 401.
-- All non-`/api/*` paths fall back to `public/login.html` (SPA fallback in `server/index.js`).
+- `/` is rendered by Next.js; `/_next/*` is routed to Next.js after static assets. `/index.html` redirects to `/`. Existing `/login.html`, `/register.html`, and `/dashboard.html` pages are served from `public/`. Unknown non-API routes fall back to `public/login.html`.
 
 ### Frontend module system
 
-`public/js/app.js` detects the current page and lazy-imports the relevant module. The main shell is `public/dashboard.html` driven by `public/js/partner/dashboard.js`, which handles sidebar nav, page switching, and RBAC gating.
+The public home page is the Next.js App Router page at `app/page.jsx`. `server/index.js` runs Next.js and Express together. The existing partner portal remains the HTML/ES module shell at `public/dashboard.html`, driven by `public/js/partner/dashboard.js`, which handles sidebar navigation, page switching, and RBAC gating. `public/js/app.js` lazy-imports the relevant legacy portal module.
 
 Every partner module (`queue.js`, `opd-card.js`, `finance.js`, etc.) is a single ES module that exports one primary `render*()` function. Modules communicate via `CustomEvent` dispatched on `document`:
 
