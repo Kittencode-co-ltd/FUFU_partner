@@ -1,261 +1,218 @@
-# FUFU Partner Backend 🐾
+# FUFU Partner
 
-### ระบบหลังบ้านสำหรับพาร์ทเนอร์ FUFU Pet Care
+ระบบ Portal สำหรับร้านค้าและคลินิกใน FUFU ปัจจุบันเชื่อมกับ customer Web app
+และเตรียมโครงสร้างให้ย้ายการใช้งานต่อไปยัง Mobile ได้
+โมดูลเดิมสำหรับ POS, inventory, finance, grooming และ hotel ยังอยู่ใน source แต่ถูกซ่อน
+จาก navigation เมื่อ `FEATURE_FLAGS.MVP_MODE` เป็น `true`.
 
----
-
-## 📁 ไฟล์ในระบบ
-
-```
-fufu-partner/
-├── login.html       → หน้า Login (รองรับทุก role)
-├── dashboard.html   → แดชบอร์ดหลัก (รองรับทุก role)
-├── api.php          → PHP Backend + Supabase Connector
-└── README.md        → คู่มือนี้
-```
+Production-safe default คือ `PARTNER_MVP_MODE=true` และ sidebar จะแสดงเฉพาะ
+เคสคัดกรอง AI, ภาพรวม, นัดหมาย, ปฏิทิน, สัตว์ที่เข้ารับบริการ, สรุปการเข้ารับบริการ,
+ข้อมูลคลินิก, ผู้ใช้งาน และออกจากระบบ โมดูลเดิมจะไม่ถูก lazy-load ใน MVP path.
+การปิด MVP mode ทำได้เฉพาะ development runtime โดย inject
+`window.__FUFU_FEATURES__ = { PARTNER_MVP_MODE: false }` ก่อนโหลด `config.js`.
 
 ---
 
-## 🚀 วิธีติดตั้งและใช้งาน
+## 🧰 Tech Stack
 
-### Step 1: แก้ไข Supabase Config
+| Layer | Tech |
+|-------|------|
+| Server | Node.js (ES modules) + [Express 4](https://expressjs.com/) |
+| Database / Auth | [Supabase](https://supabase.com/) (`@supabase/supabase-js`) — เข้า Postgres ผ่าน `pg` ในบาง flow |
+| Frontend | Next.js + React marketing landing page, existing partner HTML/JS portal, [Tailwind CSS 3](https://tailwindcss.com/) |
+| PWA | `public/manifest.json` + `public/sw.js` |
 
-ใน `api.php` แก้ไขบรรทัดเหล่านี้:
-
-```php
-define('SUPABASE_URL', 'https://YOUR_PROJECT.supabase.co');
-define('SUPABASE_ANON_KEY', 'YOUR_ANON_KEY');
-define('SUPABASE_SERVICE_KEY', 'YOUR_SERVICE_KEY');
-```
-
-### Step 2: วางไฟล์บน Server
-
-- Upload ไฟล์ทั้งหมดไปที่ web server (Apache/Nginx + PHP 8.0+)
-- หรือใช้ `php -S localhost:8000` สำหรับ local dev
-
-### Step 3: เปิด login.html
-
-```
-http://localhost:8000/login.html
-```
+> เวอร์ชันก่อนหน้าเป็น PHP — ปัจจุบันย้ายมาเป็น Node/Express ครบทั้งหมดแล้ว
 
 ---
 
-## 🗄️ Supabase SQL Schema
+## 📁 Project Structure
 
-รัน SQL นี้ใน Supabase SQL Editor:
-
-```sql
--- Enable UUID
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Partners table
-CREATE TABLE IF NOT EXISTS partners (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  type TEXT CHECK (type IN ('vet', 'shop', 'hotel', 'grooming')),
-  description TEXT,
-  address TEXT,
-  lat DECIMAL(10,8),
-  lng DECIMAL(11,8),
-  phone TEXT,
-  rating DECIMAL(3,2) DEFAULT 5.0,
-  owner_id UUID REFERENCES auth.users(id),
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Vet profiles
-CREATE TABLE IF NOT EXISTS vet_profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  partner_id UUID REFERENCES partners(id) ON DELETE CASCADE,
-  license_no TEXT,
-  specialization TEXT,
-  consultation_price DECIMAL(10,2)
-);
-
--- Products & Services
-CREATE TABLE IF NOT EXISTS products (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  partner_id UUID REFERENCES partners(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  price DECIMAL(10,2) NOT NULL,
-  stock INTEGER DEFAULT -1, -- -1 = unlimited
-  image_url TEXT,
-  description TEXT,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Appointments / Queue
-CREATE TABLE IF NOT EXISTS appointments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id),
-  pet_id UUID,
-  partner_id UUID REFERENCES partners(id),
-  product_id UUID REFERENCES products(id),
-  type TEXT,
-  date_time TIMESTAMPTZ NOT NULL,
-  status TEXT DEFAULT 'pending'
-    CHECK (status IN ('pending','confirmed','in_progress','completed','cancelled')),
-  note TEXT,
-  price DECIMAL(10,2),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Transactions / Revenue
-CREATE TABLE IF NOT EXISTS transactions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id),
-  partner_id UUID REFERENCES partners(id),
-  appointment_id UUID REFERENCES appointments(id),
-  amount DECIMAL(10,2) NOT NULL,
-  commission DECIMAL(10,2), -- 5% to FUFU
-  net_amount DECIMAL(10,2), -- 95% to partner
-  type TEXT DEFAULT 'appointment',
-  status TEXT DEFAULT 'completed',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Hotel Rooms
-CREATE TABLE IF NOT EXISTS rooms (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  partner_id UUID REFERENCES partners(id),
-  room_number TEXT NOT NULL,
-  type TEXT DEFAULT 'standard',
-  price_per_night DECIMAL(10,2),
-  status TEXT DEFAULT 'available'
-    CHECK (status IN ('available','occupied','maintenance')),
-  current_pet_id UUID,
-  checkin_date DATE,
-  checkout_date DATE
-);
-
--- Row Level Security
-ALTER TABLE partners ENABLE ROW LEVEL SECURITY;
-ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-
--- Partner can see their own data
-CREATE POLICY "Partners see own data" ON partners
-  FOR ALL USING (owner_id = auth.uid());
-
-CREATE POLICY "Partners see own appointments" ON appointments
-  FOR ALL USING (
-    partner_id IN (SELECT id FROM partners WHERE owner_id = auth.uid())
-  );
-
-CREATE POLICY "Partners see own transactions" ON transactions
-  FOR ALL USING (
-    partner_id IN (SELECT id FROM partners WHERE owner_id = auth.uid())
-  );
-
-CREATE POLICY "Partners manage own products" ON products
-  FOR ALL USING (
-    partner_id IN (SELECT id FROM partners WHERE owner_id = auth.uid())
-  );
+```
+FUFU_partner/
+├── app/                    # Next.js App Router landing page
+├── app/                    # Next.js App Router landing page
+├── server/
+│   ├── index.js              # Express entrypoint, mount routes, serve public/ and Next.js and Next.js
+│   ├── middleware/auth.js    # JWT / Supabase session check
+│   └── routes/               # 16 route modules ตามฟีเจอร์ (ดูตาราง API ด้านล่าง)
+├── public/                   # Static assets ที่ Express serve ออกไป
+│   ├── login.html
+│   ├── register.html
+│   ├── index.html
+│   ├── dashboard.html
+│   ├── manifest.json
+│   ├── sw.js                 # Service worker (PWA)
+│   ├── css/                  # Compiled Tailwind output
+│   ├── js/                   # Frontend scripts
+│   └── icons/
+├── src/css/input.css         # Tailwind input file
+├── scripts/migrate.js        # DB migration runner
+├── docs/                     # SETUP, DEPLOYMENT, SUPABASE schema ฯลฯ
+├── api.js                    # Shared API client / helpers
+├── tailwind.config.js
+├── package.json
+└── .env.example
 ```
 
 ---
 
-## 🔌 API Endpoints (PHP)
+## 🚀 Quick Start
 
-| Method | Path                            | คำอธิบาย          |
-| ------ | ------------------------------- | ----------------- |
-| POST   | `/api/auth`                     | Login             |
-| GET    | `/api/partners`                 | ดูร้านค้าทั้งหมด  |
-| GET    | `/api/partners/{id}`            | ดูร้านค้าเดียว    |
-| PUT    | `/api/partners/{id}`            | แก้ไขข้อมูลร้าน   |
-| GET    | `/api/appointments?partner_id=` | ดูคิว / นัดหมาย   |
-| POST   | `/api/appointments`             | เพิ่มนัดหมาย      |
-| PUT    | `/api/appointments/{id}`        | อัปเดตสถานะ       |
-| DELETE | `/api/appointments/{id}`        | ยกเลิกนัด         |
-| GET    | `/api/products?partner_id=`     | ดูสินค้า / บริการ |
-| POST   | `/api/products`                 | เพิ่มสินค้า       |
-| PUT    | `/api/products/{id}`            | แก้ไขสินค้า       |
-| DELETE | `/api/products/{id}`            | ลบสินค้า          |
-| GET    | `/api/transactions?partner_id=` | ดูรายรับ          |
-| POST   | `/api/transactions`             | บันทึกรายรับ      |
-| GET    | `/api/dashboard?partner_id=`    | ดึง stats รวม     |
-| PUT    | `/api/queue/{id}`               | อัปเดต status คิว |
+ต้องมี Node.js 20+ และ Supabase development/staging project ห้ามใช้ production
+credential ระหว่างงาน Phase 0–1
 
----
+```bash
+# 1. ติดตั้ง dependencies
+npm install
 
-## 📱 เชื่อมต่อกับ Flutter (FUFU App)
+# 2. สร้าง .env จาก template
+cp .env.example .env
+# แล้วแก้ .env ให้ชี้ไปที่ Supabase project ของตัวเอง
 
-เพิ่มใน Flutter ของคุณ:
+# 3. รัน dev server
+npm run dev
+# → http://localhost:3000
 
-```dart
-// lib/services/partner_service.dart
-
-class PartnerService {
-  static const String baseUrl = 'https://YOUR_SERVER.com/api';
-  static const String supabaseUrl = 'https://YOUR_PROJECT.supabase.co';
-  static const String anonKey = 'YOUR_ANON_KEY';
-
-  // ดึงคิววันนี้
-  static Future<List<Map>> getTodayQueue(String partnerId) async {
-    final today = DateTime.now().toIso8601String().split('T')[0];
-    final res = await Supabase.instance.client
-      .from('appointments')
-      .select('*, pets(name, avatar_url), profiles(name, phone)')
-      .eq('partner_id', partnerId)
-      .gte('date_time', '${today}T00:00:00')
-      .lte('date_time', '${today}T23:59:59')
-      .order('date_time');
-    return List<Map>.from(res);
-  }
-
-  // อัปเดตสถานะคิว
-  static Future<void> updateQueueStatus(String apptId, String status) async {
-    await Supabase.instance.client
-      .from('appointments')
-      .update({'status': status})
-      .eq('id', apptId);
-  }
-
-  // ดึงรายรับเดือนนี้
-  static Future<Map> getMonthlyRevenue(String partnerId) async {
-    final monthStart = DateTime(DateTime.now().year, DateTime.now().month, 1).toIso8601String();
-    final data = await Supabase.instance.client
-      .from('transactions')
-      .select('amount, commission, net_amount')
-      .eq('partner_id', partnerId)
-      .gte('created_at', monthStart);
-
-    double total = 0, net = 0;
-    for (var tx in data) {
-      total += (tx['amount'] ?? 0).toDouble();
-      net += (tx['net_amount'] ?? 0).toDouble();
-    }
-    return {'total': total, 'net': net, 'count': data.length};
-  }
-}
+# 4. Watch Tailwind ระหว่างพัฒนา UI (เปิดอีกเทอร์มินัลหนึ่ง)
+npm run watch:css
 ```
 
+### Environment variables (`.env`)
+
+| Key | คำอธิบาย |
+|-----|----------|
+| `PORT` | พอร์ตของ Express server (default `3000`) |
+| `Project_URL` | URL ของ Supabase project, เช่น `https://xxx.supabase.co` |
+| `publishable_key` | Supabase anon key |
+
+service-role key และ AI secret ห้ามอยู่ใน browser bundle หรือ `.env.example`.
+
+ใช้ template แยกตาม environment: `.env.development.example`,
+`.env.staging.example` และ `.env.production.example` โดยคัดลอกเป็น `.env`
+เฉพาะในเครื่องหรือ deployment secret store เท่านั้น
+
+### Build CSS สำหรับ production
+
+```bash
+npm run build:css   # minified output → public/css/main.css
+npm test            # security foundation/static regression tests
+```
+
+Schema ที่เป็น source of truth อยู่ใน `supabase/migrations/` และ seed สำหรับ local/staging
+อยู่ที่ `supabase/seed.sql` ห้ามใช้ไฟล์ seed กับ production ดู data model และ security
+report ที่ `docs/MVP-SCHEMA.md` และ `docs/PHASE-1-SECURITY-REPORT.md`.
+
 ---
 
-## 🎨 Role ที่รองรับ
+## 🔌 API
 
-| Role        | หน้าจอ            | ฟีเจอร์                                |
-| ----------- | ----------------- | -------------------------------------- |
-| **admin**   | ภาพรวมทุก partner | รายรับรวม, Top partners, สถิติทั้งระบบ |
-| **vet**     | คลินิกสัตว์แพทย์  | คิวนัด, ประวัติรักษา, บริการ/ยา        |
-| **shop**    | Pet Shop          | คำสั่งซื้อ, สต็อกสินค้า, ยอดขาย        |
-| **service** | Hotel + Grooming  | จองห้อง, check-in/out, คิว grooming    |
+ทุก route mount ที่ prefix `/api/*` จาก `server/index.js`
+
+| Prefix | ไฟล์ | ใช้สำหรับ |
+|--------|------|-----------|
+| `/api/auth` | `routes/auth.js` | Login / register / session |
+| `/api/queue` | `routes/queue.js` | คิวลูกค้าหน้าร้าน |
+| `/api/appointments` | `routes/appointments.js` | นัดหมาย |
+| `/api/medical-records` | `routes/medical.js` | เวชระเบียน (vet) |
+| `/api/ipd` | `routes/ipd.js` | คนไข้ใน (vet) |
+| `/api/pets` | `routes/pets.js` | ข้อมูลสัตว์เลี้ยง |
+| `/api/pos` | `routes/pos.js` | ระบบขายหน้าร้าน |
+| `/api/inventory` | `routes/inventory.js` | สต็อกสินค้า |
+| `/api/stores` | `routes/stores.js` | ข้อมูลร้านค้า / partner |
+| `/api/grooming` | `routes/grooming.js` | บริการเสริมสวย |
+| `/api/hotel` | `routes/hotel.js` | จองห้อง / check-in/out |
+| `/api/finance` | `routes/finance.js` | รายรับ / commission |
+| `/api/staff` | `routes/staff.js` | จัดการพนักงานในร้าน |
+| `/api/tasks` | `routes/tasks.js` | งานภายในร้าน |
+| `/api/documents` | `routes/documents.js` | เอกสาร / ใบรับรอง |
+| `/api/audit` | `routes/audit.js` | Audit log |
+
+> รายละเอียด method/payload ของแต่ละ endpoint ดูในไฟล์ route ตรงๆ ได้
+
+### Public route handling
+
+หน้า `/` ใช้ Next.js App Router ผ่าน Express entrypoint เดิม; `/_next/*` ถูกส่งให้ Next.js หลังเช็ก static assets ส่วน `/index.html` redirect ไปหน้าใหม่ `/` เส้นทาง `/login.html`, `/register.html` และ `/dashboard.html` ยังคงเสิร์ฟจาก `public/` โดยตรง Unknown non-API routes fallback ไปที่ `public/login.html`
+
+---
+
+## 🎨 หน้าเว็บ (public/)
+
+| ไฟล์ | บทบาท |
+|------|-------|
+| `login.html` | Login (รองรับทุก role) |
+| `register.html` | สมัคร partner ใหม่ |
+| `app/page.jsx` | Next.js landing page at `/` (`public/index.html` redirects to it) |
+| `dashboard.html` | แดชบอร์ดหลักหลัง login (สลับ UI ตาม role) |
+
+---
+
+## 🏪 Partner roles ที่รองรับ
+
+- **vet** — คลินิกสัตวแพทย์ (queue, medical records, IPD, appointments)
+- **shop** — ร้านขายอาหาร/ของสัตว์เลี้ยง (POS, inventory)
+- **grooming** — ร้านเสริมสวย (queue, appointments)
+- **hotel** — โรงแรมสัตว์ (room booking, check-in/out)
+
+โปรไฟล์ partner เก็บใน Supabase ตาม schema ใน `docs/SUPABASE-SCHEMA.md` / `docs/SUPABASE-SCHEMA-V2.sql`
+
+---
+
+## 🗄️ Database
+
+Schema และ migration scripts อยู่ใน `docs/`:
+
+- `docs/SUPABASE-SCHEMA.md` — เอกสารอธิบาย schema
+- `docs/SUPABASE-SCHEMA-V2.sql` — full SQL ล่าสุด รันใน Supabase SQL Editor
+- `docs/sql-inventory-migration.sql`, `docs/sql-pets-migration.sql` — migrations เฉพาะส่วน
+- `scripts/migrate.js` — runner สำหรับ migration
+
+หลัก ๆ: `partners`, `pets`, `appointments`, `transactions`, `products`, `rooms`, `medical_records` พร้อม **Row Level Security** เปิดทุกตาราง
 
 ---
 
 ## 🔐 Security
 
-- ใช้ Supabase Row Level Security (RLS) ทุก table
-- JWT token จาก Supabase Auth
-- PHP เป็น middleware ตรวจสอบ token ก่อนทุก request
-- CORS headers ป้องกัน unauthorized origins
+- Supabase Auth (JWT) — ตรวจ token ผ่าน `server/middleware/auth.js`
+- Row Level Security (RLS) เปิดทุก table — partner เข้าถึงเฉพาะข้อมูลตัวเอง
+- CORS ตั้งใน `server/index.js`
+- Secret keys อยู่ใน `.env` (อย่า commit)
 
 ---
 
-**FUFU Partner v2.0** • Built with ❤️ for FUFU Pet Care Platform
-#   F U F U _ p a r t n e r  
- 
+## 📱 เชื่อมต่อกับ FUFU Mobile (Flutter)
+
+Mobile App (`E:\git_repo\FUFU-App-Mobile`) ใช้ `supabase_flutter` คุยกับ Supabase ตรง ไม่ผ่าน Express (ยกเว้น endpoint ที่ต้อง business logic เพิ่ม)
+
+ตัวอย่าง — ดึงคิววันนี้ของร้าน:
+
+```dart
+final today = DateTime.now().toIso8601String().split('T')[0];
+final data = await Supabase.instance.client
+  .from('appointments')
+  .select('*, pets(name, avatar_url), profiles(name, phone)')
+  .eq('partner_id', partnerId)
+  .gte('date_time', '${today}T00:00:00')
+  .lte('date_time', '${today}T23:59:59')
+  .order('date_time');
+```
+
+ถ้าต้องการ logic ฝั่ง server (เช่น คำนวณ commission) เรียก `https://<partner-host>/api/finance/...` แทน
+
+---
+
+## 📚 อ่านเพิ่ม
+
+- `docs/SETUP.md` — setup เครื่อง dev แบบละเอียด
+- `docs/DEPLOYMENT-CHECKLIST.md` — checklist ก่อน deploy production
+- `docs/INTEGRATION-BLUEPRINTS.md` — pattern การเชื่อมต่อกับระบบอื่น
+- `Design.MD` — สรุป design decisions
+
+---
+
+**FUFU Partner** • Built for FUFU Pet Care Platform 🐾
+
+
+## FUFU marketing landing page
+
+หน้าแรกที่ `/` ใช้ Next.js App Router และทำงานผ่าน Express entrypoint เดิม ส่วน `/login.html`, API, dashboard, Supabase Auth และระบบพาร์ทเนอร์ยังใช้เส้นทางเดิม หน้าเว็บเข้าสู่ระบบผ่านบัญชีพาร์ทเนอร์เดิม ไม่มีการสร้างระบบ auth ซ้ำ ดู feature mapping ที่ `FEATURE-MAPPING.md`

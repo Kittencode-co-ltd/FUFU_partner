@@ -1,12 +1,43 @@
 {
-  "name": "fufu-api",
-  "version": "1.0.0",
-  "main": "api.js",
+  "name": "fufu-partner",
+  "version": "0.1.0",
   "type": "module",
+  "scripts": {
+    "dev": "node --import dotenv/config server/index.js dev",
+    "start": "node --import dotenv/config server/index.js",
+    "build": "next build",
+    "lint": "eslint app eslint.config.mjs next.config.mjs && node --check server/index.js && node --check server/routes/appointments.js && node --check server/routes/clinic.js && node --check server/routes/visits.js && node --check public/js/partner/appointments-mvp.js && node --check public/sw.js",
+    "typecheck": "tsc --noEmit",
+    "build:css": "tailwindcss -i src/css/input.css -o public/css/main.css --minify",
+    "watch:css": "tailwindcss -i src/css/input.css -o public/css/main.css --watch",
+    "test": "node --test test/*.test.js",
+    "security:secrets": "node scripts/secret-scan.mjs",
+    "test:security-integration": "node test/security-integration.mjs",
+    "test:p2-integration": "node test/p2-integration.mjs",
+    "test:p3-p4-integration": "node test/p3-p4-integration.mjs",
+    "test:all": "npm test && npm run security:secrets"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.102.1",
-    "cors": "^2.8.6",
-    "dotenv": "^16.6.1",
-    "express": "^4.22.1"
+    "@supabase/supabase-js": "^2.45.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "gsap": "^3.15.0",
+    "lucide-react": "^1.66.0",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "pg": "^8.20.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5"
   }
 }

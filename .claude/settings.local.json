@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --input-type=module)",
+      "Bash(node -e ' *)",
+      "Bash(node *)",
+      "Bash(curl -s http://localhost:3000/api/queue -w \"\\\\n%{http_code}\")",
+      "Bash(curl -s http://localhost:3000/api/medical-records -w \"\\\\n%{http_code}\")",
+      "Bash(curl -s http://localhost:3000/api/finance/summary -w \"\\\\n%{http_code}\")",
+      "Bash(curl -s http://localhost:3000/api/finance/transactions -w \"\\\\n%{http_code}\")",
+      "Bash(npm run *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"multi@fufu.app\",\"password\":\"123456789\"}')",
+      "Bash(grep -i \"audit_log\\\\|action.*check\\\\|CREATE TABLE.*audit\" \"E:/git_repo/FUFU_partner/docs/sql-inventory-migration.sql\" echo \"---pets---\" grep -i \"audit_log\\\\|action.*check\\\\|CREATE TABLE.*audit\" \"E:/git_repo/FUFU_partner/docs/sql-pets-migration.sql\" echo \"---blueprints---\" grep -i \"audit_log\\\\|action.*IN\\\\|CHECK.*action\" \"E:/git_repo/FUFU_partner/docs/INTEGRATION-BLUEPRINTS.md\")",
+      "Bash(curl *)",
+      "Bash(sort -t: -k2 -rn)",
+      "Bash(Start-Sleep -Seconds 4)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(head *)"
+    ]
+  }
+}

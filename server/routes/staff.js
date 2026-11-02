@@ -1,0 +1,288 @@
+import { Router }      from 'express';
+import { requireAuth } from '../middleware/auth.js';
+import { requireRole, resolveStoreId } from '../middleware/rbac.js';
+import { createClient } from '@supabase/supabase-js';
+import { FIXED_ROLES, isValidRole, permissionsFor } from '../config/roles.js';
+
+const router = Router();
+router.use(requireAuth);
+
+// ── Fixed roles ───────────────────────────────────────────────────────────────
+// `staff.role` stores a fixed role key (see config/roles.js). The role is chosen
+// directly from the three-role MVP set — stores cannot create custom roles.
+
+// Resolve an incoming role to a valid fixed DB role key. Accepts the role key
+// directly; invalid values fail closed.
+function resolveRole(role) {
+  return role && isValidRole(role) ? role : null;
+}
+
+function normalize(row) {
+  if (!row) return row;
+  const normalizedRole = row.role === 'veterinarian' ? 'vet'
+    : row.role === 'receptionist' ? 'reception'
+    : row.role;
+  const cfg = FIXED_ROLES[normalizedRole];
+  if (!cfg) return { ...row, roles: [], permissions: null, unsupported_role: true };
+  return {
+    ...row,
+    name:       row.full_name ?? row.name       ?? '',
+    user_email: row.email     ?? row.user_email ?? '',
+    roles:      cfg.modes,          // dashboard mode keys for nav
+    role_label: cfg.label,
+    role_color: row.role_color || cfg.color,
+  };
+}
+
+// ── GET /api/staff?store_id=UUID ──────────────────────────────────────────────
+router.get('/', requireRole('owner'), async (req, res) => {
+  const { store_id } = req.query;
+  if (!store_id) return res.status(400).json({ error: 'store_id required' });
+
+  const { data, error } = await req.supabase
+    .from('staff')
+    .select('*')
+    .eq('store_id', store_id)
+    .order('created_at', { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data: (data || []).map(normalize) });
+});
+
+// ── POST /api/staff — add staff member ────────────────────────────────────────
+router.post('/', requireRole('owner'), async (req, res) => {
+  const { store_id, user_email, name, role, password, phone, position,
+          role_color, start_date, notes } = req.body;
+
+  if (!store_id || !user_email || !name)
+    return res.status(400).json({ error: 'store_id, user_email, name required' });
+
+  if (password != null && password !== '' && String(password).length < 6)
+    return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+
+  const dbRole = resolveRole(role);
+  if (!dbRole) return res.status(400).json({ error: 'role must be reception or vet' });
+
+  const email = user_email.toLowerCase();
+
+  // ── 1. Create/find Auth account ───────────────────────────────────────────
+  const adminSb = createClient(
+    process.env.Project_URL,
+    process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+
+  const { data: existingUsers } = await adminSb.auth.admin.listUsers();
+  const existingUser = existingUsers?.users?.find(u => u.email === email);
+  let authUserId = existingUser?.id;
+  let tempPassword = null;
+
+  if (!existingUser) {
+    tempPassword = (password != null && password !== '')
+      ? String(password)
+      : `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    const { data: newUser, error: createErr } = await adminSb.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: name, is_staff: true },
+    });
+    if (createErr) return res.status(500).json({ error: createErr.message });
+    authUserId = newUser.user.id;
+  }
+
+  // ── 2. Check if staff row already exists ─────────────────────────────────
+  const { data: existing } = await req.supabase
+    .from('staff')
+    .select('id')
+    .eq('store_id', store_id)
+    .eq('email', email)
+    .maybeSingle();
+
+  const staffPayload = {
+    store_id,
+    email,
+    full_name:  name,
+    role:       dbRole,
+    phone:      phone      || null,
+    position:   position   || FIXED_ROLES[dbRole].label,
+    role_color: role_color || FIXED_ROLES[dbRole].color,
+    start_date: start_date || null,
+    notes:      notes      || null,
+    user_id:    authUserId || null,
+    is_active:  true,
+    updated_at: new Date().toISOString(),
+  };
+
+  let data, error;
+
+  if (existing?.id) {
+    // Update existing (re-activate if deactivated)
+    ({ data, error } = await req.supabase
+      .from('staff')
+      .update(staffPayload)
+      .eq('id', existing.id)
+      .select()
+      .single());
+  } else {
+    // Insert new
+    ({ data, error } = await req.supabase
+      .from('staff')
+      .insert([staffPayload])
+      .select()
+      .single());
+  }
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({
+    success:        true,
+    data:           normalize(data),
+    temp_password:  tempPassword,
+    is_new_account: !!tempPassword,
+  });
+});
+
+// ── PATCH /api/staff/:id ──────────────────────────────────────────────────────
+router.patch('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
+  const allowed = ['full_name','phone','is_active','position',
+                   'role_color','start_date','notes','pin','masking_level'];
+  const updates = { updated_at: new Date().toISOString() };
+
+  // Map frontend field names → DB column names
+  if (req.body.name !== undefined) updates.full_name = req.body.name;
+
+  // Role change — accept fixed role key directly
+  if (req.body.role !== undefined) {
+    const dbRole = resolveRole(req.body.role);
+    if (!dbRole) return res.status(400).json({ error: 'role must be reception or vet' });
+    updates.role       = dbRole;
+    updates.position   = req.body.position   || FIXED_ROLES[dbRole].label;
+    updates.role_color = req.body.role_color || FIXED_ROLES[dbRole].color;
+  }
+
+  for (const col of allowed) {
+    if (req.body[col] !== undefined) updates[col] = req.body[col];
+  }
+
+  const { data, error } = await req.supabase
+    .from('staff')
+    .update(updates)
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ success: true, data: normalize(data) });
+});
+
+// ── PATCH /api/staff/:id/reset-password ──────────────────────────────────────
+router.patch('/:id/reset-password', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
+  try {
+    const { password } = req.body || {};
+    if (password != null && password !== '' && String(password).length < 6)
+      return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+
+    const { data: member, error: findErr } = await req.supabase
+      .from('staff')
+      .select('id, email, full_name, user_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (findErr || !member) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+
+    // Admin privileges are limited to the trusted Auth password operation.
+    const admin = createClient(
+      process.env.Project_URL,
+      process.env.service_role_key || process.env.SERVICE_ROLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
+    const newPassword = (password != null && password !== '')
+      ? String(password)
+      : `FUFU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    let authUserId = member.user_id;
+
+    if (!authUserId) {
+      // Look up auth user by email (paginated search)
+      let found = null;
+      let page  = 1;
+      while (!found) {
+        const { data: pageData } = await admin.auth.admin.listUsers({ page, perPage: 100 });
+        const users = pageData?.users || [];
+        found = users.find(u => u.email === member.email);
+        if (found || users.length < 100) break;
+        page++;
+      }
+
+      if (found) {
+        authUserId = found.id;
+      } else {
+        // Create auth account on-the-fly
+        const { data: nu, error: ce } = await admin.auth.admin.createUser({
+          email: member.email,
+          password: newPassword,
+          email_confirm: true,
+          user_metadata: { full_name: member.full_name, is_staff: true },
+        });
+        if (ce) return res.status(500).json({ error: ce.message });
+        authUserId = nu.user.id;
+      }
+
+      // Link user_id back to staff record
+      await req.supabase.from('staff').update({ user_id: authUserId }).eq('id', member.id);
+    }
+
+    // Update password
+    const { error: updateErr } = await admin.auth.admin.updateUserById(authUserId, { password: newPassword });
+    if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+    res.json({ success: true, temp_password: newPassword, email: member.email, name: member.full_name });
+  } catch (err) {
+    console.error('[reset-password]', err);
+    res.status(500).json({ error: err.message || 'เกิดข้อผิดพลาดภายใน' });
+  }
+});
+
+// ── DELETE /api/staff/:id — soft delete ──────────────────────────────────────
+router.delete('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, res) => {
+  const { data, error } = await req.supabase
+    .from('staff')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data: normalize(data) });
+});
+
+// ── GET /api/staff/me?store_id=UUID ──────────────────────────────────────────
+router.get('/me', async (req, res) => {
+  const { store_id } = req.query;
+  if (!store_id) return res.status(400).json({ error: 'store_id required' });
+
+  const { data, error } = await req.supabase
+    .from('staff')
+    .select('*')
+    .eq('store_id', store_id)
+    .eq('email', req.user.email)
+    .eq('is_active', true)
+    .order('updated_at', { ascending: false })
+    .limit(1);
+
+  if (error) return res.json({ success: true, data: null });
+
+  const row = data?.[0];
+  if (!row) return res.json({ success: true, data: null });
+
+  const normalized = normalize(row);
+  // Permissions come from the fixed role definition keyed by staff.role
+  normalized.permissions = permissionsFor(row.role);
+  res.json({ success: true, data: normalized });
+});
+
+export default router;

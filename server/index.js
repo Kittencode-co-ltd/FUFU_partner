@@ -1,0 +1,105 @@
+import express from 'express';
+import next from 'next';
+import cors    from 'cors';
+import dotenv  from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join }  from 'path';
+import authRoutes    from './routes/auth.js';
+import queueRoutes   from './routes/queue.js';
+import medicalRoutes from './routes/medical.js';
+import financeRoutes from './routes/finance.js';
+import storesRoutes    from './routes/stores.js';
+import inventoryRoutes from './routes/inventory.js';
+import petsRoutes      from './routes/pets.js';
+import posRoutes       from './routes/pos.js';
+import hotelRoutes     from './routes/hotel.js';
+import groomingRoutes  from './routes/grooming.js';
+import staffRoutes     from './routes/staff.js';
+import auditRoutes     from './routes/audit.js';
+import ipdRoutes       from './routes/ipd.js';
+import documentsRoutes from './routes/documents.js';
+import tasksRoutes        from './routes/tasks.js';
+import appointmentsRoutes from './routes/appointments.js';
+import rolesRoutes         from './routes/roles.js';
+import serviceItemsRoutes  from './routes/service-items.js';
+import expensesRoutes       from './routes/expenses.js';
+import soapTemplatesRoutes  from './routes/soap-templates.js';
+import rewardsRoutes        from './routes/rewards.js';
+import clinicRoutes         from './routes/clinic.js';
+import publicClinicRoutes   from './routes/public-clinics.js';
+import visitsRoutes         from './routes/visits.js';
+import screeningsRoutes     from './routes/screenings.js';
+import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
+import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
+import { validateEnvironment } from './config/env.js';
+
+dotenv.config();
+validateEnvironment();
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const app  = express();
+const PORT = process.env.PORT || 3000;
+const nextApp = next({ dev: process.argv.includes('dev'), dir: join(__dirname, '..') });
+const handleNext = nextApp.getRequestHandler();
+
+app.use(requestContext);
+app.use(securityHeaders);
+app.use(cors(corsOptions()));
+app.use(express.json({ limit: '100kb' }));
+app.use('/api', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return mutationRateLimit(req, res, next);
+  next();
+});
+app.get('/index.html', (req, res) => res.redirect(301, '/'));
+app.use(express.static(join(__dirname, '../public'), { index: false }));
+app.use((req, res, nextMiddleware) => {
+  if (req.path === '/' || req.path === '/_next' || req.path.startsWith('/_next/')) return handleNext(req, res);
+  nextMiddleware();
+});
+
+// API routes
+app.use('/api/auth',            authRoutes);
+app.use('/api/public/clinics',  publicClinicRoutes);
+app.use('/api/clinic',          clinicRoutes);
+app.use('/api/queue',           queueRoutes);
+app.use('/api/medical-records', medicalRoutes);
+app.use('/api/finance',         financeRoutes);
+app.use('/api/stores',          storesRoutes);
+app.use('/api/inventory',       inventoryRoutes);
+app.use('/api/pets',            petsRoutes);
+app.use('/api/pos',             posRoutes);
+app.use('/api/hotel',           hotelRoutes);
+app.use('/api/grooming',        groomingRoutes);
+app.use('/api/staff',           staffRoutes);
+app.use('/api/audit',           auditRoutes);
+app.use('/api/ipd',             ipdRoutes);
+app.use('/api/documents',       documentsRoutes);
+app.use('/api/tasks',           tasksRoutes);
+app.use('/api/appointments',    appointmentsRoutes);
+app.use('/api/visits',          visitsRoutes);
+app.use('/api/screenings',      screeningsRoutes);
+app.use('/api/roles',           rolesRoutes);
+app.use('/api/service-items',   serviceItemsRoutes);
+app.use('/api/expenses',        expensesRoutes);
+app.use('/api/soap-templates',  soapTemplatesRoutes);
+app.use('/api/rewards',         rewardsRoutes);
+
+app.use('/api', (req, res) => res.status(404).json({
+  success: false,
+  error: 'API endpoint not found',
+  code: 'NOT_FOUND',
+  request_id: req.requestId,
+}));
+
+app.use(sanitizedErrorHandler);
+
+// SPA fallback — serve login for unknown routes
+app.get('*', (req, res) => {
+  res.sendFile(join(__dirname, '../public/login.html'));
+});
+
+await nextApp.prepare();
+
+app.listen(PORT, () => {
+  console.log(`FUFU Partner running → http://localhost:${PORT}`);
+});

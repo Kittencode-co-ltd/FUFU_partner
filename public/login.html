@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FUFU Partner — เข้าสู่ระบบ</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+</head>
+
+<body class="h-full bg-slate-50 font-sans">
+
+  <div class="min-h-screen flex">
+
+    <!-- ── Left panel (branding) ── -->
+    <div class="hidden lg:flex lg:w-[52%] xl:w-[55%] bg-navy flex-col justify-between p-12 relative overflow-hidden">
+
+      <!-- Background decoration -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/10"></div>
+        <div class="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent/8"></div>
+        <div
+          class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border border-white/5">
+        </div>
+      </div>
+
+      <!-- Logo -->
+      <div class="relative">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-primary rounded-xl flex items-center justify-center text-xl shadow-glow">🐾</div>
+          <div>
+            <div class="text-white font-bold text-xl tracking-wider">FUFU</div>
+            <div class="text-slate-400 text-xs tracking-[0.2em] uppercase font-body">Partner Portal</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center content -->
+      <div class="relative space-y-8">
+        <div>
+          <h1 class="text-white text-4xl font-bold leading-snug">
+            จัดการธุรกิจ<br>
+            <span class="text-gradient">สัตว์เลี้ยง</span><br>
+            ในที่เดียว
+          </h1>
+          <p class="text-slate-400 mt-4 text-base font-body leading-relaxed max-w-sm">
+            ระบบจัดการคิว คลินิก สต็อก และการเงิน<br>สำหรับธุรกิจสัตว์เลี้ยงระดับพรีเมียม
+          </p>
+        </div>
+
+
+      </div>
+
+      <!-- Bottom -->
+      <div class="relative text-slate-600 text-xs font-body">
+        © 2026 Kitten Code Co., Ltd. · FUFU Partner Portal v0.2
+      </div>
+    </div>
+
+    <!-- ── Right panel (form) ── -->
+    <div class="flex-1 flex flex-col justify-center items-center px-6 py-12 lg:px-16">
+
+      <!-- Mobile logo -->
+      <div class="lg:hidden flex items-center gap-3 mb-10">
+        <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-lg shadow-glow">🐾</div>
+        <div class="font-bold text-navy text-lg">FUFU Partner</div>
+      </div>
+
+      <!-- ─── Login section ─── -->
+      <section class="w-full max-w-[400px]" id="login-section">
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold text-navy">เข้าสู่ระบบ</h2>
+          <p class="text-slate-500 text-sm font-body mt-1">กรอกข้อมูลบัญชี Partner ของคุณ</p>
+        </div>
+
+        <form id="login-form" novalidate class="space-y-5">
+          <div>
+            <label class="input-label" for="email">อีเมล (Email)</label>
+            <input id="email" name="email" type="email" class="input-field" placeholder="partner@fufu.app"
+              autocomplete="email" required>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="input-label mb-0" for="password">รหัสผ่าน</label>
+              <a href="#" class="text-xs text-primary hover:underline font-body">ลืมรหัสผ่าน?</a>
+            </div>
+            <div class="relative">
+              <input id="password" name="password" type="password" class="input-field pr-12" placeholder="••••••••"
+                autocomplete="current-password" required>
+              <button type="button" id="toggle-pw"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-navy transition-colors p-1"
+                aria-label="แสดง/ซ่อนรหัสผ่าน">
+                <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7
+                     -1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input id="remember-me" type="checkbox" class="w-4 h-4 accent-primary">
+            <span class="text-sm text-slate-600 font-body">จดจำการเข้าสู่ระบบ</span>
+          </label>
+
+          <button id="submit-btn" type="submit" class="btn-primary w-full mt-2 flex items-center justify-center gap-2">
+            <svg id="btn-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            <span id="btn-text">เข้าสู่ระบบ</span>
+          </button>
+        </form>
+
+        <div class="mt-8 pt-6 border-t border-slate-100 text-center">
+          <p class="text-sm text-slate-500 font-body">
+            สนใจเป็น Partner?
+            <a href="/register.html" class="text-primary font-semibold hover:underline ml-1">สมัครที่นี่</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── Store selection section (hidden until after login) ─── -->
+      <section class="w-full max-w-[400px] hidden" id="store-panel">
+        <button id="back-btn"
+          class="flex items-center gap-2 text-sm text-slate-500 hover:text-navy mb-6 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          ย้อนกลับ
+        </button>
+
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold text-navy">เลือกร้านค้า</h2>
+          <p class="text-slate-500 text-sm font-body mt-1">บัญชีนี้มีหลายร้านค้า กรุณาเลือกที่ต้องการจัดการ</p>
+        </div>
+
+        <div id="store-list" class="space-y-3"></div>
+      </section>
+
+    </div><!-- /right panel -->
+  </div>
+
+  <!-- Password toggle script (inline, no module needed) -->
+  <script>
+    document.getElementById('toggle-pw')?.addEventListener('click', () => {
+      const pw = document.getElementById('password');
+      const ico = document.getElementById('eye-icon');
+      if (pw.type === 'password') {
+        pw.type = 'text';
+        ico.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7
+           a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878
+           l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59
+           m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0
+           01-4.132 5.411m0 0L21 21"/>`;
+      } else {
+        pw.type = 'password';
+        ico.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7
+           -1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>`;
+      }
+    });
+  </script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+
+</html>

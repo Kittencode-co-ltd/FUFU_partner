@@ -1,0 +1,41 @@
+name: Partner and Supabase CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, "mvp/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build:css
+      - run: npm run security:secrets
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db
+      - name: Partner API security integration
+        run: |
+          supabase status -o env > supabase.env
+          source supabase.env
+          Project_URL="$API_URL" publishable_key="$ANON_KEY" service_role_key="$SERVICE_ROLE_KEY" PORT=3000 npm run dev > partner-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          for attempt in {1..30}; do
+            curl --silent --fail http://127.0.0.1:3000/login.html >/dev/null && break
+            sleep 1
+          done
+          npm run test:security-integration
+          npm run test:p2-integration
+          PARTNER_BASE_URL=http://127.0.0.1:3000 npm run test:p3-p4-integration

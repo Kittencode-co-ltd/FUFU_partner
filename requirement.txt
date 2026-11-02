@@ -1,0 +1,231 @@
+# All-in-one Platform - FUFU partner
+
+## Platform Strategy : Progressive Web App (PWA)
+
+## System Architecture & Features
+
+### Core Modules
+
+- Auth System : ระบบ Login เฉพาะที่ได้รับอนุญาต (Invite-only) และระบบสมัคร Partner (Onboarding Form)
+- HR & Staff : จัดการบทบาท (Admin, หมอ, พนักงานขาย) และตารางเข้างาน
+- Finance & Accounting : ระบบบัญชีกลาง, การออกเอกสาร (Receipt, Tax Invoice, PO)
+  - แยกรายรับจากช่องทางต่างๆ (เงินสด, โอน, บัตรเครดิต, ตัดจากแอป) เพื่อให้ Dashboard คำนวณ GP และค่าธรรมเนียมได้แม่นยำ
+- Inventory (Smart Stock) : ระบบคลังสินค้าที่รองรับ FEFO (First Expired, First Out) แจ้งเตือนวันหมดอายุและจุดสั่งซื้อ (Re-order point)
+  - ระบบจะใช้การตัดสต็อกแบบ Batch Tracking (เลขล็อต) เพื่อคำนวณวันหมดอายุ และแจ้งเตือนล่วงหน้า 30/60/90 วัน
+- Partner Dashboard (HQ View) : หน้าจอสรุปภาพรวม "Multi-entity" ที่คุณต้องการ เพื่อดู Profit/Loss และสถิติคิวจากทุกสาขาในหน้าเดียว
+  - Multi-Branch : เจ้าของสามารถกดสลับดู Dashboard ของ "ร้านอาบน้ำสาขา 1" เทียบกับ "คลินิกสาขา 2" ได้ในคลิกเดียว
+- ระบบจัดการเอกสาร (Document Management)
+  - Consent Form
+  - Lab Report
+  - Referral Letter
+- การจัดการคิว (Queue Management)
+  - Queue Dashboard: จอใหญ่สำหรับติดหน้าคลินิก (Optional) แสดงคิวที่กำลังตรวจและคิวถัดไป
+  - Priority Tag: คุณหมอหรือพยาบาลสามารถกด "Emergency" เพื่อเลื่อนคิวฉุกเฉินขึ้นบนสุดได้
+  - Status Sync: เมื่อลูกค้าจองผ่านแอป จะมีไอคอนตัว F (FUFU App) นำหน้า เพื่อให้พนักงานรู้ว่านี่คือลูกค้าจองล่วงหน้า
+
+### Vertical Modules
+
+- Clinic : เน้น OPD Card (ประวัติการรักษา), IPD (การฝากรักษา/กรง), ระบบคิวส่งต่อจาก App ไปยังหน้าห้องตรวจ
+- Pet Shop : เน้น POS ที่รวดเร็ว และการเชื่อมโยงสต็อกกับระบบออนไลน์
+- Grooming : เน้นการจองเวลา (Timeslot) และสถานะการตัดขน
+- Hotel : เน้น Visual Room Map (ผังห้องพัก) เพื่อดูห้องว่าง/ห้องเต็ม
+
+### Tech Stack
+
+- HTML5, CSS3, JavaScript
+- tailwindcss
+
+### Add on Features
+
+- Offline Data Conflict
+  - Timestamping: ทุก Action ในเครื่อง (เช่น การตัดสต็อกยา) จะมีเลขเวลาระดับมิลลิวินาทีกำกับ
+  - Atomic Updates: ระบบจะส่งข้อมูลกลับขึ้น Cloud ตามลำดับก่อนหลัง (FIFO)
+  - Alert: หากมีการขายสินค้าชิ้นสุดท้ายพร้อมกัน 2 เครื่องในขณะออฟไลน์ เมื่อเน็ตมาเครื่องที่ Sync ทีหลังจะเด้งเตือนว่า "สต็อกไม่เพียงพอ" เพื่อให้พนักงานตรวจสอบทันที
+- Document Automation
+  - Dynamic Template: Partner สามารถเลือกสี Theme ของเอกสาร (ทอง, ดำ, กรมท่า) และอัปโหลดโลโก้ได้
+  - Standardization: ระบบจะ Generate เลขที่เอกสารแยกตามสาขา (เช่น CN-2024-001 สำหรับ Clinic, PS-2024-001 สำหรับ Pet Shop)
+  - E-Signature: รองรับการเซ็นชื่อผ่านไอแพดในใบยินยอมรับการรักษา (Consent Form) แล้วแนบไฟล์เข้า OPD Card ทันที
+- App Integration
+  - Booking Buffer: เมื่อลูกค้าจองคิวอาบน้ำหรือตรวจผ่านแอป ข้อมูลจะมาค้างที่ "หน้าต่างรอการยืนยัน" ของ Partner
+  - Auto-Match: ระบบจะเช็กประวัติสัตว์เลี้ยงจากเบอร์โทรหรือ Microchip ถ้ามีข้อมูลเดิมในระบบอยู่แล้ว จะดึงประวัติการรักษาเก่าขึ้นมาให้คุณหมอทันที
+  - Real-time Status: เมื่อพนักงานกด "เริ่มอาบน้ำ" หรือ "ตรวจเสร็จแล้ว" ในระบบหลังบ้าน สถานะในแอปของลูกค้าจะเปลี่ยนตามทันที
+- Advanced Business Intelligence
+  - AI Inventory Integration: เราจะนำงานวิจัยและโมเดล AI ของคุณมาใช้ในส่วน "การจัดการคลังสินค้า" เพื่อพยากรณ์ว่ายาหรือสินค้าตัวไหนจะหมดในช่วงเวลาใด (Demand Forecasting) และแนะนำจุดสั่งซื้อ (Re-order point) ที่เหมาะสมที่สุดเพื่อลดทุนจม
+  - CLV & Peak Time: ระบบจะดึงข้อมูลจากระบบจองคิวและ POS มาวิเคราะห์หาช่วงเวลาที่ "ทำเงิน" สูงสุด เพื่อให้เจ้าของธุรกิจปรับกำลังคนได้ถูกจุด
+- ระบบ CRM & Marketing (การสร้างความสัมพันธ์)
+  - Tiered Membership: ออกแบบระบบสมาชิกที่รองรับหลายระดับ (เช่น Silver, Gold, Platinum) โดยสิทธิประโยชน์จะเชื่อมโยงกับ CLV ที่วิเคราะห์ได้
+  - Omni-channel Reminders: นอกจากแจ้งเตือนผ่านแอป FUFU แล้ว อาจรองรับการเชื่อมต่อกับ LINE OA (ซึ่งเป็นที่นิยมมากในไทย) เพื่อส่งแจ้งเตือนนัดหมายอัตโนมัติ
+- ระบบงานภายในและประสิทธิภาพ (Operations & KPI)
+  - Task Board: ออกแบบหน้าตาให้คล้าย Kanban ที่อ่านง่าย (ตัวอักษรใหญ่) แบ่งสถานะงานเป็น To-do, In Progress, Done
+  - KPI Tracking: ประเมินจากข้อมูลจริง เช่น "ระยะเวลาเฉลี่ยในการตรวจต่อเคส" หรือ "ยอดขายสินค้า Pet Shop" เพื่อนำไปคำนวณ Staff Performance แบบไม่ลำเอียง
+- ความปลอดภัย (Security & Transparency)
+  - Granular Permissions: ใช้ระบบ RBAC (Role-Based Access Control) ที่ละเอียด เช่น "พนักงานพาร์ทไทม์" ดูสต็อกได้แต่แก้ไขไม่ได้ หรือ "สัตวแพทย์" ดูประวัติการรักษาได้แต่ดูยอดเงินรวมของร้านไม่ได้
+  - Audit Trail: ทุกการ "ลบ" หรือ "แก้ไข" ข้อมูลสำคัญ จะต้องระบุเหตุผลและบันทึกชื่อผู้ทำรายการพร้อมเวลาที่ชัดเจน (Immutable Logs)
+- Data Masking
+  - Masking Levels
+    - ระดับพนักงานปฏิบัติการ (เช่น พนักงานอาบน้ำ, พนักงานสต็อก)
+      - ชื่อเจ้าของ: แสดงเฉพาะชื่อจริง หรือชื่อเล่น (Mask นามสกุล) -> นายศุภวิชญ์ ********
+      - เบอร์โทรศัพท์: ปิดเลข 4 ตัวท้าย -> 081-234-XXXX
+      - ที่อยู่: แสดงเฉพาะจังหวัดหรือเขต (Mask บ้านเลขที่/ถนน)
+    - ระดับผู้เชี่ยวชาญ (เช่น สัตวแพทย์, ผู้จัดการสาขา)
+      - สามารถกดปุ่ม "ดวงตา" (View Content) เพื่อปลดล็อคดูข้อมูลเต็มได้เป็นครั้งคราว โดยระบบจะบันทึก Audit Trail ทันทีว่า "ใคร เป็นคนกดดูข้อมูลนี้ เมื่อไหร่"
+    - ระดับเจ้าของธุรกิจ (Partner Admin)
+      - มองเห็นข้อมูลทั้งหมดเพื่อการติดต่อประสานงานหรือทำรายงานวิเคราะห์
+  - จุดสำคัญที่ต้องนำ Data Masking ไปใช้
+    - หน้าจอลำดับคิว (Queue) : ข้อมูลที่ต้อง Mask ชื่อ-นามสกุล เจ้าของสัตว์
+    - หน้าจอ POS / ใบเสร็จ : ข้อมูลที่ต้อง Mask เลขบัตรเครดิต, เบอร์โทรศัพท์
+    - ระบบขนส่ง (Pet Shop Online) : ข้อมูลที่ต้อง Mask เบอร์โทรศัพท์ (ในขั้นตอนจัดเตรียม)
+    - ระบบหลังบ้าน (CRM) : ข้อมูลที่ต้อง Mask ประวัติการใช้จ่ายรายบุคคล
+  - Implementation Strategy
+    - Dynamic Data Masking (ที่ระดับ API): ข้อมูลใน Database ยังเป็นข้อมูลจริง แต่เมื่อมีการเรียกผ่าน API ระบบจะทำการ Mask ข้อมูลก่อนส่งไปแสดงผลที่หน้าจอตามสิทธิ์ของผู้ใช้นั้นๆ
+
+## UI/UX
+
+- Typography : ใช้ Font ที่ไม่มีหัว (Sans-serif) ขนาดใหญ่ และมี Contrast ของตัวอักษรกับพื้นหลังที่ชัดเจน
+- Accessibility : เพิ่มปุ่ม Quick Scaling (A- / A+) บน Navigation bar เพื่อให้พนักงานหรือเจ้าของปรับขนาดตัวอักษรได้ทันทีโดยไม่ต้องเข้าหน้า Setting
+- Theme : เน้นใช้สีขาว (Clean White) ตัดกับสีทองหรือน้ำเงินเข้ม (Deep Navy) เพื่อความรู้สึกพรีเมียม และใช้ Space (Padding) ให้เยอะเพื่อให้ดูไม่รกตา
+
+## Workflow Overview
+
+1. Entry Point: Partner ยื่นฟอร์มขอเข้าร่วม -> Admin กลางตรวจสอบ -> อนุมัติและสร้างบัญชี Admin ให้ Partner
+2. Configuration: Partner เข้าไปตั้งค่า "สาขา" และ "ประเภทธุรกิจ" (เช่น สาขา A มีทั้ง คลินิก และ Pet Shop)
+3. Operation: พนักงานใช้งานผ่าน iPad/Tablet ในหน้างาน (มี Offline Storage)
+4. Syncing: ข้อมูลถูกเก็บใน IndexedDB (ในเครื่อง) และยิงขึ้น Cloud ตลอดเวลาที่เน็ตปกติ
+
+## OPD Workflow
+
+### Step 1: Check-in & Triage
+
+- Quick Scan: ใช้เบอร์โทร/Microchip หรือแสกน QR จากแอป FUFU เพื่อดึงประวัติ
+- Onboarding: สำหรับสัตว์ใหม่ รองรับการ "แสกนใบสมัครกระดาษ" เข้าเป็นไฟล์แนบ หรือให้เจ้าของกรอกผ่าน Tablet ของร้าน ข้อมูลจะวิ่งเข้าสู่ระบบทันทีโดยเคาน์เตอร์ไม่ต้องพิมพ์ซ้ำ
+
+### Step 2: Examination (The Doctor's Hub)
+
+- Smart OPD Card: รวมทุกอย่างในหน้าเดียว (SOAP, ผล Lab)
+
+
+### Step 3: Pharmacy & Billing
+
+- Stock Lock: เมื่อหมอกดสั่งยา ระบบจะ "กัน" ยาล็อตที่ใกล้หมดอายุที่สุดออกมาให้ (FEFO) และตัดสต็อกทันที
+- Notification: ส่งใบนัดหมายเข้าแอปลูกค้า และแจ้งเตือนเมื่อถึงกำหนดนัดในอนาคต
+
+## IPD Workflow
+
+### Step 1: Admission & Visual Ward
+
+- Visual Map: หน้าจอแสดงผังกรง Partner สามารถลาก-วางสัตว์เข้ากรงที่ว่างได้เหมือนการจองห้องพัก
+- Belongings Log: บันทึกของติดตัวพร้อมถ่ายรูปเก็บไว้ในระบบ (เช่น ถ่ายรูปถุงอาหารหรือกระเป๋า)
+
+### Step 2: Digital Treatment Sheet
+
+- QR Cage Scanning: เจ้าหน้าที่สแกน QR หน้ากรงเพื่อยืนยันตัวตนสัตว์ก่อนให้ยา ป้องกัน "ให้ยาผิดตัว"
+- Status Update: บันทึกการกิน/อึ/ฉี่ ผ่าน Tablet ซึ่งข้อมูลส่วนนี้จะ Sync ไปที่ Dashboard ของ Partner (เจ้าของธุรกิจ) เพื่อดูประสิทธิภาพการทำงานของสตาฟ
+
+### Step 3: Daily Billing (Real-time Costing)
+
+- ระบบคำนวณค่ากรงอัตโนมัติเมื่อข้ามคืน และรวมค่าอุปกรณ์สิ้นเปลืองรายวัน (เช่น สำลี, แอลกอฮอล์, ถุงมือ) ช่วยให้แจ้งยอดคร่าวๆ ให้เจ้าของสัตว์ทราบได้ตลอดเวลา
+
+## Database Schema
+
+### กลุ่มบริหารจัดการองค์กรและสิทธิ์ (Organization & Access Control)
+
+| ชื่อตาราง | ฟิลด์สำคัญ | รายละเอียด/ความหมาย |
+|-----------|-----------|-------------------|
+| Partners | partner_id (PK), biz_name, biz_type, contact_info | ข้อมูลเจ้าของธุรกิจหลัก |
+| Branches | branch_id (PK), partner_id (FK), location, branch_name | ข้อมูลรายสาขา |
+| Staff | staff_id (PK), branch_id (FK), name, email, role_id | ข้อมูลพนักงาน (ใช้เชื่อมกับ KPI) |
+| Permissions | role_id (PK), module_access, masking_level | กำหนดสิทธิ์เข้าถึงและระดับการปิดบังข้อมูล (Data Masking) |
+| Audit_Logs | log_id (PK), staff_id, action, timestamp, reason | บันทึกการแก้ไขข้อมูลสำคัญ (Audit Trail) |
+
+### กลุ่มข้อมูลลูกค้าและสัตว์เลี้ยง (Customers & Pets)
+
+| ชื่อตาราง | ฟิลด์สำคัญ | รายละเอียด/ความหมาย |
+|-----------|-----------|-------------------|
+| Customers | cust_id (PK), name, phone (masked), address, tier_id | ข้อมูลเจ้าของ (รองรับ Data Masking) |
+| Pets | pet_id (PK), cust_id (FK), name, species, breed, microchip | ข้อมูลสัตว์เลี้ยง |
+| Pet_Relationships | rel_id (PK), pet_id_1, pet_id_2, relation_type | เก็บความสัมพันธ์ "พี่น้อง" (ใช้ใน Multi-Pet Room Logic) |
+| Membership_Points | point_id (PK), cust_id, total_points, last_updated | แต้มรวมจากทุกบริการ (Unified Points) |
+
+### กลุ่มคลังสินค้าและ AI (Inventory & AI Integration)
+
+| ชื่อตาราง | ฟิลด์สำคัญ | รายละเอียด/ความหมาย |
+|-----------|-----------|-------------------|
+| Products | prod_id (PK), name, category (Drug/Food/Service), min_stock | ข้อมูลสินค้าและบริการ |
+| Inventory_Batches | batch_id (PK), prod_id, expiry_date, cost_price | เก็บเลขล็อตและวันหมดอายุ (FEFO) |
+| AI_Predictive_Data | ai_id (PK), prod_id, predicted_out_of_stock, turnover_rate | ข้อมูลจากการประมวลผล AI และงานวิจัยของคุณ |
+| Bargain_Rules | rule_id (PK), prod_id, trigger_days, discount_pct | เงื่อนไขการปรับราคาอัตโนมัติเมื่อใกล้หมดอายุ |
+
+### กลุ่มบริการหลัก (Core Services: Clinic, Grooming, Hotel)
+
+| ชื่อตาราง | ฟิลด์สำคัญ | รายละเอียด/ความหมาย |
+|-----------|-----------|-------------------|
+| Appointments | appt_id (PK), pet_id, service_type, start_time, status | คิวรวม (App/Walk-in) มีสัญลักษณ์ "F" สำหรับแอป |
+| Medical_Records (OPD) | opd_id (PK), pet_id, staff_id, soap_note | ประวัติรักษา |
+| IPD_Ward | ward_id (PK), pet_id, cage_no, admission_reason, belongings | ระบบแอดมิทและบันทึกของใช้ติดตัว |
+| Grooming_Reports | report_id (PK), appt_id, health_checklist, before_after_img | รายงานสุขภาพหลังตัดขน (Post-Grooming Report) |
+| Hotel_Bookings | book_id (PK), pet_id, room_id, checkin, checkout, add_ons | การจองโรงแรมและบริการเสริม (Room Service) |
+| Treatment_Sheets | sheet_id (PK), pet_id, medication_time, status (done/pending) | ตารางให้ยา/อาหาร (รองรับ QR Scan หน้ากรง) |
+
+### กลุ่มการเงินและขนส่ง (Finance & Logistics)
+
+| ชื่อตาราง | ฟิลด์สำคัญ | รายละเอียด/ความหมาย |
+|-----------|-----------|-------------------|
+| Invoices | inv_id (PK), cust_id, total_amount, payment_status | ใบแจ้งหนี้รวม (Unified Billing จากทุกส่วน) |
+| Transport_Jobs | job_id (PK), inv_id, driver_id, pickup_loc, delivery_status | ระบบรถรับ-ส่ง (Pick-up & Drop-off) |
+
+### กลุ่มตารางจัดการเอกสาร (Document & Export Schema)
+
+| ชื่อตาราง | ฟิลด์สำคัญ | รายละเอียด/ความหมาย |
+|-----------|-----------|-------------------|
+| Documents | doc_id (PK), ref_id (FK), doc_type, file_path, version | เก็บประวัติเอกสารที่ระบบสร้างขึ้น (เช่น Receipt_001.pdf) เชื่อมกับ ID ของธุรกรรมนั้นๆ |
+| Document_Templates | template_id (PK), branch_id, doc_type, html_content, css_style | เก็บ Layout ของเอกสาร (เช่น หัวกระดาษ, สีโลโก้) เพื่อให้แต่ละสาขาปรับแต่งความหรูหราได้เอง |
+| Export_Logs | export_id (PK), staff_id, format (CSV/XLSX), query_params, file_url | บันทึกการ Export ข้อมูลออกนอกระบบ (เพื่อความปลอดภัยและ Audit Trail) |
+| Digital_Signatures | sig_id (PK), doc_id (FK), signer_name, signature_img, timestamp | เก็บข้อมูลการเซ็นชื่ออิเล็กทรอนิกส์ (เช่น ในใบ Consent Form) |
+
+### การออกแบบเพื่อรองรับอนาคต (Future-Proofing Design)
+
+- Polymorphic Association (ref_id & doc_type): ในตาราง Documents เราจะใช้ ref_id ที่สามารถเชื่อมไปได้หลายตาราง (เช่น เชื่อมไป Invoices, Medical_Records, หรือ Lab_Reports) โดยใช้ doc_type เป็นตัวจำแนก วิธีนี้จะทำให้เมื่อคุณเพิ่มบริการใหม่ในอนาคต ระบบเอกสารจะรองรับได้ทันทีโดยไม่ต้องสร้างตารางใหม่
+- Metadata Column (JSONB): เพิ่มคอลัมน์ประเภท JSONB (ในฐานข้อมูลอย่าง PostgreSQL) ไว้ในตารางหลักๆ เช่น Products หรือ Documents เพื่อเก็บข้อมูลยืดหยุ่นที่คุณอาจจะนึกถึงในอนาคตแต่ยังไม่ได้กำหนดตอนนี้ (เช่น ข้อมูลจำเพาะของเครื่องมือแพทย์รุ่นใหม่)
+- Storage Reference: แทนที่จะเก็บไฟล์ลงใน Database โดยตรง (ซึ่งจะทำให้ฐานข้อมูลบวมและช้า) เราจะเก็บเฉพาะ File Path หรือ URL ที่ชี้ไปยัง Cloud Storage (เช่น Google Cloud Storage หรือ Supabase Storage) เพื่อประสิทธิภาพสูงสุดในการดึงข้อมูล
+
+## Advanced Features
+
+### 1. Expired Date Bargain Dashboard (ระบบจัดการสินค้าใกล้หมดอายุ)
+
+ฟีเจอร์นี้จะทำงานร่วมกับ AI Inventory Turnover และเอกสารงานวิจัยของคุณโดยตรง
+
+- Smart Alert: ระบบจะดึงข้อมูลวันหมดอายุมาแสดงผลใน Dashboard โดยใช้สีแบ่งความเร่งด่วน (เช่น สีแดงคือหมดอายุใน 30 วัน)
+- Auto-Promotion: Partner สามารถตั้งค่าได้ว่า หากสินค้ากลุ่มนี้เหลือเวลาอีก 60 วัน ให้ระบบปรับราคาขายหน้าร้านเป็นราคาพิเศษ (Bargain Price) อัตโนมัติ เพื่อกระตุ้นการขายก่อนขาดทุน
+- Bundle Suggestion: AI จะแนะนำให้เอาสินค้าใกล้หมดอายุไปจัด Set ร่วมกับสินค้าอื่น (เช่น แชมพูใกล้หมดอายุ + แปรงหวีขน)
+
+### 2. Health Check Report: Post-Grooming (รายงานสุขภาพหลังตัดขน)
+
+เปลี่ยนช่างอาบน้ำให้กลายเป็น "ผู้ช่วยคัดกรองสุขภาพ"
+
+- Checklist Interface: หลังอาบน้ำเสร็จ ช่างจะติ๊ก Checklist สั้นๆ บนแท็บเล็ต (เช่น ความสะอาดหู, สภาพผิวหนัง, เห็บหมัด, ก้อนเนื้อผิดปกติ)
+- Instant Referral: หากช่างพบความผิดปกติ จะมีปุ่ม "ส่งปรึกษาหมอ" ข้อมูลจะถูกส่งเข้าคิว OPD ของคลินิกทันที พร้อมแนบรูปถ่ายที่ช่างถ่ายไว้
+- Professional Report: ลูกค้าจะได้รับใบรายงานที่ดูพรีเมียมผ่านแอป FUFU ทำให้เขารู้สึกว่าการพาสัตว์เลี้ยงมาที่นี่ได้รับการดูแลมากกว่าแค่ความสะอาด
+
+### 3. Multi-Pet Room Logic (ระบบจัดการห้องพักแบบครอบครัว)
+
+ฟีเจอร์นี้จะช่วยแก้ปัญหาความยุ่งยากในหน้า Pet Hotel
+
+- Sibling Linkage: เมื่อเลือกสัตว์เลี้ยงตัวแรก ระบบจะดึงรายชื่อ "พี่น้อง" (สัตว์เลี้ยงของเจ้าของคนเดียวกัน) ขึ้นมาให้เลือกเข้าพักห้องเดียวกันได้ทันที
+- Auto-Discount: ระบบจะคำนวณส่วนลดตามนโยบายของร้าน (เช่น ตัวที่สองลด 30%) โดยอัตโนมัติในหน้า Billing
+- Safety Check: ระบบจะตรวจสอบเงื่อนไขความปลอดภัย (เช่น ไม่ยอมให้แมวพักร่วมกับสุนัข แม้จะเป็นเจ้าของเดียวกัน เพื่อลดความเครียด)
+
+### 4. Unified Reward Points (ระบบแต้มสะสมหนึ่งเดียว)
+
+สร้าง Ecosystem ให้ลูกค้าติดหนึบกับ FUFU
+
+- Cross-Service Earnings: ทุกการใช้จ่ายไม่ว่าจะหาหมอ (Clinic), ซื้อของ (Shop), ตัดขน (Grooming), หรือฝากเลี้ยง (Hotel) จะถูกคำนวณเป็นแต้มในบัญชีเดียว
+- Dynamic Redemption: แต้มสามารถนำมาแลกเป็นส่วนลดได้ข้ามแผนก (เช่น สะสมแต้มจากคลินิก มาแลกเป็นคูปองอาบน้ำฟรี)
+- Tier Progression: แต้มรวมจะถูกนำมาคำนวณระดับสมาชิก (Silver, Gold, Platinum) เพื่อรับสิทธิประโยชน์ที่สูงขึ้นตามลำดับ
+
+### 5. Pick-up & Drop-off Management (ระบบรถรับ-ส่ง)
+
+ตอบโจทย์ลูกค้ากลุ่มพรีเมียมที่ไม่สะดวกเดินทางเอง
+
+- Driver App/Interface: หน้าจอสำหรับคนขับรถ เพื่อดูตารางงาน แผนที่บ้านลูกค้า และสถานะของสัตว์เลี้ยง
+- Safety Log: บันทึกเวลาที่สัตว์เลี้ยงขึ้นรถ-ลงรถ พร้อมรูปถ่ายยืนยันความปลอดภัย
+- Integrated Billing: ค่าบริการรับ-ส่งจะถูกรวมเข้ากับใบเสร็จรวมของบริการนั้นๆ โดยอัตโนมัติ
