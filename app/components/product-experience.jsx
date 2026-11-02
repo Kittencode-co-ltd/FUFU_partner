@@ -32,6 +32,62 @@ export function HeroMotion() {
       context = gsap.context(() => {
         const media = gsap.matchMedia()
         media.add('(prefers-reduced-motion: no-preference)', () => {
+          const heroCopy = rootRef.current.closest('.hero')?.querySelector('.hero-copy')
+          if (heroCopy) {
+            gsap.fromTo([...heroCopy.children], { autoAlpha: 0, y: 18 }, {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.72,
+              stagger: 0.1,
+              ease: 'power3.out',
+              delay: 0.08,
+            })
+          }
+
+          const revealTargets = gsap.utils.toArray([
+            '.app-story-section .story-intro',
+            '.ai-section .ai-copy',
+            '.ai-section .ai-visual',
+            '.ai-section .urgency-panel',
+            '.ecosystem-heading',
+            '.partner-intro',
+            '.partner-network',
+            '.closing-copy',
+            '.footer-main',
+          ])
+          revealTargets.forEach(target => {
+            gsap.fromTo(target, { autoAlpha: 0, y: 22 }, {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.62,
+              ease: 'power2.out',
+              immediateRender: false,
+              scrollTrigger: { trigger: target, start: 'top 88%', once: true },
+            })
+          })
+
+          const workflowRows = gsap.utils.toArray('.partner-workflow')
+          if (workflowRows.length) {
+            gsap.fromTo(workflowRows, { autoAlpha: 0, x: 16 }, {
+              autoAlpha: 1,
+              x: 0,
+              duration: 0.48,
+              stagger: 0.08,
+              ease: 'power2.out',
+              immediateRender: false,
+              scrollTrigger: { trigger: '.partner-platform', start: 'top 86%', once: true },
+            })
+          }
+
+          const closingImage = document.querySelector('.closing-cta > img')
+          if (closingImage && window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 761px)').matches) {
+            gsap.to(closingImage, {
+              yPercent: -6,
+              ease: 'none',
+              scrollTrigger: { trigger: '.closing-cta', start: 'top bottom', end: 'bottom top', scrub: 0.6 },
+            })
+          }
+
           const stage = rootRef.current
           const photo = stage.querySelector('.hero-photo-main')
           if (!photo) return

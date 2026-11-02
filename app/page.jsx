@@ -5,6 +5,7 @@ import {
   Stethoscope, UsersRound,
 } from 'lucide-react'
 import { AppStory, EcosystemMap, HeroMotion } from './components/product-experience'
+import ActiveNavigation from './components/ActiveNavigation'
 
 function Eyebrow({ children, light = false }) {
   return <span className={`eyebrow${light ? ' eyebrow-light' : ''}`}><i aria-hidden="true" />{children}</span>
@@ -26,31 +27,18 @@ export default async function HomePage() {
       <a className="skip-link" href="#main-content">ข้ามไปยังเนื้อหาหลัก</a>
       <header className="site-header">
         <Brand />
-        <nav className="desktop-nav" aria-label="เมนูหลัก">
-          <a href="#app-story">FUFU App</a>
-          <a href="#ai-care">AI Care</a>
-          <a href="#ecosystem">Ecosystem</a>
-          <a className="nav-featured" href="#partners">สำหรับพาร์ทเนอร์</a>
-        </nav>
+        <ActiveNavigation />
         <div className="header-actions">
           <a className="header-login" href="/login.html">Partner Login <ArrowUpRight size={15} aria-hidden="true" /></a>
           <a className="header-cta" href="#app-story">สำรวจ FUFU App <ArrowRight size={16} aria-hidden="true" /></a>
         </div>
-        <details className="mobile-menu">
-          <summary aria-label="เปิดเมนูหลัก"><span /><span /></summary>
-          <nav aria-label="เมนูหลักบนมือถือ">
-            <a href="#app-story">FUFU App</a><a href="#ai-care">AI Care</a><a href="#ecosystem">Ecosystem</a>
-            <a href="#partners">สำหรับพาร์ทเนอร์</a><a href="/login.html">Partner Login ↗</a>
-          </nav>
-        </details>
       </header>
 
       <main id="main-content">
         <HeroMotion />
         <section className="hero" id="top" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <Eyebrow>FUFU PET CARE&nbsp; / &nbsp;PREMIUM DIGITAL HEALTHCARE</Eyebrow>
-            <h1 id="hero-title">ดูแลเขา<br />ด้วยความรัก<br /><em>และเข้าใจขึ้น</em></h1>
+            <h1 id="hero-title">สำหรับเรา<br />สัตว์เลี้ยง... คือ<br /><em>สมาชิกในครอบครัว</em></h1>
             <p className="hero-lede">FUFU เชื่อมเรื่องสุขภาพของสัตว์เลี้ยง ตั้งแต่การสังเกตที่บ้าน การคัดกรองเบื้องต้น ไปจนถึงคลินิกและผู้ดูแลรอบตัว</p>
             <div className="hero-actions">
               <a className="button button-primary" href="#app-story">ชมการทำงานของ FUFU <ArrowRight size={18} aria-hidden="true" /></a>
@@ -76,14 +64,13 @@ export default async function HomePage() {
 
         <section className="app-story-section" id="app-story" aria-labelledby="app-story-title">
           <div className="story-intro section-wrap">
-            <div><Eyebrow>01&nbsp; / &nbsp;THE FUFU APP</Eyebrow><h2 id="app-story-title">แอปที่พาเรื่องเล็ก ๆ<br />ไปสู่ <em>การดูแลต่อ</em></h2></div>
+            <div><h2 id="app-story-title">แอปที่พาเรื่องเล็ก ๆ<br />ไปสู่ <em>การดูแลต่อ</em></h2></div>
           </div>
           <AppStory />
         </section>
 
         <section className="ai-section" id="ai-care" aria-labelledby="ai-title">
           <div className="ai-copy">
-            <Eyebrow light>02&nbsp; / &nbsp;AI-ASSISTED SCREENING</Eyebrow>
             <h2 id="ai-title">AI ที่ช่วย<br /><em>เริ่มต้นสังเกต</em></h2>
             <p>เจ้าของถ่ายภาพบริเวณที่กังวลและตอบคำถามอาการ ระบบนำข้อมูลมาประกอบเป็นแนวทางความเร่งด่วน เพื่อช่วยตัดสินใจว่าควรทำอะไรต่อ</p>
             <div className="ai-steps" aria-label="ขั้นตอนคัดกรอง">
@@ -114,7 +101,6 @@ export default async function HomePage() {
 
         <section className="ecosystem-section" id="ecosystem" aria-labelledby="ecosystem-title">
           <div className="ecosystem-heading section-wrap">
-            <Eyebrow>03&nbsp; / &nbsp;CONNECTED CARE ECOSYSTEM</Eyebrow>
             <h2 id="ecosystem-title">การดูแลดีขึ้น<br />เมื่อ <em>ทุกคนเชื่อมถึงกัน</em></h2>
             <p>เลือกดูบทบาทในระบบ FUFU ตั้งแต่เจ้าของสัตว์เลี้ยง ไปจนถึงคลินิกและผู้ให้บริการ</p>
           </div>
@@ -124,7 +110,6 @@ export default async function HomePage() {
         <section className="partner-section" id="partners" aria-labelledby="partner-title">
           <div className="partner-top section-wrap">
             <div className="partner-intro">
-              <Eyebrow light>04&nbsp; / &nbsp;FUFU PARTNER</Eyebrow>
               <h2 id="partner-title">อีกด้านของการดูแล<br /><em>ที่ทีมคลินิกใช้ได้จริง</em></h2>
               <p>แพลตฟอร์มสำหรับคลินิกจัดการการนัดหมาย รับเคสที่เจ้าของยินยอมส่งต่อ และเก็บข้อมูลการเข้ารับบริการในระบบเดิมของ FUFU</p>
               <a className="button button-light" href="/login.html">เข้าสู่ระบบพาร์ทเนอร์ <ArrowUpRight size={17} aria-hidden="true" /></a>
@@ -149,13 +134,13 @@ export default async function HomePage() {
 
         <section className="closing-cta">
           <Image src="/img/pets/ragdoll.jpg" alt="แมวสีขาวในภาพถ่ายจากชุดภาพของ FUFU App" fill sizes="(max-width: 760px) 100vw, 50vw" />
-          <div className="closing-copy"><Eyebrow>CARE THAT CONNECTS</Eyebrow><h2>เพื่อทุกวัน<br />ที่อยากดูแล <em>ให้ดีขึ้น</em></h2><a className="button button-primary" href="#app-story">เริ่มจากรู้จัก FUFU App <ArrowRight size={18} aria-hidden="true" /></a></div>
+          <div className="closing-copy"><h2>เพื่อทุกวัน<br />ที่อยากดูแล <em>ให้ดีขึ้น</em></h2><a className="button button-primary" href="#app-story">เริ่มจากรู้จัก FUFU App <ArrowRight size={18} aria-hidden="true" /></a></div>
         </section>
       </main>
 
       <footer className="site-footer">
         <div className="footer-main"><Brand footer /><p>แพลตฟอร์มดูแลสัตว์เลี้ยง<br />ที่เชื่อมบ้าน คลินิก และบริการเข้าด้วยกัน</p><nav aria-label="ลิงก์ท้ายหน้า"><a href="#app-story">FUFU App</a><a href="#ecosystem">Ecosystem</a><a href="#partners">FUFU Partner</a><a href="/login.html">Partner Login ↗</a></nav></div>
-        <div className="footer-bottom"><span>© 2026 FUFU PET CARE</span><span>ผลคัดกรองเป็นข้อมูลเบื้องต้น ไม่ใช้แทนการวินิจฉัยจากสัตวแพทย์</span></div>
+        <div className="footer-bottom"><span>© 2026 FUFU PET CARE Powered By KITTEN CODE Co., Ltd. </span></div>
       </footer>
     </>
   )
