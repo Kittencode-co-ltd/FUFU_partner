@@ -13,8 +13,6 @@ if (path.includes('login')) {
   bootOnboarding();
 } else if (path.includes('dashboard')) {
   bootDashboard();
-} else if (path === '/' || path.includes('index')) {
-  bootLanding();
 }
 
 // ─── Page booters ─────────────────────────────────────────────────────────────
@@ -224,17 +222,6 @@ async function bootRegister() {
       setTimeout(() => { window.location.href = '/login.html'; }, 1200);
     }
   });
-}
-
-async function bootLanding() {
-  const { initHero }             = await import('./landing/hero.js');
-  const { initBooking }          = await import('./landing/booking.js');
-  const { initTestimonials }     = await import('./landing/testimonials.js');
-  const { initBusinessFeatures } = await import('./landing/business-features.js');
-  initHero();
-  initBusinessFeatures();
-  initBooking();
-  initTestimonials();
 }
 
 function renderCreateStore(container, token, showToast, selectStore) {
