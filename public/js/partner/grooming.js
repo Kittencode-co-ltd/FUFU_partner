@@ -1,6 +1,7 @@
 ﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
+import { bindPrintButton } from '../utils/print-docs.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
 const SERVICES = [
@@ -453,19 +454,19 @@ function _printGroomReport(session) {
 <title>รายงาน Grooming — ${esc(session.pet_name)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Sarabun','Tahoma',sans-serif; font-size:12pt; color:#111;
+  body { font-family:'Noto Sans Thai','Tahoma',sans-serif; font-size:12pt; color:#111;
          padding:20mm; max-width:210mm; margin:auto; }
   h1  { font-size:18pt; text-align:center; }
   .sub{ text-align:center; font-size:10pt; color:#555; margin-bottom:6mm; }
   hr  { border:none; border-top:1px solid #ccc; margin:5mm 0; }
-  h2  { font-size:13pt; border-left:4px solid #0D9488; padding-left:6px; margin:4mm 0 2mm; }
+  h2  { font-size:13pt; border-left:4px solid #2A6374; padding-left:6px; margin:4mm 0 2mm; }
   .svc-row { display:flex; justify-content:space-between; font-size:11pt; padding:2px 0; }
   .total   { font-weight:bold; font-size:14pt; border-top:1px solid #ccc; padding-top:4px; margin-top:4px; }
   .check   { display:flex; justify-content:space-between; padding:3px 0; font-size:11pt; }
-  .ok      { color:#0D9488; }
+  .ok      { color:#2A6374; }
   .abnormal{ color:#dc2626; font-weight:bold; }
   .footer  { text-align:center; color:#aaa; font-size:10pt; margin-top:12mm; }
-  .print-btn { display:block; margin:8mm auto; padding:8px 24px; background:#0D9488;
+  .print-btn { display:block; margin:8mm auto; padding:8px 24px; background:#2A6374;
                color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-family:inherit; }
   @media print { .print-btn { display:none !important; } body { padding:10mm; } }
 </style>
@@ -495,13 +496,14 @@ function _printGroomReport(session) {
   ${report.referred_to_clinic ? `<p style="margin-top:4px;color:#dc2626;font-weight:bold;">⚠ แนะนำพาพบสัตวแพทย์</p>` : ''}` : ''}
 
   <div class="footer">ขอบคุณที่ใช้บริการ · Powered by FUFU Partner</div>
-  <button class="print-btn" onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const tab  = window.open(url, '_blank');
+  bindPrintButton(tab);
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
   if (!tab) showToast('กรุณาอนุญาต Pop-up', 'error');
 }

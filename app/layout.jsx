@@ -11,12 +11,16 @@ export const metadata = {
     siteName: 'FUFU Pet Care',
   },
   robots: { index: true, follow: true },
+  icons: {
+    icon: [{ url: '/img/brand/favicon-64.png', type: 'image/png' }],
+    apple: '/img/brand/apple-touch-icon.png',
+  },
 }
 
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#f5f7f2',
+  themeColor: '#faf7f2',
 }
 
 export default function RootLayout({ children }) {

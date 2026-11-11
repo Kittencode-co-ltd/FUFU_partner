@@ -58,10 +58,10 @@ export function generateInvoiceHTML(data) {
   const total      = beforeVat + vatAmount;
 
   return `
-    <div style="max-width:800px;margin:0 auto;padding:30px;font-family:'Prompt','Sarabun',sans-serif;color:#1E293B;background:#fff">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #0D9488">
+    <div style="max-width:800px;margin:0 auto;padding:30px;font-family:'Prompt','Noto Sans Thai',sans-serif;color:#1E293B;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #2A6374">
         <div>
-          <div style="font-size:24px;font-weight:700;color:#0D9488;margin-bottom:4px">🐾 FUFU</div>
+          <div style="font-size:24px;font-weight:700;color:#2A6374;margin-bottom:4px">🐾 FUFU</div>
           <div style="font-size:18px;font-weight:600">${docTitle}</div>
           ${!isReceipt ? '<div style="font-size:11px;color:#64748B;margin-top:2px">ต้นฉบับ / Original</div>' : ''}
         </div>
@@ -75,7 +75,7 @@ export function generateInvoiceHTML(data) {
         <div style="padding:14px;border:1px solid #E2E8F0;border-radius:8px">
           <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">ผู้ออกเอกสาร (Seller)</div>
           <div style="font-weight:600;margin-bottom:2px">${data.seller?.name || '-'}</div>
-          <div style="font-size:12px;color:#64748B;line-height:1.6;font-family:'Sarabun',sans-serif">
+          <div style="font-size:12px;color:#64748B;line-height:1.6;font-family:'Noto Sans Thai',sans-serif">
             เลขประจำตัวผู้เสียภาษี: ${data.seller?.taxId || '-'}<br>
             สาขา: ${data.seller?.branchNo || 'สำนักงานใหญ่'}<br>
             ${data.seller?.address || ''}<br>
@@ -85,7 +85,7 @@ export function generateInvoiceHTML(data) {
         <div style="padding:14px;border:1px solid #E2E8F0;border-radius:8px">
           <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">ผู้ซื้อ / ลูกค้า (Buyer)</div>
           <div style="font-weight:600;margin-bottom:2px">${data.buyer?.name || 'ลูกค้าทั่วไป'}</div>
-          <div style="font-size:12px;color:#64748B;line-height:1.6;font-family:'Sarabun',sans-serif">
+          <div style="font-size:12px;color:#64748B;line-height:1.6;font-family:'Noto Sans Thai',sans-serif">
             ${data.buyer?.taxId ? `เลขประจำตัว: ${data.buyer.taxId}<br>` : ''}
             ${data.buyer?.address || ''}<br>
             ${data.buyer?.phone ? `โทร: ${data.buyer.phone}` : ''}
@@ -95,63 +95,63 @@ export function generateInvoiceHTML(data) {
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
         <thead>
-          <tr style="background:#F0FDFA">
-            <th style="padding:10px 12px;text-align:left;font-size:12px;border-bottom:2px solid #0D9488;color:#0D9488">ลำดับ</th>
-            <th style="padding:10px 12px;text-align:left;font-size:12px;border-bottom:2px solid #0D9488;color:#0D9488">รายการ</th>
-            <th style="padding:10px 12px;text-align:center;font-size:12px;border-bottom:2px solid #0D9488;color:#0D9488">จำนวน</th>
-            <th style="padding:10px 12px;text-align:center;font-size:12px;border-bottom:2px solid #0D9488;color:#0D9488">หน่วย</th>
-            <th style="padding:10px 12px;text-align:right;font-size:12px;border-bottom:2px solid #0D9488;color:#0D9488">ราคา/หน่วย</th>
-            <th style="padding:10px 12px;text-align:right;font-size:12px;border-bottom:2px solid #0D9488;color:#0D9488">จำนวนเงิน</th>
+          <tr style="background:#ECF7F5">
+            <th style="padding:10px 12px;text-align:left;font-size:12px;border-bottom:2px solid #2A6374;color:#2A6374">ลำดับ</th>
+            <th style="padding:10px 12px;text-align:left;font-size:12px;border-bottom:2px solid #2A6374;color:#2A6374">รายการ</th>
+            <th style="padding:10px 12px;text-align:center;font-size:12px;border-bottom:2px solid #2A6374;color:#2A6374">จำนวน</th>
+            <th style="padding:10px 12px;text-align:center;font-size:12px;border-bottom:2px solid #2A6374;color:#2A6374">หน่วย</th>
+            <th style="padding:10px 12px;text-align:right;font-size:12px;border-bottom:2px solid #2A6374;color:#2A6374">ราคา/หน่วย</th>
+            <th style="padding:10px 12px;text-align:right;font-size:12px;border-bottom:2px solid #2A6374;color:#2A6374">จำนวนเงิน</th>
           </tr>
         </thead>
         <tbody>
           ${data.items.map((item, i) => `
             <tr style="border-bottom:1px solid #F1F5F9">
-              <td style="padding:10px 12px;font-size:13px;font-family:'Sarabun',sans-serif">${i + 1}</td>
+              <td style="padding:10px 12px;font-size:13px;font-family:'Noto Sans Thai',sans-serif">${i + 1}</td>
               <td style="padding:10px 12px;font-size:13px">${item.name}</td>
-              <td style="padding:10px 12px;text-align:center;font-size:13px;font-family:'Sarabun',sans-serif">${item.qty}</td>
-              <td style="padding:10px 12px;text-align:center;font-size:13px;font-family:'Sarabun',sans-serif">${item.unit || 'รายการ'}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:13px;font-family:'Sarabun',sans-serif">${formatBaht(item.unitPrice)}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:500;font-family:'Sarabun',sans-serif">${formatBaht(item.qty * item.unitPrice)}</td>
+              <td style="padding:10px 12px;text-align:center;font-size:13px;font-family:'Noto Sans Thai',sans-serif">${item.qty}</td>
+              <td style="padding:10px 12px;text-align:center;font-size:13px;font-family:'Noto Sans Thai',sans-serif">${item.unit || 'รายการ'}</td>
+              <td style="padding:10px 12px;text-align:right;font-size:13px;font-family:'Noto Sans Thai',sans-serif">${formatBaht(item.unitPrice)}</td>
+              <td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:500;font-family:'Noto Sans Thai',sans-serif">${formatBaht(item.qty * item.unitPrice)}</td>
             </tr>`).join('')}
         </tbody>
       </table>
 
       <div style="display:flex;justify-content:flex-end">
         <div style="width:300px">
-          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-family:'Sarabun',sans-serif">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-family:'Noto Sans Thai',sans-serif">
             <span>ราคารวม (Subtotal)</span><span>${formatBaht(subtotal)}</span>
           </div>
           ${discount > 0 ? `
-          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#EF4444;font-family:'Sarabun',sans-serif">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#EF4444;font-family:'Noto Sans Thai',sans-serif">
             <span>ส่วนลด (Discount)</span><span>-${formatBaht(discount)}</span>
           </div>` : ''}
-          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-family:'Sarabun',sans-serif">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-family:'Noto Sans Thai',sans-serif">
             <span>ภาษีมูลค่าเพิ่ม (VAT 7%)</span><span>${formatBaht(vatAmount)}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:16px;font-weight:700;border-top:2px solid #0D9488;margin-top:4px;color:#0D9488">
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:16px;font-weight:700;border-top:2px solid #2A6374;margin-top:4px;color:#2A6374">
             <span>รวมทั้งสิ้น (Total)</span><span>${formatBaht(total)}</span>
           </div>
         </div>
       </div>
 
-      <div style="background:#F8FAFC;border-radius:8px;padding:12px;margin:16px 0;font-size:12px;font-family:'Sarabun',sans-serif">
+      <div style="background:#F8FAFC;border-radius:8px;padding:12px;margin:16px 0;font-size:12px;font-family:'Noto Sans Thai',sans-serif">
         <strong>จำนวนเงิน (ตัวอักษร):</strong> ${_numberToThaiBaht(total)}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-        <div style="font-size:12px;font-family:'Sarabun',sans-serif;color:#64748B">
+        <div style="font-size:12px;font-family:'Noto Sans Thai',sans-serif;color:#64748B">
           <strong>ชำระโดย:</strong> ${PAYMENT_LABELS[data.paymentMethod] || data.paymentMethod || '-'}
           ${data.notes ? `<br><strong>หมายเหตุ:</strong> ${data.notes}` : ''}
         </div>
         <div style="text-align:center">
-          <div style="border-top:1px dashed #CBD5E1;margin:40px 40px 0;padding-top:8px;font-size:11px;color:#64748B;font-family:'Sarabun',sans-serif">
+          <div style="border-top:1px dashed #CBD5E1;margin:40px 40px 0;padding-top:8px;font-size:11px;color:#64748B;font-family:'Noto Sans Thai',sans-serif">
             ผู้มีอำนาจลงนาม / Authorized Signature
           </div>
         </div>
       </div>
 
-      <div style="text-align:center;font-size:10px;color:#94A3B8;border-top:1px solid #E2E8F0;padding-top:12px;font-family:'Sarabun',sans-serif">
+      <div style="text-align:center;font-size:10px;color:#94A3B8;border-top:1px solid #E2E8F0;padding-top:12px;font-family:'Noto Sans Thai',sans-serif">
         เอกสารฉบับนี้ออกโดยระบบ FUFU Partner Portal • Kitten Code Co., Ltd. • © 2026
       </div>
     </div>`;
@@ -163,7 +163,7 @@ export function printInvoice(data) {
   if (!w) { showToast('กรุณาอนุญาต Popup เพื่อพิมพ์', 'error'); return; }
   w.document.write(`<!DOCTYPE html><html><head>
     <title>Invoice</title>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>@media print{@page{margin:15mm;size:A4}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}body{margin:0}</style>
     </head><body>${html}</body></html>`);
   w.document.close();

@@ -6,6 +6,7 @@ import { STORAGE_KEYS, CATEGORY_MAP, FEATURE_FLAGS } from '../utils/config.js';
 import { startSyncEngine } from '../utils/sync-engine.js';
 import { escapeHtml } from '../utils/formatters.js';
 import { icon } from '../utils/icons.js';
+import { initResponsiveEnhancements } from '../utils/responsive.js';
 
 // ─── Staff Mode config ────────────────────────────────────────────────────────
 
@@ -156,25 +157,31 @@ const _RESTORABLE_PAGES = new Set([
   'appointments','calendar','patients','summaries','clinic',
 ]);
 const _PAGE_KEY = 'fufu_current_page';
+let _pageEnterTimer = null;
 
 export function navigate(pageId, detail = null) {
   if (FEATURE_FLAGS.MVP_MODE && !MVP_NAV_PAGES.has(pageId)) pageId = 'home';
   document.dispatchEvent(new CustomEvent('fufu:navigate', { detail: pageId }));
   document.querySelectorAll('main section').forEach(s => s.classList.add('hidden'));
   const target = document.getElementById(`page-${pageId}`);
-  if (target) target.classList.remove('hidden');
+  if (target) {
+    target.classList.remove('hidden', 'page-enter');
+    void target.offsetWidth; // restart the entrance animation
+    target.classList.add('page-enter');
+    // Cards that arrive with the first data load animate in; later re-renders (polling) don't.
+    clearTimeout(_pageEnterTimer);
+    _pageEnterTimer = setTimeout(() => target.classList.remove('page-enter'), 2000);
+  }
+  window.scrollTo({ top: 0, behavior: 'instant' });
 
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = PAGE_TITLES[pageId] || pageId;
 
   document.querySelectorAll('[data-nav]').forEach(el => {
     const active = el.dataset.nav === pageId;
-    el.classList.toggle('bg-white/10',      active);
-    el.classList.toggle('text-white',       active);
-    el.classList.toggle('text-slate-400',   !active);
-    el.classList.toggle('border-l-2',       active);
-    el.classList.toggle('border-primary',   active);
-    el.classList.toggle('border-l-0',       !active);
+    el.classList.toggle('is-active', active);
+    if (active) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
   });
 
   if (_RESTORABLE_PAGES.has(pageId)) sessionStorage.setItem(_PAGE_KEY, pageId);
@@ -328,6 +335,7 @@ export async function initDashboard() {
   q('logout-btn')?.addEventListener('click', logout);
 
   _initSidebarToggle();
+  initResponsiveEnhancements();
 
   // OPD bridge
   document.addEventListener('fufu:openOPD',     (e) => navigate('opd', e.detail));
@@ -381,43 +389,55 @@ function _initOfflineBadge() {
 
 // ─── Sidebar toggle ───────────────────────────────────────────────────────────
 
+// Below this width the sidebar is an off-canvas drawer (tablet + mobile).
+const DRAWER_QUERY = window.matchMedia('(max-width: 1023px)');
+
+function _setDrawer(open) {
+  document.body.classList.toggle('sb-open', open);
+  document.getElementById('sidebar-toggle')?.setAttribute('aria-expanded', String(open));
+  if (open) document.querySelector('#sidebar-nav [data-nav]')?.focus({ preventScroll: true });
+}
+
 function _initSidebarToggle() {
   const btn     = document.getElementById('sidebar-toggle');
   const overlay = document.getElementById('sb-overlay');
   if (!btn) return;
 
-  const isMobile = () => window.innerWidth < 768;
+  const isDrawer = () => DRAWER_QUERY.matches;
 
   // Restore desktop collapsed state
-  if (!isMobile() && localStorage.getItem('fufu_sidebar') === 'collapsed') {
+  if (!isDrawer() && localStorage.getItem('fufu_sidebar') === 'collapsed') {
     document.body.classList.add('sb-collapsed');
   }
 
   btn.addEventListener('click', () => {
-    if (isMobile()) {
-      document.body.classList.toggle('sb-open');
+    if (isDrawer()) {
+      _setDrawer(!document.body.classList.contains('sb-open'));
     } else {
       document.body.classList.toggle('sb-collapsed');
-      localStorage.setItem(
-        'fufu_sidebar',
-        document.body.classList.contains('sb-collapsed') ? 'collapsed' : 'open'
-      );
+      const collapsed = document.body.classList.contains('sb-collapsed');
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      localStorage.setItem('fufu_sidebar', collapsed ? 'collapsed' : 'open');
     }
   });
 
-  // Close sidebar when clicking overlay (mobile)
-  overlay?.addEventListener('click', () => {
-    document.body.classList.remove('sb-open');
+  overlay?.addEventListener('click', () => _setDrawer(false));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('sb-open')) {
+      _setDrawer(false);
+      btn.focus();
+    }
   });
 
-  // Auto-close sidebar on navigate (mobile)
+  // Auto-close the drawer after navigating
   document.addEventListener('fufu:navigate', () => {
-    if (isMobile()) document.body.classList.remove('sb-open');
+    if (isDrawer()) _setDrawer(false);
   });
 
-  // Collapse sidebar on resize to desktop if it was open as overlay
-  window.addEventListener('resize', () => {
-    if (!isMobile()) document.body.classList.remove('sb-open');
+  // Leaving drawer mode (rotate / resize to desktop) closes the overlay
+  DRAWER_QUERY.addEventListener('change', () => {
+    if (!isDrawer()) _setDrawer(false);
   });
 }
 
@@ -445,24 +465,44 @@ function _buildNav(role) {
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;
 
-  nav.innerHTML = items.map(item => `
-    <button data-nav="${item.id}"
-      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-             transition-all duration-150 text-slate-400 hover:bg-white/10 hover:text-slate-200">
-      <span class="w-4 flex items-center justify-center flex-shrink-0 opacity-70">
-        ${icon(item.icon, 'w-4 h-4')}
-      </span>
-      <span class="flex-1 text-left">${item.label}</span>
-      ${item.id === 'appointments' ? '<span id="appt-nav-badge" style="display:none;background:#F97316;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 5px;"></span>' : ''}
+  nav.innerHTML = items.map((item, i) => `
+    <button type="button" data-nav="${item.id}" class="nav-item" style="--i:${i}">
+      <span class="nav-item__icon">${icon(item.icon, 'w-4 h-4')}</span>
+      <span class="flex-1 text-left truncate">${item.label}</span>
+      ${item.id === 'appointments' ? '<span id="appt-nav-badge" class="nav-badge" hidden></span>' : ''}
     </button>
   `).join('');
 
-  nav.addEventListener('click', (e) => {
+  // onclick (not addEventListener) so rebuilding the nav never stacks handlers
+  nav.onclick = (e) => {
     const btn = e.target.closest('[data-nav]');
     if (btn) navigate(btn.dataset.nav);
-  });
+  };
 
+  _buildBottomNav(items);
   _loadApptBadge();
+}
+
+// Mobile bottom tab bar: first 4 nav items + a "menu" tab that opens the drawer.
+function _buildBottomNav(items) {
+  const bar = document.getElementById('bottom-nav');
+  if (!bar) return;
+  const tabs = items.slice(0, 4);
+  bar.innerHTML = `
+    ${tabs.map(item => `
+      <button type="button" data-nav="${item.id}" class="tab-item">
+        ${icon(item.icon, 'w-5 h-5')}
+        <span class="tab-item__label">${item.label.split(/[\s(/]/)[0]}</span>
+      </button>`).join('')}
+    <button type="button" class="tab-item" data-open-drawer aria-controls="sidebar">
+      ${icon('th-large', 'w-5 h-5')}
+      <span class="tab-item__label">เมนู</span>
+    </button>`;
+  bar.onclick = (e) => {
+    if (e.target.closest('[data-open-drawer]')) return _setDrawer(true);
+    const btn = e.target.closest('[data-nav]');
+    if (btn) navigate(btn.dataset.nav);
+  };
 }
 
 async function _loadApptBadge() {
@@ -473,12 +513,8 @@ async function _loadApptBadge() {
     const badge = document.getElementById('appt-nav-badge');
     if (!badge) return;
     const count = res?.count || 0;
-    if (count > 0) {
-      badge.textContent = count > 99 ? '99+' : count;
-      badge.style.display = 'inline-flex';
-    } else {
-      badge.style.display = 'none';
-    }
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.hidden = count <= 0;
   } catch { /* silent */ }
 }
 

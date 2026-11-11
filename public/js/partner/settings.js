@@ -260,7 +260,7 @@ export async function renderSettings(container) {
       { w: '25%',  color: '#EF4444', text: 'อ่อนมาก'  },
       { w: '50%',  color: '#F97316', text: 'อ่อน'      },
       { w: '75%',  color: '#F59E0B', text: 'ปานกลาง'  },
-      { w: '100%', color: '#0D9488', text: 'แข็งแรง'   },
+      { w: '100%', color: '#2A6374', text: 'แข็งแรง'   },
     ][score - 1];
     bar.style.width      = cfg.w;
     bar.style.background = cfg.color;

@@ -82,7 +82,7 @@ function field(id, label, value, enabled, type = 'text', extra = '') {
 
 function hoursRow(day, label, value = {}, enabled) {
   const closed = value.is_closed ?? (day === 0);
-  return `<div data-hours-day="${day}" class="grid grid-cols-[90px_90px_1fr_1fr] items-center gap-2"><span class="text-sm">${label}</span><label class="text-xs"><input class="hours-closed accent-primary" type="checkbox" ${closed ? 'checked' : ''} ${enabled ? '' : 'disabled'}> ปิด</label><input class="hours-open input-field" type="time" value="${(value.opens_at || '09:00').slice(0,5)}" ${enabled && !closed ? '' : 'disabled'}><input class="hours-close input-field" type="time" value="${(value.closes_at || '18:00').slice(0,5)}" ${enabled && !closed ? '' : 'disabled'}></div>`;
+  return `<div data-hours-day="${day}" class="grid grid-cols-[1fr_auto] sm:grid-cols-[90px_90px_1fr_1fr] items-center gap-2 [&>input]:min-w-0 [&>input]:px-2 sm:[&>input]:px-4"><span class="text-sm">${label}</span><label class="text-xs"><input class="hours-closed accent-primary" type="checkbox" ${closed ? 'checked' : ''} ${enabled ? '' : 'disabled'}> ปิด</label><input class="hours-open input-field" type="time" value="${(value.opens_at || '09:00').slice(0,5)}" ${enabled && !closed ? '' : 'disabled'}><input class="hours-close input-field" type="time" value="${(value.closes_at || '18:00').slice(0,5)}" ${enabled && !closed ? '' : 'disabled'}></div>`;
 }
 
 function bind(container, state) {

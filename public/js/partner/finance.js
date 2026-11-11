@@ -177,9 +177,9 @@ export async function renderFinancePage(container) {
   function _updateTabs() {
     container.querySelectorAll('.tab-btn').forEach(b => {
       const active = b.dataset.preset === activePreset;
-      b.style.background  = active ? '#0D9488' : '';
+      b.style.background  = active ? '#2A6374' : '';
       b.style.color       = active ? '#fff'    : '';
-      b.style.borderColor = active ? '#0D9488' : '';
+      b.style.borderColor = active ? '#2A6374' : '';
     });
     const pickers = container.querySelector('#custom-pickers');
     if (pickers) pickers.style.display = activePreset === 'custom' ? 'flex' : 'none';
@@ -237,7 +237,7 @@ function _renderStats(container, d, from, to) {
   if (!el) return;
   const fmt = n => Number(n || 0).toLocaleString('th-TH');
   el.innerHTML = [
-    { icon: 'coins',       bg: '#0D948822', label: 'รายได้รวม',    value: fmt(d.total),       unit: '฿',    cls: 'text-navy'      },
+    { icon: 'coins',       bg: '#2A637422', label: 'รายได้รวม',    value: fmt(d.total),       unit: '฿',    cls: 'text-navy'      },
     { icon: 'receipt',     bg: '#3B82F622', label: 'จำนวนธุรกรรม', value: fmt(d.count),       unit: 'ครั้ง', cls: 'text-navy'      },
     { icon: 'chart-line',  bg: '#F59E0B22', label: 'เฉลี่ย/วัน',   value: fmt(d.avg_per_day), unit: '฿',    cls: 'text-primary'   },
     { icon: 'percentage',  bg: '#94A3B822', label: 'ค่าคอม 5%',    value: fmt(d.commission),  unit: '฿',    cls: 'text-slate-500' },
@@ -328,11 +328,11 @@ function _renderChart(container, days, from, to) {
       <div class="flex-1 h-full flex flex-col items-center min-w-0 group relative"
            title="${d.date}: ฿${d.total.toLocaleString('th-TH')}">
         <span class="h-4 flex items-end justify-center text-xs font-semibold font-body truncate w-full text-center leading-none"
-              style="color:${isToday ? '#0D9488' : '#94A3B8'}">${valLabel}</span>
+              style="color:${isToday ? '#2A6374' : '#94A3B8'}">${valLabel}</span>
         <!-- Bar zone fills the remaining height; bars anchor to a shared baseline -->
         <div class="flex-1 w-full flex items-end px-px py-0.5">
           <div class="w-full rounded-t transition-all relative"
-               style="height:${pct}%;background:${isToday ? '#0D9488' : '#CCFBF1'};min-height:2px">
+               style="height:${pct}%;background:${isToday ? '#2A6374' : '#D7EEEB'};min-height:2px">
             <div class="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:flex
                         bg-navy text-white text-xs font-body px-2 py-0.5 rounded-md whitespace-nowrap z-10 shadow">
               ฿${d.total.toLocaleString('th-TH')}
@@ -340,7 +340,7 @@ function _renderChart(container, days, from, to) {
           </div>
         </div>
         <span class="h-4 flex items-start justify-center text-center leading-none truncate w-full"
-              style="color:#94A3B8;font-size:9px">${day}</span>
+              style="color:var(--color-fg-subtle,#94A3B8);font-size:9px">${day}</span>
       </div>`;
   }).join('');
 }

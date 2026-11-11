@@ -296,7 +296,7 @@ function _refreshCalHighlight(rootEl) {
     cell.classList.toggle('bg-primary-subtle', sel);
     const dot = cell.querySelector('span:last-child');
     if (dot && dot !== cell.querySelector('span:first-child')) {
-      dot.style.color = '#0D9488';
+      dot.style.color = '#2A6374';
     }
   });
 }
@@ -446,13 +446,13 @@ async function _cancelAppt(apptId, el) {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
-      <div style="background:#fff;border-radius:16px;padding:28px 28px 24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
+      <div style="background:var(--color-surface,#fff);border-radius:16px;padding:28px 28px 24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
         <div style="font-size:40px;margin-bottom:12px;">📅</div>
-        <div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:8px;">ยืนยันการยกเลิกนัดหมาย</div>
-        <div style="font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.5;">คุณต้องการยกเลิกนัดหมายนี้ใช่ไหม?<br>การดำเนินการนี้ไม่สามารถย้อนกลับได้</div>
+        <div style="font-size:17px;font-weight:700;color:var(--color-fg,#1e293b);margin-bottom:8px;">ยืนยันการยกเลิกนัดหมาย</div>
+        <div style="font-size:14px;color:var(--color-fg-muted,#64748b);margin-bottom:24px;line-height:1.5;">คุณต้องการยกเลิกนัดหมายนี้ใช่ไหม?<br>การดำเนินการนี้ไม่สามารถย้อนกลับได้</div>
         <div style="display:flex;gap:10px;">
-          <button id="cancel-no"  style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:14px;font-weight:600;color:#475569;cursor:pointer;">ไม่ยกเลิก</button>
-          <button id="cancel-yes" style="flex:1;padding:10px;border:none;border-radius:10px;background:#ef4444;font-size:14px;font-weight:600;color:#fff;cursor:pointer;">ยืนยันยกเลิก</button>
+          <button id="cancel-no"  style="flex:1;padding:10px;border:1.5px solid var(--color-line,#e2e8f0);border-radius:10px;background:var(--color-surface,#fff);font-size:14px;font-weight:600;color:var(--color-fg-tertiary,#475569);cursor:pointer;">ไม่ยกเลิก</button>
+          <button id="cancel-yes" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--color-danger,#ef4444);font-size:14px;font-weight:600;color:var(--color-fg-inverse,#fff);cursor:pointer;">ยืนยันยกเลิก</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -794,16 +794,16 @@ function _renderVaccines(vaccines, petId, medicalRecords = []) {
           <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="#e2e8f0" stroke-width="1"/>
           <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="#e2e8f0" stroke-width="1"/>
           <!-- Weight line -->
-          <path d="${pathD}" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="${pathD}" fill="none" stroke="#2A6374" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <!-- Data points -->
           ${pts.map(p => `
-            <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#0D9488"/>
+            <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#2A6374"/>
             <text x="${p.x.toFixed(1)}" y="${(p.y - 7).toFixed(1)}" text-anchor="middle"
-                  font-size="9" fill="#0D9488" font-family="Sarabun,sans-serif">${p.w}kg</text>
+                  font-size="9" fill="#2A6374" font-family="Noto Sans Thai,sans-serif">${p.w}kg</text>
           `).join('')}
           <!-- Min/Max labels -->
-          <text x="${(PAD-2).toFixed(1)}" y="${PAD}" text-anchor="end" font-size="8" fill="#94a3b8" font-family="Sarabun,sans-serif">${maxW}kg</text>
-          <text x="${(PAD-2).toFixed(1)}" y="${H-PAD}" text-anchor="end" font-size="8" fill="#94a3b8" font-family="Sarabun,sans-serif">${minW}kg</text>
+          <text x="${(PAD-2).toFixed(1)}" y="${PAD}" text-anchor="end" font-size="8" fill="#94a3b8" font-family="Noto Sans Thai,sans-serif">${maxW}kg</text>
+          <text x="${(PAD-2).toFixed(1)}" y="${H-PAD}" text-anchor="end" font-size="8" fill="#94a3b8" font-family="Noto Sans Thai,sans-serif">${minW}kg</text>
         </svg>
         <div class="flex justify-between text-xs text-slate-400 font-body mt-1 px-2">
           <span>${weightPoints[0].date}</span>
@@ -903,7 +903,7 @@ async function _renderOwnersList(el) {
             </div>
           </div>
           ${hasPets ? `<svg class="owner-chevron flex-shrink-0 transition-transform duration-200"
-               width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:#94a3b8;min-width:16px">
+               width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:var(--color-fg-subtle,#94a3b8);min-width:16px">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
           </svg>` : ''}
         </div>
@@ -923,7 +923,7 @@ async function _renderOwnersList(el) {
                 <div class="font-semibold text-sm text-navy">${p.name}</div>
                 <div class="text-xs text-slate-400 font-body">${sp.label}${p.breed ? ` · ${p.breed}` : ''}</div>
               </div>
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:#cbd5e1;flex-shrink:0;min-width:14px">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:var(--color-line-strong,#cbd5e1);flex-shrink:0;min-width:14px">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
               </svg>
             </div>`;

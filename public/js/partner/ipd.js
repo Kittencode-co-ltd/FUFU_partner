@@ -46,10 +46,10 @@ export async function renderIPDWard(container) {
         display: flex; align-items: center; justify-content: center;
         transition: background 0.15s;
       }
-      .cage-edit-btn   { background: #EFF6FF; color: #2563EB; }
-      .cage-edit-btn:hover   { background: #DBEAFE; }
-      .cage-delete-btn { background: #FEF2F2; color: #DC2626; }
-      .cage-delete-btn:hover { background: #FEE2E2; }
+      .cage-edit-btn   { background: var(--color-info-faint,#EFF6FF); color: #2563EB; }
+      .cage-edit-btn:hover   { background: var(--color-info-subtle,#DBEAFE); }
+      .cage-delete-btn { background: var(--color-danger-faint,#FEF2F2); color: var(--color-danger-hover,#DC2626); }
+      .cage-delete-btn:hover { background: var(--color-danger-subtle,#FEE2E2); }
       /* Edit/delete controls reveal on hover (replaces the old "จัดการกรง"
          settings-mode toggle, which was removed from the ward header). */
       .cage-card:hover .cage-edit-overlay,
@@ -98,7 +98,7 @@ async function _render(container) {
     <div class="space-y-4">
       ${_settingsMode ? `
       <div class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold font-body"
-           style="background:#FEF3C7;color:#92400E;border:1px solid #FCD34D">
+           style="background:var(--color-warning-subtle,#FEF3C7);color:var(--color-warning-strong,#92400E);border:1px solid #FCD34D">
         ⚙️ <strong>Settings Mode</strong> — กดที่กรงเพื่อแก้ไข · ปุ่ม 🗑 เพื่อลบ · "+ เพิ่มกรง" เพื่อเพิ่มใหม่
       </div>` : ''}
 
@@ -107,7 +107,7 @@ async function _render(container) {
         ${[
           { val: stats.total,     label: 'กรงทั้งหมด', color: '#1E293B' },
           { val: stats.occupied,  label: 'มีผู้ป่วย',  color: '#F97316' },
-          { val: stats.available, label: 'ว่าง',        color: '#0D9488' },
+          { val: stats.available, label: 'ว่าง',        color: '#2A6374' },
           { val: stats.icu,       label: 'ICU',          color: '#EF4444' },
         ].map(s => `
           <div class="card p-4 text-center">
@@ -177,7 +177,7 @@ function _reattachCageListeners(container, cages) {
       container.querySelector('#cage-grid')
         ?.querySelectorAll('.cage-card')
         .forEach(c => c.style.outline = '');
-      card.style.outline = '2px solid #0D9488';
+      card.style.outline = '2px solid var(--color-brand,#2A6374)';
       const cage = cages.find(c => c.id === card.dataset.cageId);
       if (cage) _renderDetail(cage, container);
     });
@@ -309,7 +309,7 @@ async function _renderDetail(cage, container) {
           </button>
           <button id="discharge-btn"
             class="text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-colors"
-            style="background:#FEF3C7;color:#92400E;border:1px solid #FCD34D">
+            style="background:var(--color-warning-subtle,#FEF3C7);color:var(--color-warning-strong,#92400E);border:1px solid #FCD34D">
             <i class="fas fa-right-from-bracket mr-1"></i>Discharge
           </button>
         </div>
@@ -564,10 +564,7 @@ function _deleteCage(cage, container) {
       </div>
       <div class="flex gap-3">
         <button id="del-cancel" class="btn-outline flex-1">ยกเลิก</button>
-        <button id="del-confirm"
-          class="flex-1 text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-          style="background:#EF4444;color:#fff;border:1px solid #DC2626"
-          onmouseover="this.style.background='#DC2626'" onmouseout="this.style.background='#EF4444'">
+        <button id="del-confirm" class="btn-danger flex-1 text-sm px-4 py-2">
           ลบกรง
         </button>
       </div>
@@ -1256,7 +1253,7 @@ async function _discharge(admId, container) {
   const panel = container.querySelector('#ipd-detail');
   if (panel) panel.innerHTML = `
     <div class="flex flex-col items-center justify-center h-48 text-center text-slate-400 space-y-3 p-4">
-      <i class="fas fa-check-circle text-4xl" style="color:#10B981"></i>
+      <i class="fas fa-check-circle text-4xl" style="color:var(--color-success,#10B981)"></i>
       <div class="font-body text-sm">Discharge สำเร็จ${cost ? `<br>ค่าบริการรวม <span class="font-bold text-navy">฿${cost.toLocaleString()}</span>` : ''}</div>
       <button id="print-discharge-btn"
         class="text-sm border border-slate-200 text-slate-500 px-4 py-2 rounded-xl
@@ -1312,9 +1309,9 @@ async function _renderVitals(adm, panel) {
       <div class="mt-2">
         <div class="text-xs text-slate-400 font-body mb-1">กราฟอุณหภูมิ (${tempReadings.length} ครั้ง)</div>
         <svg viewBox="0 0 100 44" class="w-full h-10" preserveAspectRatio="none">
-          <polyline points="${pts}" fill="none" stroke="#0D9488" stroke-width="2" stroke-linejoin="round"/>
+          <polyline points="${pts}" fill="none" stroke="#2A6374" stroke-width="2" stroke-linejoin="round"/>
           ${coords.map(({ x, y, v }) => {
-            const col = v < 37.5 ? '#3B82F6' : v > 39.2 ? '#EF4444' : '#0D9488';
+            const col = v < 37.5 ? '#3B82F6' : v > 39.2 ? '#EF4444' : '#2A6374';
             return `<circle cx="${x}" cy="${y}" r="2.5" fill="${col}"/>`;
           }).join('')}
         </svg>

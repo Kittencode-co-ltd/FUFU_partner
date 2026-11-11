@@ -35,7 +35,7 @@ const STATUS_CFG = {
 
 const KANBAN_COLS = [
   { key: 'waiting',     label: 'รอคิว',    icon: IC.clock,     statuses: ['waiting'],              hdrCls: 'text-amber-600', countCls: 'bg-amber-100 text-amber-700' },
-  { key: 'called',      label: 'เรียกอยู่', icon: IC.megaphone, statuses: ['called'],               hdrCls: 'text-teal-600',  countCls: 'bg-teal-100 text-teal-700'   },
+  { key: 'called',      label: 'เรียกอยู่', icon: IC.megaphone, statuses: ['called'],               hdrCls: 'text-brand',  countCls: 'bg-brand-subtle text-brand'   },
   { key: 'in_progress', label: 'ตรวจอยู่',  icon: IC.pulse,     statuses: ['in_progress'],          hdrCls: 'text-blue-600',  countCls: 'bg-blue-100 text-blue-700'   },
   { key: 'done',        label: 'เสร็จสิ้น', icon: IC.check,     statuses: ['completed', 'no_show'], hdrCls: 'text-slate-500', countCls: 'bg-slate-100 text-slate-600'  },
 ];
@@ -835,15 +835,15 @@ function _openTVMode() {
     win.document.body.innerHTML = `
       <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Sarabun','Tahoma',sans-serif; background:#0a1628; color:#fff;
+        body { font-family:'Noto Sans Thai','Tahoma',sans-serif; background:#0a1628; color:#fff;
                display:flex; flex-direction:column; min-height:100vh; overflow:hidden; }
-        .header { background:#0D9488; padding:16px 40px; display:flex; align-items:center; justify-content:space-between; }
+        .header { background:#2A6374; padding:16px 40px; display:flex; align-items:center; justify-content:space-between; }
         .store  { font-size:28px; font-weight:700; }
         .clock  { font-size:24px; font-weight:600; }
         .body   { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:24px 40px; flex:1; }
         .panel  { background:#111d33; border-radius:16px; padding:20px; }
         .panel-title { font-size:16px; color:#94a3b8; margin-bottom:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; }
-        .calling-num  { font-size:96px; font-weight:900; color:#0D9488; line-height:1; text-align:center; margin:8px 0; }
+        .calling-num  { font-size:96px; font-weight:900; color:#2A6374; line-height:1; text-align:center; margin:8px 0; }
         .calling-name { font-size:28px; text-align:center; color:#e2e8f0; margin-bottom:4px; }
         .calling-svc  { font-size:18px; text-align:center; color:#64748b; }
         .wait-item { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px;

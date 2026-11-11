@@ -46,11 +46,17 @@ export function createMaskableField(value, maskedValue, fieldType, entityId) {
   return `
     <span class="maskable-field" id="${uid}" data-masked="${isMasked}" data-original="${encodeURIComponent(value)}" data-type="${fieldType}" data-entity="${entityId || ''}">
       <span class="mask-value">${isMasked ? maskedValue : value}</span>
-      ${isMasked ? `<button class="mask-toggle" onclick="window.__unmaskField('${uid}')"><i class="fas fa-eye"></i></button>` : ''}
+      ${isMasked ? `<button type="button" class="mask-toggle" data-unmask="${uid}"><i class="fas fa-eye"></i></button>` : ''}
     </span>`;
 }
 
 if (typeof window !== 'undefined') {
+  // Delegated handler (inline onclick is blocked by the portal CSP)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-unmask]');
+    if (btn) window.__unmaskField(btn.dataset.unmask);
+  });
+
   window.__unmaskField = function(fieldId) {
     const el = document.getElementById(fieldId);
     if (!el) return;

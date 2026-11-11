@@ -5,6 +5,9 @@
 
 const path = window.location.pathname.toLowerCase();
 
+// Translated UI string (public/js/i18n.js), falling back to the Thai original
+const tr = (key, fallback) => window.FUFU_I18N?.t(key) || fallback;
+
 if (path.includes('login')) {
   bootLogin();
 } else if (path.includes('register')) {
@@ -76,20 +79,20 @@ async function bootLogin() {
     const password = passwordEl.value;
 
     if (!email || !password) {
-      showToast('กรุณากรอกอีเมลและรหัสผ่าน', 'error');
+      showToast(tr('errEmpty', 'กรุณากรอกอีเมลและรหัสผ่าน'), 'error');
       return;
     }
 
     // Loading state
     submitBtn.disabled  = true;
     spinner.classList.remove('hidden');
-    btnText.textContent = 'กำลังเข้าสู่ระบบ...';
+    btnText.textContent = tr('signingIn', 'กำลังเข้าสู่ระบบ...');
 
     const result = await doLogin(email, password);
 
     submitBtn.disabled  = false;
     spinner.classList.add('hidden');
-    btnText.textContent = 'เข้าสู่ระบบ';
+    btnText.textContent = tr('submitLogin', 'เข้าสู่ระบบ');
 
     if (!result.success) {
       showToast(result.error, 'error', 6000);
@@ -111,8 +114,8 @@ async function bootLogin() {
       storePanel?.classList.remove('hidden');
       const heading = storePanel.querySelector('h2');
       const sub     = storePanel.querySelector('p');
-      if (heading) heading.textContent = 'สร้างร้านค้าแรก';
-      if (sub)     sub.textContent     = 'บัญชีของคุณยังไม่มีร้านค้า — สร้างได้เลยตอนนี้';
+      if (heading) heading.textContent = tr('firstStore', 'สร้างร้านค้าแรก');
+      if (sub)     sub.textContent     = tr('firstStoreSub', 'บัญชีของคุณยังไม่มีร้านค้า — สร้างได้เลยตอนนี้');
       renderCreateStore(storeList, result.token, showToast, selectStore);
     } else if (result.stores.length === 1) {
       selectStore(result.stores[0]);
@@ -153,14 +156,14 @@ async function bootRegister() {
     const store_name = fd.get('store_name')?.trim();
 
     if (!name || !email || !password || !store_name) {
-      showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
+      showToast(tr('errFill', 'กรุณากรอกข้อมูลให้ครบ'), 'error');
       return;
     }
 
     // Loading state
     submitBtn.disabled  = true;
     spinner.classList.remove('hidden');
-    btnText.textContent = 'กำลังสร้างบัญชี...';
+    btnText.textContent = tr('creating', 'กำลังสร้างบัญชี...');
     existsBanner?.classList.add('hidden');
 
     let result;
@@ -177,12 +180,12 @@ async function bootRegister() {
         }),
       });
     } catch (error) {
-      showToast(error?.message || 'เชื่อมต่อระบบสมัครสมาชิกไม่ได้ กรุณาลองใหม่', 'error');
+      showToast(error?.message || tr('errRegister', 'เชื่อมต่อระบบสมัครสมาชิกไม่ได้ กรุณาลองใหม่'), 'error');
       return;
     } finally {
       submitBtn.disabled  = false;
       spinner.classList.add('hidden');
-      btnText.textContent = 'สร้างบัญชีและร้านค้า →';
+      btnText.textContent = tr('submitRegister', 'สร้างบัญชีและร้านค้า');
     }
 
     // Handle "email already exists"
@@ -194,13 +197,13 @@ async function bootRegister() {
 
     if (!result?.success) {
       showToast(result?.error || (result === null
-        ? 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่'
-        : 'เกิดข้อผิดพลาด'), 'error');
+        ? tr('errNetwork', 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')
+        : tr('errGeneric', 'เกิดข้อผิดพลาด')), 'error');
       return;
     }
 
     if (result.needs_email_verification) {
-      showToast('สร้างบัญชีสำเร็จ กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ');
+      showToast(tr('okVerify', 'สร้างบัญชีสำเร็จ กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'));
       form.reset();
       setTimeout(() => { window.location.href = '/login.html'; }, 1800);
       return;
@@ -218,7 +221,7 @@ async function bootRegister() {
       setTimeout(() => selectStore(result.stores[0]), 800);
     } else {
       // needs_onboarding — redirect to login which will show create-store form
-      showToast('สร้างบัญชีสำเร็จ! กรุณาสร้างร้านค้าของคุณ');
+      showToast(tr('okCreateStore', 'สร้างบัญชีสำเร็จ! กรุณาสร้างร้านค้าของคุณ'));
       setTimeout(() => { window.location.href = '/login.html'; }, 1200);
     }
   });
@@ -256,11 +259,11 @@ function renderCreateStore(container, token, showToast, selectStore) {
   container.querySelector('#cs-submit').addEventListener('click', async () => {
     const name     = container.querySelector('#cs-name').value.trim();
     const category = container.querySelector('#cs-category').value;
-    if (!name) { showToast('กรุณากรอกชื่อร้าน', 'error'); return; }
+    if (!name) { showToast(tr('errStoreName', 'กรุณากรอกชื่อร้าน'), 'error'); return; }
 
     const btn = container.querySelector('#cs-submit');
     btn.disabled = true;
-    btn.textContent = 'กำลังสร้าง...';
+    btn.textContent = tr('creatingStore', 'กำลังสร้าง...');
 
     const { apiFetch } = await import('./utils/api-client.js');
     const res = await apiFetch('/api/stores', {
@@ -274,7 +277,7 @@ function renderCreateStore(container, token, showToast, selectStore) {
     } else {
       showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
       btn.disabled = false;
-      btn.textContent = 'สร้างร้านค้า →';
+      btn.textContent = tr('createStore', 'สร้างร้านค้า →');
     }
   });
 }

@@ -568,7 +568,7 @@ function _openProductModal(tabEl, existing = null) {
     delBtn.addEventListener('click', async () => {
       if (delBtn.dataset.confirm !== 'true') {
         delBtn.textContent = 'ยืนยันลบ?';
-        delBtn.style.cssText = 'background:#EF4444;color:#fff;border-color:#EF4444;';
+        delBtn.style.cssText = 'background:var(--color-danger,#EF4444);color:var(--color-fg-inverse,#fff);border-color:var(--color-danger,#EF4444);';
         delBtn.dataset.confirm = 'true';
         setTimeout(() => {
           if (delBtn.dataset.confirm === 'true') { delBtn.textContent = '🗑 ลบ'; delBtn.style.cssText = ''; delBtn.dataset.confirm = ''; }

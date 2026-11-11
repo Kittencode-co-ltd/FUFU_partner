@@ -1,6 +1,7 @@
 ﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
+import { bindPrintButton } from '../utils/print-docs.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
 const PAYMENT_METHODS = {
@@ -639,7 +640,7 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
 <title>ใบเสร็จ ${esc(invoiceNumber)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: 'Sarabun', 'Tahoma', sans-serif; font-size:13px; color:#111;
+  body { font-family: 'Noto Sans Thai', 'Tahoma', sans-serif; font-size:13px; color:#111;
          padding:24px; max-width:340px; margin:auto; }
   h1   { font-size:18px; text-align:center; margin-bottom:2px; }
   .sub { text-align:center; color:#555; font-size:11px; line-height:1.6; }
@@ -653,7 +654,7 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
   .method  { text-align:center; margin-top:8px; font-size:12px; color:#333; }
   .footer  { text-align:center; color:#aaa; font-size:10px; margin-top:16px; line-height:1.8; }
   .print-btn { display:block; width:100%; margin-top:20px; padding:10px;
-               background:#0D9488; color:#fff; border:none; border-radius:8px;
+               background:#2A6374; color:#fff; border:none; border-radius:8px;
                font-size:14px; cursor:pointer; font-family:inherit; }
   @media print {
     .print-btn { display:none !important; }
@@ -694,7 +695,7 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
       ${vatAmount ? `<tr><td>VAT ${vatRate}%</td><td class="num">+฿${vatAmount.toLocaleString('th-TH')}</td></tr>` : ''}
       <tr class="total-row">
         <td>รวมทั้งสิ้น</td>
-        <td class="num" style="color:#0D9488">฿${total.toLocaleString('th-TH')}</td>
+        <td class="num" style="color:#2A6374">฿${total.toLocaleString('th-TH')}</td>
       </tr>
       <tr class="commission">
         <td>ค่าคอม FUFU 5%</td>
@@ -712,13 +713,14 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
     Powered by FUFU Partner
   </div>
 
-  <button class="print-btn" onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const tab  = window.open(url, '_blank');
+  bindPrintButton(tab);
   // Revoke blob URL after tab loads (60 s is more than enough)
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
   if (!tab) showToast('กรุณาอนุญาต Pop-up เพื่อพิมพ์ใบเสร็จ', 'error');

@@ -14,11 +14,32 @@ function _storeInfo() {
   try { return JSON.parse(localStorage.getItem('fufu_store_info') || '{}'); } catch { return {}; }
 }
 
+/**
+ * Wire the "print" button inside a print window opened from a blob URL.
+ * The blob document inherits the portal CSP, so it cannot use inline onclick.
+ */
+export function bindPrintButton(tab) {
+  if (!tab) return;
+  let tries = 0;
+  const timer = setInterval(() => {
+    tries++;
+    try {
+      const btn = tab.document?.querySelector('[data-print]');
+      if (btn && tab.document.readyState !== 'loading') {
+        btn.addEventListener('click', () => tab.print());
+        clearInterval(timer);
+      }
+    } catch { clearInterval(timer); }
+    if (tries > 50) clearInterval(timer);
+  }, 100);
+}
+
 function _openPrintWindow(html, title) {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const tab  = window.open(url, '_blank');
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  bindPrintButton(tab);
   return tab;
 }
 
@@ -57,7 +78,7 @@ export function printDrugLabels({ prescriptions, petName, ownerName, storeName, 
 <title>ฉลากยา — ${_esc(petName)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Sarabun','Tahoma',sans-serif; background:#fff; }
+  body { font-family:'Noto Sans Thai','Tahoma',sans-serif; background:#fff; }
   .label {
     width: 58mm;
     padding: 4mm 4mm 3mm;
@@ -71,7 +92,7 @@ export function printDrugLabels({ prescriptions, petName, ownerName, storeName, 
   .note   { font-size:8.5pt; color:#555; margin-top:1mm; font-style:italic; }
   .patient{ font-size:8.5pt; margin-top:2mm; color:#333; }
   .date   { font-size:8pt; color:#888; margin-top:1mm; }
-  .print-btn { display:block; margin:6mm auto; padding:6px 20px; background:#0D9488;
+  .print-btn { display:block; margin:6mm auto; padding:6px 20px; background:#2A6374;
                color:#fff; border:none; border-radius:6px; font-size:13px;
                cursor:pointer; font-family:inherit; }
   @media print {
@@ -82,7 +103,7 @@ export function printDrugLabels({ prescriptions, petName, ownerName, storeName, 
 </head>
 <body>
   ${labels}
-  <button class="print-btn" onclick="window.print()">🖨 พิมพ์ฉลาก</button>
+  <button class="print-btn" data-print>🖨 พิมพ์ฉลาก</button>
 </body>
 </html>`;
 
@@ -122,13 +143,13 @@ export function printReferralLetter({
 <title>ใบส่งตัว — ${_esc(petName)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Sarabun','Tahoma',sans-serif; font-size:11pt; color:#111;
+  body { font-family:'Noto Sans Thai','Tahoma',sans-serif; font-size:11pt; color:#111;
          padding:20mm 20mm 16mm; max-width:210mm; margin:auto; }
   h1  { font-size:18pt; text-align:center; margin-bottom:2px; }
   .sub{ text-align:center; font-size:9pt; color:#555; margin-bottom:6mm; }
   .hr { border:none; border-top:1.5px solid #111; margin:5mm 0; }
   .hr2{ border:none; border-top:1px dashed #aaa; margin:4mm 0; }
-  h2  { font-size:13pt; margin:5mm 0 2mm; border-left:4px solid #0D9488; padding-left:6px; }
+  h2  { font-size:13pt; margin:5mm 0 2mm; border-left:4px solid #2A6374; padding-left:6px; }
   .row{ display:flex; gap:16mm; margin:2px 0; }
   .row .label { width:32mm; color:#555; flex-shrink:0; }
   .row .val   { flex:1; font-weight:500; }
@@ -139,7 +160,7 @@ export function printReferralLetter({
   .sig { margin-top:12mm; display:flex; justify-content:flex-end; }
   .sig-box { text-align:center; width:60mm; }
   .sig-line { border-top:1px solid #111; margin-top:14mm; padding-top:2px; font-size:9pt; }
-  .print-btn { display:block; margin:6mm auto; padding:8px 24px; background:#0D9488;
+  .print-btn { display:block; margin:6mm auto; padding:8px 24px; background:#2A6374;
                color:#fff; border:none; border-radius:8px; font-size:13px;
                cursor:pointer; font-family:inherit; }
   @media print {
@@ -168,7 +189,7 @@ export function printReferralLetter({
 
   <h2>ข้อมูลสัตว์ป่วย</h2>
   <div class="row"><span class="label">ชื่อสัตว์</span>
-    <span class="val">${_esc(petName)}${hn ? ` <span style="color:#0D9488;font-size:9pt;">(HN-${String(hn).padStart(5,'0')})</span>` : ''}</span></div>
+    <span class="val">${_esc(petName)}${hn ? ` <span style="color:#2A6374;font-size:9pt;">(HN-${String(hn).padStart(5,'0')})</span>` : ''}</span></div>
   ${species ? `<div class="row"><span class="label">ชนิด</span><span class="val">${_esc(species)}</span></div>` : ''}
   <div class="row"><span class="label">เจ้าของ</span>
     <span class="val">${_esc(ownerName || '—')}${ownerPhone ? ' · ' + _esc(ownerPhone) : ''}</span></div>
@@ -193,7 +214,7 @@ export function printReferralLetter({
     </div>
   </div>
 
-  <button class="print-btn" onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 
@@ -217,7 +238,7 @@ export function printDischargeSummary({ storeName, adm, treatments = [], vitals 
           <td>${_esc(t.treatment_type || '')}</td>
           <td>${_esc(t.description || '')}</td>
           <td>${_esc(t.dosage || '')}</td>
-          <td style="color:${t.status === 'done' ? '#0D9488' : '#F97316'}">${t.status === 'done' ? '✓' : '—'}</td>
+          <td style="color:${t.status === 'done' ? '#2A6374' : '#F97316'}">${t.status === 'done' ? '✓' : '—'}</td>
         </tr>`).join('')
     : '<tr><td colspan="5" style="text-align:center;color:#888;padding:8px;">ไม่มีรายการ</td></tr>';
 
@@ -237,14 +258,14 @@ export function printDischargeSummary({ storeName, adm, treatments = [], vitals 
 <title>Discharge Summary — ${_esc(adm.pet_name)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Sarabun','Tahoma',sans-serif; font-size:11pt; color:#111;
+  body { font-family:'Noto Sans Thai','Tahoma',sans-serif; font-size:11pt; color:#111;
          padding:18mm 20mm 14mm; max-width:210mm; margin:auto; }
   h1  { font-size:17pt; text-align:center; margin-bottom:2px; }
   .sub{ text-align:center; font-size:9pt; color:#555; margin-bottom:5mm; }
   .title{ text-align:center; font-size:14pt; font-weight:bold; margin:5mm 0 4mm; }
   .hr { border:none; border-top:1.5px solid #111; margin:4mm 0; }
   .hr2{ border:none; border-top:1px dashed #aaa; margin:3mm 0; }
-  h2  { font-size:12pt; margin:5mm 0 2mm; border-left:4px solid #0D9488; padding-left:6px; }
+  h2  { font-size:12pt; margin:5mm 0 2mm; border-left:4px solid #2A6374; padding-left:6px; }
   .row{ display:flex; gap:8mm; margin:2px 0; font-size:10.5pt; }
   .row .lbl { width:36mm; color:#555; flex-shrink:0; }
   .row .val { flex:1; font-weight:500; }
@@ -257,13 +278,13 @@ export function printDischargeSummary({ storeName, adm, treatments = [], vitals 
   .cost-box { background:#f0fdf4; border:1px solid #86efac; border-radius:6px;
               padding:8px 14px; display:flex; justify-content:space-between;
               align-items:center; margin:3mm 0; }
-  .cost-box .amount { font-size:15pt; font-weight:bold; color:#0D9488; }
+  .cost-box .amount { font-size:15pt; font-weight:bold; color:#2A6374; }
   .notes-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;
                padding:8px 12px; font-size:10pt; white-space:pre-wrap; margin:3mm 0; }
   .sig { margin-top:12mm; display:flex; justify-content:flex-end; }
   .sig-box { text-align:center; width:60mm; }
   .sig-line { border-top:1px solid #111; margin-top:14mm; padding-top:2px; font-size:9pt; }
-  .print-btn { display:block; margin:6mm auto; padding:8px 24px; background:#0D9488;
+  .print-btn { display:block; margin:6mm auto; padding:8px 24px; background:#2A6374;
                color:#fff; border:none; border-radius:8px; font-size:13px;
                cursor:pointer; font-family:inherit; }
   @media print {
@@ -325,7 +346,7 @@ export function printDischargeSummary({ storeName, adm, treatments = [], vitals 
     </div>
   </div>
 
-  <button class="print-btn" onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 
@@ -357,14 +378,14 @@ export function printConsentForm({
 <title>หนังสือยินยอม — ${_esc(petName)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Sarabun','Tahoma',sans-serif; font-size:12pt; color:#111;
+  body { font-family:'Noto Sans Thai','Tahoma',sans-serif; font-size:12pt; color:#111;
          padding:20mm 20mm 16mm; max-width:210mm; margin:auto; line-height:1.7; }
   h1  { font-size:17pt; text-align:center; margin-bottom:2px; }
   .sub{ text-align:center; font-size:10pt; color:#555; margin-bottom:5mm; }
   .doc-title { text-align:center; font-size:15pt; font-weight:bold; margin:6mm 0 4mm;
                border-top:2px solid #111; border-bottom:2px solid #111; padding:4px 0; }
   hr  { border:none; border-top:1px solid #ccc; margin:4mm 0; }
-  h2  { font-size:13pt; border-left:4px solid #0D9488; padding-left:6px; margin:5mm 0 2mm; }
+  h2  { font-size:13pt; border-left:4px solid #2A6374; padding-left:6px; margin:5mm 0 2mm; }
   .row{ display:flex; gap:8mm; margin:1.5mm 0; font-size:11pt; }
   .row .lbl { width:36mm; color:#555; flex-shrink:0; }
   .row .val { flex:1; border-bottom:1px solid #ccc; min-height:6mm; }
@@ -374,7 +395,7 @@ export function printConsentForm({
   .sig-box  { text-align:center; }
   .sig-line { border-top:1px solid #111; margin-top:16mm; padding-top:2px; font-size:10pt; }
   .sig-date { font-size:10pt; color:#555; margin-top:2mm; }
-  .print-btn { display:block; margin:8mm auto; padding:8px 24px; background:#0D9488;
+  .print-btn { display:block; margin:8mm auto; padding:8px 24px; background:#2A6374;
                color:#fff; border:none; border-radius:8px; font-size:13px;
                cursor:pointer; font-family:inherit; }
   @media print { .print-btn { display:none !important; } body { padding:12mm 18mm; } }
@@ -427,7 +448,7 @@ export function printConsentForm({
     </div>
   </div>
 
-  <button class="print-btn" onclick="window.print()">🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 

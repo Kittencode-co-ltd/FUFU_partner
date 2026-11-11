@@ -576,7 +576,7 @@ function _bindMainSearch(c) {
     results.innerHTML = rows.map((r, i) => {
       const emoji  = SPECIES_EMOJI[r.species] || '🐾';
       const hnTag  = r.hn
-        ? `<span class="text-xs bg-teal-100 text-teal-700 rounded px-1.5 py-0.5 font-mono font-semibold">${formatHN(r.hn, r.created_at)}</span>`
+        ? `<span class="text-xs bg-brand-subtle text-brand rounded px-1.5 py-0.5 font-mono font-semibold">${formatHN(r.hn, r.created_at)}</span>`
         : '';
       const breedTxt = r.breed ? `<span class="text-xs text-slate-400 font-body">${r.breed}</span>` : '';
       const allergyBadge = r.allergies

@@ -1,5 +1,6 @@
 import { apiFetch } from '../utils/api-client.js';
-import { storage, STORAGE_KEYS } from '../utils/config.js';
+import { STORAGE_KEYS } from '../utils/config.js';
+import { storage } from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 const labels={requested:'รอยืนยัน',reschedule_proposed:'เสนอเวลาใหม่',confirmed:'ยืนยันแล้ว',checked_in:'เช็กอินแล้ว',completed:'เสร็จสิ้น',cancelled:'ยกเลิก',no_show:'ไม่มาตามนัด',rejected:'ปฏิเสธ'};let bucket='requested';
 export async function renderAppointments(container,view='inbox'){const store=storage.get(STORAGE_KEYS.STORE_ID);container.innerHTML='<div class="card p-6 text-slate-500">กำลังโหลดนัดหมาย…</div>';try{if(view==='calendar'){const from=new Date();from.setDate(from.getDate()-from.getDay());const to=new Date(from);to.setDate(to.getDate()+7);const r=await apiFetch(`/api/appointments/calendar?store_id=${store}&from=${from.toISOString()}&to=${to.toISOString()}`);container.innerHTML=layout(r.data||[],true);}else{const r=await apiFetch(`/api/appointments?store_id=${store}&bucket=${bucket}`);container.innerHTML=layout(r.data||[],false);bind(container,store);}}catch{container.innerHTML='<div class="card p-6"><p class="text-red-600">โหลดข้อมูลไม่สำเร็จ</p><button id="appt-retry" class="btn-primary mt-3">ลองอีกครั้ง</button></div>';container.querySelector('#appt-retry').onclick=()=>renderAppointments(container,view);}}

@@ -5,6 +5,14 @@ import { storage } from '../utils/storage.js';
 import { formatThaiDate, formatHN } from '../utils/formatters.js';
 import { can } from '../utils/permissions.js';
 
+// Delegated focus helpers (inline onclick is blocked by the portal CSP)
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('[data-focus-target]');
+  if (target) { document.querySelector(target.dataset.focusTarget)?.focus(); return; }
+  const wrap = e.target.closest('[data-focus-within-input]');
+  if (wrap && e.target.tagName !== 'INPUT') wrap.querySelector('input')?.focus();
+});
+
 const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
 
 const VACCINE_LIST = [
@@ -81,81 +89,84 @@ function _buildLayout() {
 
   return `
 <style>
-.wr-layout{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--bg-main,#f8fafc);}
-.wr-topbar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#fff;border-bottom:1px solid var(--border-soft,#e2e8f0);flex-shrink:0;flex-wrap:wrap;}
-.wr-patient-chip{display:flex;align-items:center;gap:6px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:#0f766e;white-space:nowrap;}
-.wr-queue-chip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;color:#1d4ed8;white-space:nowrap;}
+.wr-layout{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--color-surface-muted,#f8fafc);}
+.wr-topbar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--color-surface,#fff);border-bottom:1px solid var(--color-line,#e2e8f0);flex-shrink:0;flex-wrap:wrap;}
+.wr-patient-chip{display:flex;align-items:center;gap:6px;background:var(--color-brand-faint,#ECF7F5);border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:var(--color-brand-strong,#1B414B);white-space:nowrap;}
+.wr-queue-chip{background:var(--color-info-faint,#eff6ff);border:1px solid #bfdbfe;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;color:#1d4ed8;white-space:nowrap;}
 .wr-spacer{flex:1;}
-.wr-autosave{font-size:11px;color:#94a3b8;}
-.wr-btn-done{background:var(--primary,#0d9488);color:#fff;border:none;border-radius:8px;padding:7px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s;}
+.wr-autosave{font-size:11px;color:var(--color-fg-subtle,#94a3b8);}
+.wr-btn-done{background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;border-radius:8px;padding:7px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s;}
 .wr-btn-done:hover:not(:disabled){opacity:.85;}
+.wr-hover-brand:hover{border-color:var(--color-brand,#2A6374)!important;color:var(--color-brand,#2A6374)!important;}
+.wr-hover-row:hover{background:var(--color-brand-faint,#ECF7F5)!important;}
+.wr-hover-row-strong:hover{background:var(--color-brand-subtle,#D7EEEB)!important;}
 .wr-btn-done:disabled{opacity:.4;cursor:not-allowed;}
 .wr-body{display:grid;grid-template-columns:260px 1fr;flex:1;overflow:hidden;min-height:0;}
-.wr-left{overflow-y:auto;border-right:1px solid var(--border-soft,#e2e8f0);background:#fff;padding:14px;font-size:13px;}
+.wr-left{overflow-y:auto;border-right:1px solid var(--color-line,#e2e8f0);background:var(--color-surface,#fff);padding:14px;font-size:13px;}
 .wr-right{display:flex;flex-direction:column;overflow:hidden;}
-.wr-tabs{display:flex;border-bottom:2px solid var(--border-soft,#e2e8f0);background:#fff;flex-shrink:0;}
-.wr-tab{padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;color:#64748b;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s;white-space:nowrap;}
-.wr-tab:hover{color:var(--primary,#0d9488);}
-.wr-tab.active{color:var(--primary,#0d9488);border-bottom-color:var(--primary,#0d9488);}
+.wr-tabs{display:flex;border-bottom:2px solid var(--color-line,#e2e8f0);background:var(--color-surface,#fff);flex-shrink:0;}
+.wr-tab{padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;color:var(--color-fg-muted,#64748b);border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s;white-space:nowrap;}
+.wr-tab:hover{color:var(--color-brand,#2A6374);}
+.wr-tab.active{color:var(--color-brand,#2A6374);border-bottom-color:var(--color-brand,#2A6374);}
 .wr-tab-content{flex:1;overflow-y:auto;padding:14px;}
-.wr-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#94a3b8;gap:12px;padding:40px;text-align:center;}
+.wr-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--color-fg-subtle,#94a3b8);gap:12px;padding:40px;text-align:center;}
 .wr-vaccine-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
-.wr-vaccine-badge.ok{background:#dcfce7;color:#166534;}
+.wr-vaccine-badge.ok{background:var(--color-success-subtle,#dcfce7);color:var(--color-success-strong,#166534);}
 .wr-vaccine-badge.soon{background:#fef9c3;color:#854d0e;}
-.wr-vaccine-badge.expired{background:#fee2e2;color:#991b1b;}
+.wr-vaccine-badge.expired{background:var(--color-danger-subtle,#fee2e2);color:var(--color-danger-strong,#991b1b);}
 .wr-pet-avatar{font-size:48px;text-align:center;margin-bottom:8px;}
-.wr-section-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px;}
+.wr-section-label{font-size:11px;font-weight:700;color:var(--color-fg-subtle,#94a3b8);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px;}
 .wr-info-row{display:flex;gap:6px;margin-bottom:4px;}
-.wr-info-label{color:#64748b;flex-shrink:0;min-width:58px;}
-.wr-info-value{color:#1e293b;font-weight:500;}
-.wr-allergy-box{background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px 10px;color:#991b1b;font-size:12px;font-weight:600;margin-top:6px;}
-.wr-vaccine-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;}
-.wr-vaccine-name{color:#334155;font-weight:500;font-size:12px;}
-.wr-vaccine-date{color:#94a3b8;font-size:11px;}
+.wr-info-label{color:var(--color-fg-muted,#64748b);flex-shrink:0;min-width:58px;}
+.wr-info-value{color:var(--color-fg,#1e293b);font-weight:500;}
+.wr-allergy-box{background:var(--color-danger-subtle,#fee2e2);border:1px solid #fca5a5;border-radius:8px;padding:8px 10px;color:var(--color-danger-strong,#991b1b);font-size:12px;font-weight:600;margin-top:6px;}
+.wr-vaccine-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--color-surface-sunken,#f1f5f9);}
+.wr-vaccine-name{color:var(--color-fg-secondary,#334155);font-weight:500;font-size:12px;}
+.wr-vaccine-date{color:var(--color-fg-subtle,#94a3b8);font-size:11px;}
 .wr-note-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
-.wr-note-box{border-radius:10px;border:1px solid var(--border-soft,#e2e8f0);border-top-width:3px;padding:12px;}
+.wr-note-box{border-radius:10px;border:1px solid var(--color-line,#e2e8f0);border-top-width:3px;padding:12px;}
 .wr-note-label{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
 .wr-note-badge{padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;}
-.wr-note-title{font-size:13px;font-weight:600;color:#1e293b;}
-.wr-note-ta{width:100%;font-size:13px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;resize:vertical;min-height:100px;outline:none;transition:border-color .2s;font-family:inherit;color:#334155;line-height:1.55;}
-.wr-note-ta:focus{border-color:var(--primary,#0d9488);background:#fff;}
+.wr-note-title{font-size:13px;font-weight:600;color:var(--color-fg,#1e293b);}
+.wr-note-ta{width:100%;font-size:13px;background:var(--color-surface-muted,#f8fafc);border:1px solid var(--color-line,#e2e8f0);border-radius:8px;padding:8px;resize:vertical;min-height:100px;outline:none;transition:border-color .2s;font-family:inherit;color:var(--color-fg-secondary,#334155);line-height:1.55;}
+.wr-note-ta:focus{border-color:var(--color-brand,#2A6374);background:var(--color-surface,#fff);}
 .wr-vitals-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
-.wr-vital-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px;}
-.wr-vital-label{font-size:11px;color:#94a3b8;margin-bottom:4px;}
+.wr-vital-card{background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:10px;padding:10px;}
+.wr-vital-label{font-size:11px;color:var(--color-fg-subtle,#94a3b8);margin-bottom:4px;}
 .wr-vital-row{display:flex;align-items:baseline;gap:4px;}
-.wr-vital-input{width:100%;font-size:18px;font-weight:700;color:#1e293b;border:none;border-bottom:1px solid transparent;outline:none;background:transparent;transition:border-color .2s;font-family:inherit;}
-.wr-vital-input:focus{border-bottom-color:var(--primary,#0d9488);}
-.wr-vital-input.out-of-range{color:#ef4444;}
-.wr-vital-unit{font-size:11px;color:#94a3b8;flex-shrink:0;}
-.wr-rx-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:8px;font-size:13px;margin-bottom:6px;}
+.wr-vital-input{width:100%;font-size:18px;font-weight:700;color:var(--color-fg,#1e293b);border:none;border-bottom:1px solid transparent;outline:none;background:transparent;transition:border-color .2s;font-family:inherit;}
+.wr-vital-input:focus{border-bottom-color:var(--color-brand,#2A6374);}
+.wr-vital-input.out-of-range{color:var(--color-danger,#ef4444);}
+.wr-vital-unit{font-size:11px;color:var(--color-fg-subtle,#94a3b8);flex-shrink:0;}
+.wr-rx-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--color-surface-muted,#f8fafc);border-radius:8px;font-size:13px;margin-bottom:6px;}
 .wr-rx-info{flex:1;min-width:0;}
-.wr-rx-del{color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;transition:color .15s;background:none;border:none;padding:0 4px;}
-.wr-rx-del:hover{color:#ef4444;}
-.wr-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;}
-.wr-history-item{border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;}
-.wr-history-hdr{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:#fff;}
-.wr-history-hdr:hover{background:#f8fafc;}
-.wr-history-body{padding:12px 14px;background:#f8fafc;border-top:1px solid #e2e8f0;display:none;font-size:13px;line-height:1.6;}
+.wr-rx-del{color:var(--color-fg-subtle,#94a3b8);cursor:pointer;font-size:18px;line-height:1;transition:color .15s;background:none;border:none;padding:0 4px;}
+.wr-rx-del:hover{color:var(--color-danger,#ef4444);}
+.wr-card{background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:12px;padding:14px;}
+.wr-history-item{border:1px solid var(--color-line,#e2e8f0);border-radius:10px;margin-bottom:8px;overflow:hidden;}
+.wr-history-hdr{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--color-surface,#fff);}
+.wr-history-hdr:hover{background:var(--color-surface-muted,#f8fafc);}
+.wr-history-body{padding:12px 14px;background:var(--color-surface-muted,#f8fafc);border-top:1px solid var(--color-line,#e2e8f0);display:none;font-size:13px;line-height:1.6;}
 .wr-history-body.open{display:block;}
-.wr-invoice-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;}
-.wr-invoice-total{display:flex;justify-content:space-between;padding:12px 0 0;font-weight:700;font-size:15px;color:#0f766e;border-top:2px solid #e2e8f0;}
-.wr-appt-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;}
-.wr-appt-date-box{background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;padding:6px 10px;text-align:center;flex-shrink:0;min-width:52px;}
-.wr-appt-day{font-size:18px;font-weight:700;color:#0f766e;line-height:1;}
-.wr-appt-month{font-size:10px;color:#0d9488;font-weight:600;}
+.wr-invoice-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--color-surface-sunken,#f1f5f9);font-size:13px;}
+.wr-invoice-total{display:flex;justify-content:space-between;padding:12px 0 0;font-weight:700;font-size:15px;color:var(--color-brand-strong,#1B414B);border-top:2px solid var(--color-line,#e2e8f0);}
+.wr-appt-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:10px;margin-bottom:8px;}
+.wr-appt-date-box{background:var(--color-brand-faint,#ECF7F5);border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:8px;padding:6px 10px;text-align:center;flex-shrink:0;min-width:52px;}
+.wr-appt-day{font-size:18px;font-weight:700;color:var(--color-brand-strong,#1B414B);line-height:1;}
+.wr-appt-month{font-size:10px;color:var(--color-brand,#2A6374);font-weight:600;}
 .wr-appt-info{flex:1;min-width:0;}
-.wr-appt-service{font-weight:600;font-size:13px;color:#1e293b;}
-.wr-appt-meta{font-size:11px;color:#94a3b8;margin-top:1px;}
+.wr-appt-service{font-weight:600;font-size:13px;color:var(--color-fg,#1e293b);}
+.wr-appt-meta{font-size:11px;color:var(--color-fg-subtle,#94a3b8);margin-top:1px;}
 .wr-appt-status{font-size:11px;font-weight:600;border-radius:10px;padding:2px 8px;white-space:nowrap;}
-.wr-appt-cancel{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px;border-radius:4px;transition:color .15s;}
-.wr-appt-cancel:hover{color:#ef4444;}
+.wr-appt-cancel{background:none;border:none;color:var(--color-fg-subtle,#94a3b8);cursor:pointer;font-size:16px;padding:4px;border-radius:4px;transition:color .15s;}
+.wr-appt-cancel:hover{color:var(--color-danger,#ef4444);}
 .wr-form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .wr-form-group{margin-bottom:12px;}
-.wr-form-label{font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;display:block;}
-.wr-form-input{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;transition:border-color .2s;background:#fff;color:#1e293b;}
-.wr-form-input:focus{border-color:var(--primary,#0d9488);}
-.wr-divider{border:none;border-top:1px solid #e2e8f0;margin:16px 0;}
-.wr-submit-btn{width:100%;background:var(--primary,#0d9488);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s;}
+.wr-form-label{font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);margin-bottom:4px;display:block;}
+.wr-form-input{width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;font-size:13px;outline:none;font-family:inherit;transition:border-color .2s;background:var(--color-surface,#fff);color:var(--color-fg,#1e293b);}
+.wr-form-input:focus{border-color:var(--color-brand,#2A6374);}
+.wr-divider{border:none;border-top:1px solid var(--color-line,#e2e8f0);margin:16px 0;}
+.wr-submit-btn{width:100%;background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s;}
 .wr-submit-btn:hover{opacity:.85;}
 .wr-submit-btn:disabled{opacity:.4;cursor:not-allowed;}
 /* Responsive height so panels scroll independently */
@@ -174,15 +185,15 @@ function _buildLayout() {
     ${q ? `
       <div class="wr-patient-chip">🐾 ${_esc(petName)}${ownerName ? ' · ' + _esc(ownerName) : ''}</div>
       ${num ? `<div class="wr-queue-chip">คิว ${num}</div>` : ''}
-    ` : '<div class="wr-patient-chip" style="background:#f1f5f9;color:#64748b;border-color:#e2e8f0;">🔍 ยังไม่มีผู้ป่วย</div>'}
+    ` : '<div class="wr-patient-chip" style="background:var(--color-surface-sunken,#f1f5f9);color:var(--color-fg-muted,#64748b);border-color:var(--color-line,#e2e8f0);">🔍 ยังไม่มีผู้ป่วย</div>'}
     <div class="wr-spacer"></div>
     <span class="wr-autosave" id="wr-autosave"></span>
-    ${can('opd','edit') ? `<button class="wr-btn-done" id="wr-done-btn"${!q ? ' disabled' : ''}>✓ เสร็จสิ้น</button>` : `<span style="font-size:12px;color:#d97706;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:4px 10px;">👁 ดูข้อมูลเท่านั้น</span>`}
+    ${can('opd','edit') ? `<button class="wr-btn-done" id="wr-done-btn"${!q ? ' disabled' : ''}>✓ เสร็จสิ้น</button>` : `<span style="font-size:12px;color:#d97706;background:var(--color-warning-faint,#fffbeb);border:1px solid #fde68a;border-radius:8px;padding:4px 10px;">👁 ดูข้อมูลเท่านั้น</span>`}
   </div>
 
   <div class="wr-body">
     <div class="wr-left" id="wr-pet-panel">
-      <div style="display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:8px;color:#94a3b8;">
+      <div style="display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:8px;color:var(--color-fg-subtle,#94a3b8);">
         <span style="font-size:32px;">🐾</span>
         <span style="font-size:13px;">กำลังโหลด...</span>
       </div>
@@ -340,7 +351,7 @@ async function _loadVaccinations(petId) {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
       <div class="wr-section-label" style="margin:0;">💉 วัคซีน</div>
       <button id="wr-add-vax-btn"
-        style="background:var(--primary,#0d9488);color:#fff;border:none;border-radius:6px;
+        style="background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;border-radius:6px;
                padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">
         + บันทึก
       </button>
@@ -364,7 +375,7 @@ async function _loadVaccinations(petId) {
             <span class="wr-vaccine-badge ${cls}">${label}</span>
           </div>`;
       }).join('')
-    : `<p style="color:#94a3b8;font-size:12px;margin:4px 0 0;">ยังไม่มีข้อมูลวัคซีน</p>`;
+    : `<p style="color:var(--color-fg-subtle,#94a3b8);font-size:12px;margin:4px 0 0;">ยังไม่มีข้อมูลวัคซีน</p>`;
 
   section.innerHTML = hdr + list;
 
@@ -387,8 +398,8 @@ function _renderPetPanel() {
 
   panel.innerHTML = `
     <div class="wr-pet-avatar">${emoji}</div>
-    <div style="font-size:17px;font-weight:700;color:#1e293b;text-align:center;margin-bottom:3px;">${_esc(p.name || '—')}</div>
-    ${p.breed ? `<div style="font-size:12px;color:#64748b;text-align:center;margin-bottom:10px;">${_esc(p.breed)}</div>` : ''}
+    <div style="font-size:17px;font-weight:700;color:var(--color-fg,#1e293b);text-align:center;margin-bottom:3px;">${_esc(p.name || '—')}</div>
+    ${p.breed ? `<div style="font-size:12px;color:var(--color-fg-muted,#64748b);text-align:center;margin-bottom:10px;">${_esc(p.breed)}</div>` : ''}
 
     <div class="wr-section-label">ข้อมูลสัตว์เลี้ยง</div>
     ${p.gender    ? `<div class="wr-info-row"><span class="wr-info-label">เพศ</span><span class="wr-info-value">${genderMap[p.gender] || p.gender}</span></div>` : ''}
@@ -402,12 +413,12 @@ function _renderPetPanel() {
     ${(p.owner_phone || _queueItem?.owner_phone) ? `<div class="wr-info-row"><span class="wr-info-label">โทร</span><span class="wr-info-value">${_esc(p.owner_phone || _queueItem?.owner_phone)}</span></div>` : ''}
 
     <div class="wr-section-label">โรคประจำตัว / แพ้ยา</div>
-    ${p.allergies ? `<div class="wr-allergy-box">⚠️ แพ้: ${_esc(p.allergies)}</div>` : `<span style="font-size:12px;color:#94a3b8;">ไม่มี</span>`}
-    ${p.chronic_conditions ? `<div style="font-size:12px;color:#334155;margin-top:6px;">${_esc(p.chronic_conditions)}</div>` : ''}
+    ${p.allergies ? `<div class="wr-allergy-box">⚠️ แพ้: ${_esc(p.allergies)}</div>` : `<span style="font-size:12px;color:var(--color-fg-subtle,#94a3b8);">ไม่มี</span>`}
+    ${p.chronic_conditions ? `<div style="font-size:12px;color:var(--color-fg-secondary,#334155);margin-top:6px;">${_esc(p.chronic_conditions)}</div>` : ''}
 
     <div id="wr-vaccine-section" style="margin-top:4px;">
       <div class="wr-section-label">💉 วัคซีน</div>
-      <p style="color:#94a3b8;font-size:12px;">กำลังโหลด...</p>
+      <p style="color:var(--color-fg-subtle,#94a3b8);font-size:12px;">กำลังโหลด...</p>
     </div>`;
 }
 
@@ -420,24 +431,24 @@ function _renderEmptyPetPanel() {
     <!-- Search input -->
     <div style="position:relative;margin-bottom:8px;">
       <div id="wr-search-wrap"
-        style="display:flex;align-items:center;gap:6px;border:1px solid #e2e8f0;border-radius:8px;
-               padding:7px 10px;background:#f8fafc;transition:border-color .2s;cursor:text;"
-        onclick="this.querySelector('input').focus()">
+        style="display:flex;align-items:center;gap:6px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
+               padding:7px 10px;background:var(--color-surface-muted,#f8fafc);transition:border-color .2s;cursor:text;"
+        data-focus-within-input>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" style="flex-shrink:0;">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
         <input id="wr-patient-search" autocomplete="off" spellcheck="false"
           placeholder="HN, ชื่อสัตว์ หรือชื่อเจ้าของ..."
           style="flex:1;border:none;outline:none;background:transparent;font-size:12px;
-                 color:#334155;font-family:inherit;min-width:0;">
+                 color:var(--color-fg-secondary,#334155);font-family:inherit;min-width:0;">
         <button id="wr-search-clear"
-          style="display:none;background:none;border:none;color:#94a3b8;cursor:pointer;
+          style="display:none;background:none;border:none;color:var(--color-fg-subtle,#94a3b8);cursor:pointer;
                  font-size:18px;line-height:1;padding:0;flex-shrink:0;">×</button>
       </div>
       <!-- Results dropdown -->
       <div id="wr-search-results"
         style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);
-               background:#fff;border:1px solid #e2e8f0;border-radius:10px;
+               background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:10px;
                box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:50;
                max-height:280px;overflow-y:auto;">
       </div>
@@ -445,17 +456,16 @@ function _renderEmptyPetPanel() {
 
     <!-- Walk-in -->
     <button id="wr-walkin-btn"
-      style="width:100%;background:transparent;border:1px dashed #cbd5e1;border-radius:8px;
-             padding:7px;font-size:12px;color:#64748b;cursor:pointer;
+      style="width:100%;background:transparent;border:1px dashed var(--color-line-strong,#cbd5e1);border-radius:8px;
+             padding:7px;font-size:12px;color:var(--color-fg-muted,#64748b);cursor:pointer;
              font-family:inherit;transition:all .15s;text-align:center;"
-      onmouseover="this.style.borderColor='#0d9488';this.style.color='#0d9488';"
-      onmouseout="this.style.borderColor='#cbd5e1';this.style.color='#64748b';">
+      class="wr-hover-brand">
       🚶 Walk-in / ไม่มีประวัติ
     </button>
 
-    <div style="margin-top:14px;border-top:1px solid #f1f5f9;padding-top:12px;">
+    <div style="margin-top:14px;border-top:1px solid var(--color-surface-sunken,#f1f5f9);padding-top:12px;">
       <div class="wr-section-label" style="margin-top:0;">🟢 คิวที่กำลังตรวจอยู่</div>
-      <div id="wr-queue-list" style="font-size:12px;color:#94a3b8;">กำลังโหลด...</div>
+      <div id="wr-queue-list" style="font-size:12px;color:var(--color-fg-subtle,#94a3b8);">กำลังโหลด...</div>
     </div>`;
 
   _bindPanelSearch(panel);
@@ -475,7 +485,7 @@ async function _loadQueueSection(panel) {
   const items = (res?.data || []).filter(q => q.status === 'in_progress');
 
   if (!items.length) {
-    listEl.style.cssText = 'font-size:11px;color:#cbd5e1;text-align:center;padding:4px 0;font-style:italic;';
+    listEl.style.cssText = 'font-size:11px;color:var(--color-line-strong,#cbd5e1);text-align:center;padding:4px 0;font-style:italic;';
     listEl.textContent   = '— ยังไม่มีคิวกำลังตรวจ';
     return;
   }
@@ -486,23 +496,22 @@ async function _loadQueueSection(panel) {
     return `
       <div data-qidx="${i}"
         style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
-               border:1px solid #99f6e4;background:#f0fdfa;cursor:pointer;margin-bottom:6px;
+               border:1px solid var(--color-brand-muted,#A7D9D3);background:var(--color-brand-faint,#ECF7F5);cursor:pointer;margin-bottom:6px;
                transition:background .12s;"
-        onmouseover="this.style.background='#ccfbf1'"
-        onmouseout="this.style.background='#f0fdfa'">
-        <span style="font-size:10px;font-weight:700;color:#0f766e;background:#fff;
-                     border:1px solid #99f6e4;border-radius:5px;padding:2px 5px;
+        class="wr-hover-row-strong">
+        <span style="font-size:10px;font-weight:700;color:var(--color-brand-strong,#1B414B);background:var(--color-surface,#fff);
+                     border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:5px;padding:2px 5px;
                      font-family:monospace;flex-shrink:0;">${num}</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:12px;color:#1e293b;
+          <div style="font-weight:600;font-size:12px;color:var(--color-fg,#1e293b);
                       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
             ${_esc(petName || `คิว ${num}`)}
           </div>
-          ${ownerName ? `<div style="font-size:11px;color:#64748b;
+          ${ownerName ? `<div style="font-size:11px;color:var(--color-fg-muted,#64748b);
                                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
             ${_esc(ownerName)}</div>` : ''}
         </div>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0f766e" stroke-width="2.5" style="flex-shrink:0;">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1B414B" stroke-width="2.5" style="flex-shrink:0;">
           <path d="M9 18l6-6-6-6"/>
         </svg>
       </div>`;
@@ -527,7 +536,7 @@ async function _loadQueueSection(panel) {
       // Update topbar
       const chip = _container?.querySelector('.wr-patient-chip');
       if (chip) {
-        chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:#0f766e;white-space:nowrap;';
+        chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:var(--color-brand-faint,#ECF7F5);border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:var(--color-brand-strong,#1B414B);white-space:nowrap;';
         chip.textContent   = `🐾 ${_queueItem.pet_name}${_queueItem.owner_name ? ' · ' + _queueItem.owner_name : ''}`;
       }
       const qChip = _container?.querySelector('.wr-queue-chip');
@@ -574,7 +583,7 @@ function _bindPanelSearch(panel) {
 
     if (!rows.length) {
       results.innerHTML = `
-        <div style="padding:16px;text-align:center;font-size:12px;color:#94a3b8;">
+        <div style="padding:16px;text-align:center;font-size:12px;color:var(--color-fg-subtle,#94a3b8);">
           ${q ? `ไม่พบผลลัพธ์สำหรับ "${_esc(q)}"` : 'ยังไม่มีผู้ป่วยในระบบ'}
         </div>`;
       results.style.display = 'block';
@@ -584,24 +593,23 @@ function _bindPanelSearch(panel) {
     results.innerHTML = rows.map((r, i) => {
       const emoji    = SPECIES_EMOJI[r.pet.species] || '🐾';
       const hnBadge  = r.pet.hn
-        ? `<span style="background:#ccfbf1;color:#0f766e;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;font-family:monospace;">${formatHN(r.pet.hn, r.pet.created_at)}</span>`
+        ? `<span style="background:var(--color-brand-subtle,#D7EEEB);color:var(--color-brand-strong,#1B414B);border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;font-family:monospace;">${formatHN(r.pet.hn, r.pet.created_at)}</span>`
         : '';
       const allBadge = r.pet.allergies
-        ? `<span style="background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-size:10px;">⚠ แพ้ยา</span>`
+        ? `<span style="background:var(--color-danger-subtle,#fee2e2);color:var(--color-danger-strong,#991b1b);border-radius:4px;padding:1px 5px;font-size:10px;">⚠ แพ้ยา</span>`
         : '';
       return `
         <div data-ridx="${i}"
           style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;
-                 border-bottom:1px solid #f1f5f9;transition:background .12s;"
-          onmouseover="this.style.background='#f0fdfa'"
-          onmouseout="this.style.background=''">
+                 border-bottom:1px solid var(--color-surface-sunken,#f1f5f9);transition:background .12s;"
+          class="wr-hover-row">
           <span style="font-size:22px;flex-shrink:0;">${emoji}</span>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:2px;">
-              <span style="font-size:13px;font-weight:600;color:#1e293b;">${_esc(r.pet.name)}</span>
+              <span style="font-size:13px;font-weight:600;color:var(--color-fg,#1e293b);">${_esc(r.pet.name)}</span>
               ${hnBadge}${allBadge}
             </div>
-            <div style="font-size:11px;color:#94a3b8;">
+            <div style="font-size:11px;color:var(--color-fg-subtle,#94a3b8);">
               เจ้าของ: ${_esc(r.owner.name)}${r.owner.phone ? ' · ' + _esc(r.owner.phone) : ''}
             </div>
           </div>
@@ -650,13 +658,13 @@ function _showWalkinForm(panel) {
   panel.innerHTML = `
     <div style="margin-bottom:10px;">
       <button id="wr-wk-back"
-        style="background:none;border:none;color:#64748b;cursor:pointer;font-size:12px;
+        style="background:none;border:none;color:var(--color-fg-muted,#64748b);cursor:pointer;font-size:12px;
                font-family:inherit;padding:0;display:flex;align-items:center;gap:4px;">
         ← กลับค้นหา
       </button>
     </div>
-    <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:2px;">🚶 Walk-in</div>
-    <div style="font-size:11px;color:#94a3b8;margin-bottom:14px;">ระบบจะสร้างประวัติและ HN ให้อัตโนมัติ</div>
+    <div style="font-size:13px;font-weight:700;color:var(--color-fg,#1e293b);margin-bottom:2px;">🚶 Walk-in</div>
+    <div style="font-size:11px;color:var(--color-fg-subtle,#94a3b8);margin-bottom:14px;">ระบบจะสร้างประวัติและ HN ให้อัตโนมัติ</div>
 
     <div class="wr-form-group">
       <label class="wr-form-label">ชื่อสัตว์เลี้ยง *</label>
@@ -681,7 +689,7 @@ function _showWalkinForm(panel) {
       </select>
     </div>
 
-    <hr style="border:none;border-top:1px solid #f1f5f9;margin:10px 0;">
+    <hr style="border:none;border-top:1px solid var(--color-surface-sunken,#f1f5f9);margin:10px 0;">
 
     <div class="wr-form-group">
       <label class="wr-form-label">ชื่อเจ้าของ *</label>
@@ -776,7 +784,7 @@ function _selectPatientFromSearch(pet, owner) {
   // Update topbar chip
   const chip = _container?.querySelector('.wr-patient-chip');
   if (chip) {
-    chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:#0f766e;white-space:nowrap;';
+    chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:var(--color-brand-faint,#ECF7F5);border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:var(--color-brand-strong,#1B414B);white-space:nowrap;';
     chip.textContent   = `🐾 ${pet ? pet.name : 'Walk-in'}${owner?.name ? ' · ' + owner.name : ''}`;
   }
 
@@ -792,11 +800,10 @@ function _selectPatientFromSearch(pet, owner) {
     changeWrap.style.cssText = 'margin-bottom:10px;text-align:center;';
     changeWrap.innerHTML = `
       <button id="wr-change-patient"
-        style="background:transparent;border:1px solid #e2e8f0;border-radius:8px;
-               padding:5px 14px;font-size:11px;color:#64748b;cursor:pointer;
+        style="background:transparent;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
+               padding:5px 14px;font-size:11px;color:var(--color-fg-muted,#64748b);cursor:pointer;
                font-family:inherit;transition:all .15s;"
-        onmouseover="this.style.borderColor='#0d9488';this.style.color='#0d9488';"
-        onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b';">
+        class="wr-hover-brand">
         🔄 เปลี่ยนผู้ป่วย
       </button>`;
     panel.prepend(changeWrap);
@@ -810,7 +817,7 @@ function _selectPatientFromSearch(pet, owner) {
       // Reset topbar chip
       const c = _container?.querySelector('.wr-patient-chip');
       if (c) {
-        c.style.cssText = 'display:flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;white-space:nowrap;';
+        c.style.cssText = 'display:flex;align-items:center;gap:6px;background:var(--color-surface-sunken,#f1f5f9);color:var(--color-fg-muted,#64748b);border:1px solid var(--color-line,#e2e8f0);border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;white-space:nowrap;';
         c.textContent = '🔍 ยังไม่มีผู้ป่วย';
       }
       const db = _container?.querySelector('#wr-done-btn');
@@ -836,72 +843,72 @@ function _openVaccineModalWR(petId) {
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);padding:16px;';
 
   modal.innerHTML = `
-    <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:440px;
+    <div style="background:var(--color-surface,#fff);border-radius:16px;padding:24px;width:100%;max-width:440px;
                 box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
-      <h3 style="font-weight:700;font-size:16px;color:#1e293b;margin-bottom:4px;">💉 บันทึกวัคซีน</h3>
-      <p style="font-size:12px;color:#94a3b8;margin-bottom:16px;">${_esc(petName)}</p>
+      <h3 style="font-weight:700;font-size:16px;color:var(--color-fg,#1e293b);margin-bottom:4px;">💉 บันทึกวัคซีน</h3>
+      <p style="font-size:12px;color:var(--color-fg-subtle,#94a3b8);margin-bottom:16px;">${_esc(petName)}</p>
 
       <div style="margin-bottom:12px;">
-        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">ชื่อวัคซีน *</label>
-        <select id="vx-preset" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
-                font-size:13px;outline:none;font-family:inherit;background:#fff;color:#334155;">
+        <label style="font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);display:block;margin-bottom:4px;">ชื่อวัคซีน *</label>
+        <select id="vx-preset" style="width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
+                font-size:13px;outline:none;font-family:inherit;background:var(--color-surface,#fff);color:var(--color-fg-secondary,#334155);">
           ${VACCINE_LIST.map((v,i) => `<option value="${i}">${_esc(v.name)}${v.en !== v.name ? ' — ' + v.en : ''}</option>`).join('')}
         </select>
       </div>
 
       <div style="margin-bottom:12px;">
-        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">หรือพิมพ์ชื่อวัคซีนเอง</label>
-        <input id="vx-name" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+        <label style="font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);display:block;margin-bottom:4px;">หรือพิมพ์ชื่อวัคซีนเอง</label>
+        <input id="vx-name" style="width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
                font-size:13px;outline:none;font-family:inherit;" placeholder="เช่น Nobivac DHPPi+L">
-        <p style="font-size:10px;color:#94a3b8;margin:3px 0 0;">ถ้าพิมพ์ไว้จะใช้แทนชื่อจาก dropdown</p>
+        <p style="font-size:10px;color:var(--color-fg-subtle,#94a3b8);margin:3px 0 0;">ถ้าพิมพ์ไว้จะใช้แทนชื่อจาก dropdown</p>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div>
-          <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">วันที่ฉีด *</label>
+          <label style="font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);display:block;margin-bottom:4px;">วันที่ฉีด *</label>
           <input id="vx-date" type="date" value="${todayStr}"
-            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;">
+            style="width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;font-size:13px;outline:none;font-family:inherit;">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">นัดฉีดครั้งต่อไป</label>
+          <label style="font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);display:block;margin-bottom:4px;">นัดฉีดครั้งต่อไป</label>
           <input id="vx-next" type="date"
-            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;">
+            style="width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;font-size:13px;outline:none;font-family:inherit;">
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div>
-          <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Batch / Lot No.</label>
-          <input id="vx-lot" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+          <label style="font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);display:block;margin-bottom:4px;">Batch / Lot No.</label>
+          <input id="vx-lot" style="width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
                  font-size:13px;outline:none;font-family:inherit;" placeholder="LOT-2026-001">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">สัตวแพทย์ผู้ฉีด</label>
-          <input id="vx-vet" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+          <label style="font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);display:block;margin-bottom:4px;">สัตวแพทย์ผู้ฉีด</label>
+          <input id="vx-vet" style="width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
                  font-size:13px;outline:none;font-family:inherit;" placeholder="นสพ. ...">
         </div>
       </div>
 
       <div style="margin-bottom:16px;">
-        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">หมายเหตุ</label>
+        <label style="font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);display:block;margin-bottom:4px;">หมายเหตุ</label>
         <textarea id="vx-notes" rows="2"
-          style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;
+          style="width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
                  font-size:13px;outline:none;font-family:inherit;resize:vertical;"
           placeholder="เช่น ปฏิกิริยาหลังฉีด, ขนาดยา..."></textarea>
       </div>
 
-      <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:#0f766e;">
+      <div style="background:var(--color-brand-faint,#ECF7F5);border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:var(--color-brand-strong,#1B414B);">
         📅 ระบบจะ <strong>สร้างนัดหมายอัตโนมัติ</strong> สำหรับการฉีดครั้งต่อไปให้อัตโนมัติ (ถ้าระบุวันนัด)
       </div>
 
       <div style="display:flex;gap:10px;">
         <button id="vx-cancel"
-          style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px;
-                 font-size:13px;font-weight:600;cursor:pointer;color:#64748b;font-family:inherit;">
+          style="flex:1;background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:8px;padding:10px;
+                 font-size:13px;font-weight:600;cursor:pointer;color:var(--color-fg-muted,#64748b);font-family:inherit;">
           ยกเลิก
         </button>
         <button id="vx-save"
-          style="flex:2;background:var(--primary,#0d9488);color:#fff;border:none;border-radius:8px;
+          style="flex:2;background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;border-radius:8px;
                  padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
           💾 บันทึกวัคซีน
         </button>
@@ -995,8 +1002,8 @@ function _renderOPDTab(content) {
       <div class="wr-empty-state" style="cursor:default;">
         <span style="font-size:48px;">🩺</span>
         <span>ค้นหาผู้ป่วยในช่องค้นหาทางซ้าย</span>
-        <button onclick="document.querySelector('#wr-patient-search')?.focus()"
-          style="margin-top:4px;background:var(--primary,#0d9488);color:#fff;border:none;
+        <button type="button" data-focus-target="#wr-patient-search"
+          style="margin-top:4px;background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;
                  border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;
                  cursor:pointer;font-family:inherit;">
           🔍 ค้นหาผู้ป่วย
@@ -1017,16 +1024,16 @@ function _renderOPDTab(content) {
     </div>
 
     <div class="wr-note-grid">
-      ${_noteBox('wr-hx', 'HX', 'History — ประวัติ',          '#3b82f6', 'background:#dbeafe;color:#1e40af', 'ประวัติ / อาการที่นำมาพบ', r.subjective  || '')}
+      ${_noteBox('wr-hx', 'HX', 'History — ประวัติ',          '#3b82f6', 'background:var(--color-info-subtle,#dbeafe);color:var(--color-info-strong,#1e40af)', 'ประวัติ / อาการที่นำมาพบ', r.subjective  || '')}
       ${_noteBox('wr-pe', 'PE', 'Physical Exam',               '#8b5cf6', 'background:#ede9fe;color:#5b21b6', 'ผลการตรวจร่างกาย',         r.objective   || '')}
       ${_noteBox('wr-dx', 'Dx', 'Diagnosis — วินิจฉัย',        '#f97316', 'background:#ffedd5;color:#c2410c', 'การวินิจฉัยโรค',           r.assessment  || '')}
-      ${_noteBox('wr-tx', 'Tx', 'Treatment — แผนรักษา',        '#0d9488', 'background:#ccfbf1;color:#0f766e', 'แผนการรักษา / คำแนะนำ',    r.plan        || '')}
+      ${_noteBox('wr-tx', 'Tx', 'Treatment — แผนรักษา',        '#2A6374', 'background:var(--color-brand-subtle,#D7EEEB);color:var(--color-brand-strong,#1B414B)', 'แผนการรักษา / คำแนะนำ',    r.plan        || '')}
     </div>
 
     <div class="wr-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <span style="font-weight:600;color:#1e293b;">💊 รายการยา</span>
-        <button id="wr-add-rx" style="background:transparent;border:1px solid var(--primary,#0d9488);color:var(--primary,#0d9488);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ เพิ่มยา</button>
+        <span style="font-weight:600;color:var(--color-fg,#1e293b);">💊 รายการยา</span>
+        <button id="wr-add-rx" style="background:transparent;border:1px solid var(--color-brand,#2A6374);color:var(--color-brand,#2A6374);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ เพิ่มยา</button>
       </div>
       <div id="wr-rx-list"></div>
     </div>`;
@@ -1139,7 +1146,7 @@ async function _renderHistoryTab(content) {
     return;
   }
 
-  content.innerHTML = `<p style="color:#94a3b8;font-size:13px;padding:30px;text-align:center;">กำลังโหลดประวัติ...</p>`;
+  content.innerHTML = `<p style="color:var(--color-fg-subtle,#94a3b8);font-size:13px;padding:30px;text-align:center;">กำลังโหลดประวัติ...</p>`;
 
   const storeId = storage.get(STORAGE_KEYS.STORE_ID);
   const petId   = _petData?.id || _queueItem?.pet_id;
@@ -1160,8 +1167,8 @@ async function _renderHistoryTab(content) {
   const statusLabel = { in_progress: 'กำลังรักษา', completed: 'เสร็จสิ้น', cancelled: 'ยกเลิก' };
   const statusColor = {
     in_progress: 'background:#fef9c3;color:#854d0e',
-    completed:   'background:#dcfce7;color:#166534',
-    cancelled:   'background:#fee2e2;color:#991b1b',
+    completed:   'background:var(--color-success-subtle,#dcfce7);color:var(--color-success-strong,#166534)',
+    cancelled:   'background:var(--color-danger-subtle,#fee2e2);color:var(--color-danger-strong,#991b1b)',
   };
 
   content.innerHTML = records.map(r => {
@@ -1174,18 +1181,18 @@ async function _renderHistoryTab(content) {
       <div class="wr-history-item">
         <div class="wr-history-hdr" data-hist="${r.id}">
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:13px;color:#1e293b;">${_esc(dx)}</div>
-            <div style="font-size:11px;color:#94a3b8;">${dateStr}${rxArr.length ? ` · ยา ${rxArr.length} รายการ` : ''}</div>
+            <div style="font-weight:600;font-size:13px;color:var(--color-fg,#1e293b);">${_esc(dx)}</div>
+            <div style="font-size:11px;color:var(--color-fg-subtle,#94a3b8);">${dateStr}${rxArr.length ? ` · ยา ${rxArr.length} รายการ` : ''}</div>
           </div>
           <span style="font-size:11px;font-weight:600;border-radius:10px;padding:2px 8px;${statusColor[st] || ''}">${statusLabel[st] || st}</span>
-          <span style="color:#94a3b8;font-size:12px;margin-left:6px;">▸</span>
+          <span style="color:var(--color-fg-subtle,#94a3b8);font-size:12px;margin-left:6px;">▸</span>
         </div>
         <div class="wr-history-body" id="hist-${r.id}">
           ${r.subjective  ? `<p style="margin-bottom:6px;"><strong>HX:</strong> ${_esc(r.subjective)}</p>`  : ''}
           ${r.objective   ? `<p style="margin-bottom:6px;"><strong>PE:</strong> ${_esc(r.objective)}</p>`   : ''}
           ${r.assessment  ? `<p style="margin-bottom:6px;"><strong>Dx:</strong> ${_esc(r.assessment)}</p>`  : ''}
           ${r.plan        ? `<p style="margin-bottom:6px;"><strong>Tx:</strong> ${_esc(r.plan)}</p>`        : ''}
-          ${rxArr.length  ? `<p style="font-size:12px;color:#64748b;margin-top:6px;">💊 ${rxArr.map(rx => _esc(rx.drug || rx.name || '')).join(', ')}</p>` : ''}
+          ${rxArr.length  ? `<p style="font-size:12px;color:var(--color-fg-muted,#64748b);margin-top:6px;">💊 ${rxArr.map(rx => _esc(rx.drug || rx.name || '')).join(', ')}</p>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -1228,31 +1235,31 @@ async function _renderInvoiceTab(content) {
     <div style="max-width:480px;margin:0 auto;">
 
       ${isDone ? '' : `
-      <div style="display:flex;align-items:center;gap:8px;background:#fffbeb;border:1px solid #fde68a;
-                  border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;">
+      <div style="display:flex;align-items:center;gap:8px;background:var(--color-warning-faint,#fffbeb);border:1px solid #fde68a;
+                  border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--color-warning-strong,#92400e);">
         ⚠️ <span>กรุณากด <strong>เสร็จสิ้น</strong> ที่มุมขวาบนก่อน เพื่อบันทึก OPD ให้เรียบร้อย</span>
       </div>`}
 
       <div class="wr-card" style="margin-bottom:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <span style="font-weight:700;font-size:14px;color:#1e293b;">ใบสั่งยา / Invoice</span>
-          ${isDone ? `<span style="background:#dcfce7;color:#166534;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">✅ บันทึกแล้ว</span>` : ''}
+          <span style="font-weight:700;font-size:14px;color:var(--color-fg,#1e293b);">ใบสั่งยา / Invoice</span>
+          ${isDone ? `<span style="background:var(--color-success-subtle,#dcfce7);color:var(--color-success-strong,#166534);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">✅ บันทึกแล้ว</span>` : ''}
         </div>
 
         ${rxItems.length ? rxItems.map(rx => `
           <div class="wr-invoice-row">
             <div>
               <div style="font-weight:500;">${_esc(rx.drug)}</div>
-              <div style="font-size:11px;color:#94a3b8;">
+              <div style="font-size:11px;color:var(--color-fg-subtle,#94a3b8);">
                 ${[rx.dose, rx.freq, rx.days ? rx.days + 'วัน' : '', rx.route].filter(Boolean).join(' ')}
               </div>
             </div>
             <div style="text-align:right;">
-              <div style="color:#64748b;">${rx.qty || 1} × ฿${rx.price.toLocaleString()}</div>
+              <div style="color:var(--color-fg-muted,#64748b);">${rx.qty || 1} × ฿${rx.price.toLocaleString()}</div>
               <div style="font-weight:600;">฿${rx.subtotal.toLocaleString()}</div>
             </div>
           </div>`).join('') : `
-          <p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0;">
+          <p style="color:var(--color-fg-subtle,#94a3b8);font-size:13px;text-align:center;padding:16px 0;">
             ยังไม่มีรายการยา<br>
             <span style="font-size:11px;">กลับไปที่ OPD Card เพื่อเพิ่มยา</span>
           </p>`}
@@ -1265,12 +1272,12 @@ async function _renderInvoiceTab(content) {
 
       <div style="display:flex;gap:10px;">
         <button id="wr-print-rx"
-          style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;
-                 padding:10px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;">
+          style="flex:1;background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
+                 padding:10px;font-size:13px;font-weight:600;color:var(--color-fg-muted,#64748b);cursor:pointer;">
           🖨 พิมพ์ใบสั่งยา
         </button>
         <button id="wr-send-pay"
-          style="flex:2;background:${isDone ? '#0369a1' : '#94a3b8'};color:#fff;border:none;
+          style="flex:2;background:${isDone ? '#0369a1' : '#94a3b8'};color:var(--color-fg-inverse,#fff);border:none;
                  border-radius:8px;padding:10px;font-size:13px;font-weight:600;
                  cursor:${isDone ? 'pointer' : 'not-allowed'};opacity:${isDone ? '1' : '.6'};"
           ${isDone ? '' : 'disabled title="กด เสร็จสิ้น ก่อน"'}>
@@ -1278,7 +1285,7 @@ async function _renderInvoiceTab(content) {
         </button>
       </div>
 
-      ${!isDone ? `<p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px;">
+      ${!isDone ? `<p style="font-size:11px;color:var(--color-fg-subtle,#94a3b8);text-align:center;margin-top:8px;">
         ปุ่มจะเปิดใช้งานหลังจากกด <strong>เสร็จสิ้น</strong>
       </p>` : ''}
     </div>`;
@@ -1314,9 +1321,9 @@ async function _renderApptTab(content) {
   const apptStatusLabel = { pending: 'รอยืนยัน', confirmed: 'ยืนยันแล้ว', completed: 'เสร็จสิ้น', cancelled: 'ยกเลิก' };
   const apptStatusStyle = {
     pending:   'background:#fef9c3;color:#854d0e',
-    confirmed: 'background:#dcfce7;color:#166534',
-    completed: 'background:#f1f5f9;color:#64748b',
-    cancelled: 'background:#fee2e2;color:#991b1b',
+    confirmed: 'background:var(--color-success-subtle,#dcfce7);color:var(--color-success-strong,#166534)',
+    completed: 'background:var(--color-surface-sunken,#f1f5f9);color:var(--color-fg-muted,#64748b)',
+    cancelled: 'background:var(--color-danger-subtle,#fee2e2);color:var(--color-danger-strong,#991b1b)',
   };
 
   const SERVICES = ['ตรวจทั่วไป', 'วัคซีน', 'ผ่าตัด', 'ทำฟัน', 'ตรวจเลือด', 'ติดตามผล', 'อื่นๆ'];
@@ -1348,22 +1355,22 @@ async function _renderApptTab(content) {
             ` : ''}
           </div>`;
       }).join('')
-    : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:14px 0;">ยังไม่มีนัดหมายที่กำลังจะมา</p>`;
+    : `<p style="color:var(--color-fg-subtle,#94a3b8);font-size:13px;text-align:center;padding:14px 0;">ยังไม่มีนัดหมายที่กำลังจะมา</p>`;
 
   content.innerHTML = `
     <div style="max-width:520px;margin:0 auto;">
 
       <!-- Upcoming -->
-      <div style="font-weight:700;font-size:13px;color:#1e293b;margin-bottom:10px;">นัดหมายที่กำลังจะมา</div>
+      <div style="font-weight:700;font-size:13px;color:var(--color-fg,#1e293b);margin-bottom:10px;">นัดหมายที่กำลังจะมา</div>
       <div id="wr-appt-list">${upcomingHtml}</div>
 
       <hr class="wr-divider">
 
       <!-- Create new appointment -->
-      <div style="font-weight:700;font-size:13px;color:#1e293b;margin-bottom:14px;">📅 นัดหมายใหม่</div>
+      <div style="font-weight:700;font-size:13px;color:var(--color-fg,#1e293b);margin-bottom:14px;">📅 นัดหมายใหม่</div>
 
       ${!petId ? `
-        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;font-size:13px;color:#92400e;margin-bottom:14px;">
+        <div style="background:var(--color-warning-faint,#fffbeb);border:1px solid #fde68a;border-radius:10px;padding:12px;font-size:13px;color:var(--color-warning-strong,#92400e);margin-bottom:14px;">
           ⚠️ ยังไม่พบโปรไฟล์สัตว์เลี้ยงในระบบ — นัดหมายจะไม่ผูกกับสัตว์เลี้ยงโดยอัตโนมัติ
         </div>` : ''}
 
@@ -1518,17 +1525,17 @@ function _renderRxList() {
   if (!el) return;
 
   if (!_prescriptions.length) {
-    el.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;padding:12px 0;">ยังไม่มีรายการยา</p>';
+    el.innerHTML = '<p style="color:var(--color-fg-subtle,#94a3b8);font-size:12px;text-align:center;padding:12px 0;">ยังไม่มีรายการยา</p>';
     return;
   }
 
   el.innerHTML = _prescriptions.map((rx, i) => `
     <div class="wr-rx-item">
       <div class="wr-rx-info">
-        <span style="font-weight:600;color:#1e293b;">${_esc(rx.drug)}</span>
-        <span style="color:#94a3b8;margin:0 5px;">·</span>
-        <span style="color:#475569;">${_esc(rx.dose || '')} ${rx.freq || ''}${rx.days ? ' ' + rx.days + 'วัน' : ''} ${rx.route || ''}</span>
-        ${rx.note ? `<span style="color:#94a3b8;font-size:11px;margin-left:5px;">(${_esc(rx.note)})</span>` : ''}
+        <span style="font-weight:600;color:var(--color-fg,#1e293b);">${_esc(rx.drug)}</span>
+        <span style="color:var(--color-fg-subtle,#94a3b8);margin:0 5px;">·</span>
+        <span style="color:var(--color-fg-tertiary,#475569);">${_esc(rx.dose || '')} ${rx.freq || ''}${rx.days ? ' ' + rx.days + 'วัน' : ''} ${rx.route || ''}</span>
+        ${rx.note ? `<span style="color:var(--color-fg-subtle,#94a3b8);font-size:11px;margin-left:5px;">(${_esc(rx.note)})</span>` : ''}
       </div>
       <button class="wr-rx-del" data-rx-del="${i}" title="ลบ">×</button>
     </div>`).join('');
@@ -1543,14 +1550,14 @@ async function _openRxModal() {
   }
   const products = _invCache;
 
-  const inputStyle = 'width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;';
-  const labelStyle = 'font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;display:block;';
+  const inputStyle = 'width:100%;padding:8px 10px;border:1px solid var(--color-line,#e2e8f0);border-radius:8px;font-size:13px;outline:none;font-family:inherit;';
+  const labelStyle = 'font-size:11px;font-weight:600;color:var(--color-fg-muted,#64748b);margin-bottom:4px;display:block;';
 
   const modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);padding:16px;';
   modal.innerHTML = `
-    <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
-      <h3 style="font-weight:700;font-size:16px;color:#1e293b;margin-bottom:16px;">เพิ่มรายการยา</h3>
+    <div style="background:var(--color-surface,#fff);border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
+      <h3 style="font-weight:700;font-size:16px;color:var(--color-fg,#1e293b);margin-bottom:16px;">เพิ่มรายการยา</h3>
 
       <div style="margin-bottom:12px;">
         <label style="${labelStyle}">เลือกจากสต็อก</label>
@@ -1597,11 +1604,11 @@ async function _openRxModal() {
         <input id="rx-note" style="${inputStyle}" placeholder="กินหลังอาหาร">
       </div>
 
-      <div id="rx-warn" style="display:none;font-size:12px;color:#ef4444;margin-bottom:10px;"></div>
+      <div id="rx-warn" style="display:none;font-size:12px;color:var(--color-danger,#ef4444);margin-bottom:10px;"></div>
 
       <div style="display:flex;gap:10px;">
-        <button id="rx-cancel" style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;color:#64748b;">ยกเลิก</button>
-        <button id="rx-add" style="flex:1;background:var(--primary,#0d9488);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">+ เพิ่ม</button>
+        <button id="rx-cancel" style="flex:1;background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--color-fg-muted,#64748b);">ยกเลิก</button>
+        <button id="rx-add" style="flex:1;background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">+ เพิ่ม</button>
       </div>
     </div>`;
 

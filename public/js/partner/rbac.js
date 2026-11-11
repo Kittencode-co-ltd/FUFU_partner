@@ -5,7 +5,7 @@ import { STORAGE_KEYS, CATEGORY_MAP } from '../utils/config.js';
 
 export const ROLES = {
   owner:      { key: 'owner',      label: 'เจ้าของ (Owner)',           icon: 'fa-crown',         color: '#D4AF37', desc: 'เข้าถึงได้ทุกส่วน รวมถึงจัดการพนักงานและการเงิน' },
-  vet:        { key: 'vet',        label: 'สัตว์แพทย์ (Vet)',          icon: 'fa-user-doctor',   color: '#0D9488', desc: 'จัดการเวชระเบียน คิวนัดหมาย บันทึกการรักษา' },
+  vet:        { key: 'vet',        label: 'สัตว์แพทย์ (Vet)',          icon: 'fa-user-doctor',   color: '#2A6374', desc: 'จัดการเวชระเบียน คิวนัดหมาย บันทึกการรักษา' },
   reception:  { key: 'reception',  label: 'พนักงานต้อนรับ (Reception)', icon: 'fa-headset',       color: '#3B82F6', desc: 'จัดการคิว นัดหมาย และรับชำระเงิน' },
   staff:      { key: 'staff',      label: 'พนักงาน (Staff)',            icon: 'fa-user',          color: '#8B5CF6', desc: 'ดูข้อมูลทั่วไป จัดการสินค้าคงคลัง' },
   accountant: { key: 'accountant', label: 'บัญชี (Accountant)',         icon: 'fa-calculator',    color: '#F59E0B', desc: 'จัดการรายรับ-รายจ่าย ออกใบกำกับภาษี' },

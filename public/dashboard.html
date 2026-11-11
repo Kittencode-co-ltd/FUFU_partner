@@ -2,48 +2,32 @@
 <html lang="th" class="h-full">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1B414B">
   <title>FUFU Partner — Dashboard</title>
+  <link rel="icon" href="/img/brand/favicon-64.png">
+  <link rel="apple-touch-icon" href="/img/brand/apple-touch-icon.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="manifest" href="/manifest.json">
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fredoka:wght@600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="h-full bg-slate-50 font-sans">
+<body class="h-full app-bg font-sans">
 
 <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
-<style>
-  #sidebar   { transition: transform 0.22s ease; }
-  #main-wrap { transition: margin-left 0.22s ease; }
+<!-- Layout breakpoints: <1024px = drawer sidebar (tablet + mobile), <768px = + bottom tab bar.
+     Styles live in src/css/input.css (#sidebar, #sb-overlay, #bottom-nav). -->
 
-  /* Desktop: toggle collapsed */
-  @media (min-width: 768px) {
-    body.sb-collapsed #sidebar   { transform: translateX(-100%); }
-    body.sb-collapsed #main-wrap { margin-left: 0 !important; }
-  }
+<!-- Drawer overlay (tablet / mobile) -->
+<div id="sb-overlay" class="fixed inset-0 z-30 bg-navy/50 backdrop-blur-sm lg:hidden" aria-hidden="true"></div>
 
-  /* Mobile: sidebar hidden by default, slides in as overlay */
-  @media (max-width: 767px) {
-    #sidebar { transform: translateX(-100%); }
-    body.sb-open #sidebar { transform: translateX(0); }
-    body.sb-open #sb-overlay { display: block !important; }
-  }
-</style>
-
-<!-- Mobile overlay -->
-<div id="sb-overlay" class="hidden fixed inset-0 z-10 bg-black/40 md:hidden"></div>
-
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-20 w-64 bg-navy flex flex-col">
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 lg:w-64 bg-navy flex flex-col" aria-label="เมนูหลัก">
 
   <!-- Logo -->
   <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-    <div class="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-glow flex-shrink-0">
-      <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-white">
-        <path d="M8.5 3.5a2 2 0 100 4 2 2 0 000-4zm7 0a2 2 0 100 4 2 2 0 000-4zM4 7.5a2 2 0 100 4 2 2 0 000-4zm16 0a2 2 0 100 4 2 2 0 000-4zM12 10c-3.314 0-6 2.686-6 6 0 1.657.672 2.5 2 2.5h8c1.328 0 2-.843 2-2.5 0-3.314-2.686-6-6-6z"/>
-      </svg>
-    </div>
+    <img src="/img/brand/fufu-mark.webp" alt="" width="40" height="40" class="w-10 h-10 rounded-xl bg-white flex-shrink-0 shadow-glow">
     <div>
-      <div class="text-white font-bold text-base tracking-wider">FUFU</div>
-      <div class="text-slate-500 text-xs font-body">Partner Portal</div>
+      <div class="font-brand text-lg leading-none"><span class="text-white">FUFU</span> <span class="text-accent">Pet Care</span></div>
+      <div class="text-brand-muted/70 text-[11px] tracking-[0.14em] uppercase mt-1">Partner Portal</div>
     </div>
   </div>
 
@@ -91,18 +75,18 @@
 </aside>
 
 <!-- ── Main ──────────────────────────────────────────────────────────────── -->
-<div id="main-wrap" class="md:ml-64 flex flex-col min-h-screen">
+<div id="main-wrap" class="lg:ml-64 flex flex-col min-h-screen min-w-0">
 
   <!-- Topbar -->
-  <header class="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 h-16 flex items-center justify-between gap-4">
-    <div class="flex items-center gap-3 flex-shrink-0">
-      <button id="sidebar-toggle" title="ซ่อน/แสดง Sidebar"
-        class="p-2 rounded-lg text-slate-400 hover:text-navy hover:bg-slate-100 transition-colors">
+  <header id="topbar" class="sticky top-0 z-20 px-3 sm:px-5 h-14 sm:h-16 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+      <button id="sidebar-toggle" title="ซ่อน/แสดง Sidebar" aria-label="เปิด/ปิดเมนู" aria-controls="sidebar" aria-expanded="false"
+        class="icon-btn">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
         </svg>
       </button>
-      <div id="topbar-title" class="font-semibold text-navy text-lg"></div>
+      <div id="topbar-title" class="font-semibold text-navy text-base sm:text-lg truncate"></div>
     </div>
 
     <!-- Mode switcher -->
@@ -127,7 +111,7 @@
   </header>
 
   <!-- Pages -->
-  <main class="flex-1 p-3 sm:p-5 md:p-6">
+  <main id="app-main" class="flex-1 min-w-0 p-3 sm:p-5 lg:p-6 xl:p-8 pb-24 md:pb-6 w-full max-w-[1600px] mx-auto">
     <section id="page-home"      class="hidden"></section>
     <section id="page-screenings" class="hidden"></section>
     <section id="page-appointments" class="hidden"></section>
@@ -153,6 +137,9 @@
     <section id="page-settings" class="hidden"></section>
   </main>
 </div>
+
+<!-- Bottom tab bar (mobile < 768px) — items are built by dashboard.js from the active nav -->
+<nav id="bottom-nav" class="md:hidden" aria-label="เมนูลัด"></nav>
 
 <script type="module" src="/js/app.js"></script>
 </body>

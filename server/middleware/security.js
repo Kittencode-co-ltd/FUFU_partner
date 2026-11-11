@@ -82,19 +82,35 @@ export function rateLimit({ scope, windowMs, max }) {
 export const authRateLimit = rateLimit({ scope: 'auth', windowMs: 15 * 60_000, max: 20 });
 export const mutationRateLimit = rateLimit({ scope: 'mutation', windowMs: 60_000, max: 60 });
 
+// Requests rendered by Next.js (see server/index.js). Everything else is the static
+// partner portal in public/ (login/register/dashboard .html + ES modules).
+export function isNextRequest(path) {
+  return path === '/' || path === '/_next' || path.startsWith('/_next/');
+}
+
 export function securityHeaders(req, res, next) {
   const nonce = randomBytes(18).toString('base64');
   const isDevelopment = process.env.NODE_ENV !== 'production';
+  const forNext = isNextRequest(req.path);
   const contentSecurityPolicy = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ''}`,
-    isDevelopment
-      ? "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
-      : `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+    forNext
+      // Next.js attaches the nonce to its own scripts; strict-dynamic lets them load chunks.
+      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ''}`
+      // Static portal pages load /js/*.js from this origin and cannot carry a per-request
+      // nonce, so 'strict-dynamic' (which ignores 'self') would block every portal script.
+      // No inline scripts or inline event handlers are allowed here.
+      : "script-src 'self'",
+    forNext && !isDevelopment
+      ? `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`
+      // Portal modules inject <style> blocks at runtime, which a nonce cannot cover.
+      : "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "style-src-attr 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+    // Brand theme-song players on the landing page (privacy-enhanced YouTube embed only)
+    ...(forNext ? ["frame-src https://www.youtube-nocookie.com"] : []),
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

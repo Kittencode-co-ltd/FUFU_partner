@@ -126,11 +126,11 @@ async function _renderMvpHome(container, storeId) {
         </div>
         <button id="refresh-mvp-home" class="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary">รีเฟรช</button>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
         ${_mvpMetric('นัดรอยืนยัน', requested.length, 'ควรตอบกลับก่อน', 'text-orange-600', true)}
         ${_mvpMetric('นัดวันนี้', todayAppointments.length, 'รายการทั้งหมดวันนี้', 'text-blue-600')}
         ${_mvpMetric('ยืนยันแล้ววันนี้', confirmedToday.length, 'เตรียมรับบริการ', 'text-primary')}
-        ${_mvpMetric('เคส AI รอพิจารณา', screeningResult?.count ?? referrals.length, urgentReferrals.length ? `${urgentReferrals.length} เคสเร่งด่วน` : 'จากเจ้าของสัตว์', urgentReferrals.length ? 'text-red-700' : 'text-teal-700', urgentReferrals.length > 0)}
+        ${_mvpMetric('เคส AI รอพิจารณา', screeningResult?.count ?? referrals.length, urgentReferrals.length ? `${urgentReferrals.length} เคสเร่งด่วน` : 'จากเจ้าของสัตว์', urgentReferrals.length ? 'text-red-700' : 'text-brand', urgentReferrals.length > 0)}
       </div>
       <div class="card p-5">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-semibold text-navy">เคสคัดกรองที่ควรดู</h3><p class="mt-1 text-xs text-slate-400">พิจารณาความเร่งด่วนและติดต่อเจ้าของสัตว์</p></div><button id="open-screening-inbox" class="min-h-10 rounded-lg px-3 text-sm font-semibold text-primary hover:bg-primary/10">เปิดกล่องรับเคส →</button></div>
@@ -158,9 +158,9 @@ async function _renderMvpHome(container, storeId) {
 
 function _mvpMetric(label, value, detail, color, urgent = false) {
   return `
-    <div class="card p-5 ${urgent && value > 0 ? 'border border-orange-200 bg-orange-50/40' : ''}">
-      <div class="text-sm text-slate-500 font-body">${label}</div>
-      <div class="text-3xl font-bold ${color} mt-2">${value}</div>
+    <div class="card p-4 sm:p-5 ${urgent && value > 0 ? 'border border-orange-200 bg-orange-50/40' : ''}">
+      <div class="text-xs sm:text-sm text-slate-500 font-body">${label}</div>
+      <div class="text-2xl sm:text-3xl font-bold ${color} mt-1.5 sm:mt-2 tabular-nums">${value}</div>
       <div class="text-xs text-slate-400 font-body mt-1">${detail}</div>
     </div>`;
 }
@@ -244,7 +244,7 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
 
       <!-- ── KPI Cards ── -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        ${_kpi('coins',       'รายได้รวม',       `฿${_fmt(fin.total)}`,        `จาก ${fin.count||0} รายการ`,  'text-primary',   '#0D948822')}
+        ${_kpi('coins',       'รายได้รวม',       `฿${_fmt(fin.total)}`,        `จาก ${fin.count||0} รายการ`,  'text-primary',   '#2A637422')}
         ${_kpi('paw',         'ผู้ป่วย/ลูกค้า',  `${q.total||0} ราย`,          `เสร็จ ${q.completed||0} ราย`, 'text-blue-500',  '#3B82F622')}
         ${_kpi('chart-line',  'รายได้เฉลี่ย/วัน',`฿${_fmt(fin.avg_per_day)}`, label,                           'text-amber-600', '#F59E0B22')}
         ${_kpi('percentage',  'ค่าคอม FUFU 5%', `฿${_fmt(fin.commission)}`,   'หักจากรายได้รวม',              'text-slate-500', '#94A3B822')}
@@ -257,7 +257,7 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
             <h3 class="font-semibold text-navy text-sm flex items-center gap-1.5"><span class="text-primary opacity-70">${icon('chart-bar','w-3.5 h-3.5')}</span> รายได้รายวัน</h3>
             <span class="text-xs text-slate-400 font-body">สูงสุด ฿${_fmt(Math.max(...(fin.by_day||[]).map(d=>d.total), 0))}</span>
           </div>
-          ${_barChart(fin.by_day || [], d => d.total, d => `฿${_fmt(d.total)}`, d => _shortDate(d.date), '#0D9488')}
+          ${_barChart(fin.by_day || [], d => d.total, d => `฿${_fmt(d.total)}`, d => _shortDate(d.date), '#2A6374')}
         </div>
         <div class="card p-4 sm:p-5">
           <div class="flex items-start justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
@@ -315,7 +315,7 @@ async function _renderDashboard(container, storeId, rangeId, customFrom, customT
       container.querySelectorAll('[data-range]').forEach(t => {
         const on = t.dataset.range === rangeNew;
         t.style.cssText = on
-          ? 'background:#0D9488;color:#fff;border-color:#0D9488;'
+          ? 'background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border-color:var(--color-brand,#2A6374);'
           : '';
       });
       container.querySelector('#custom-range')?.classList.toggle('hidden', rangeNew !== 'custom');
@@ -342,7 +342,7 @@ function _tabsHTML(activeId) {
       ${RANGES.map(r => `
         <button data-range="${r.id}"
           class="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border font-semibold transition-colors font-body"
-          style="${r.id === activeId ? 'background:#0D9488;color:#fff;border-color:#0D9488;' : 'background:#fff;color:#64748B;border-color:#E2E8F0;'}">
+          style="${r.id === activeId ? 'background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border-color:var(--color-brand,#2A6374);' : 'background:var(--color-surface,#fff);color:var(--color-fg-muted,#64748B);border-color:var(--color-line,#E2E8F0);'}">
           ${r.label}
         </button>`).join('')}
     </div>
@@ -357,7 +357,7 @@ function _tabsHTML(activeId) {
 function _updateTabs(container, activeId) {
   container.querySelectorAll('[data-range]').forEach(t => {
     const on = t.dataset.range === activeId;
-    t.style.cssText = on ? 'background:#0D9488;color:#fff;border-color:#0D9488;' : '';
+    t.style.cssText = on ? 'background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border-color:var(--color-brand,#2A6374);' : '';
   });
 }
 
@@ -424,7 +424,7 @@ function _paymentBars(byMethod, total) {
 
 function _serviceBars(byService, total) {
   const entries = Object.entries(byService).sort(([,a],[,b]) => b - a).slice(0, 5);
-  const colors  = ['#0D9488','#3B82F6','#F97316','#8B5CF6','#EAB308'];
+  const colors  = ['#2A6374','#3B82F6','#F97316','#8B5CF6','#EAB308'];
   return entries.map(([svc, count], i) => {
     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
     return `

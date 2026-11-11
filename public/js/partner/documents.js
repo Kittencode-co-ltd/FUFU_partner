@@ -5,7 +5,7 @@ import { STORAGE_KEYS } from '../utils/config.js';
 import { logAudit }  from './audit.js';
 
 const TEMPLATES = {
-  consent:     { icon: '📋', title: 'หนังสือยินยอม',    color: '#0D9488' },
+  consent:     { icon: '📋', title: 'หนังสือยินยอม',    color: '#2A6374' },
   lab_report:  { icon: '🔬', title: 'ผล Lab',            color: '#8B5CF6' },
   referral:    { icon: '📤', title: 'ใบส่งตัว',          color: '#F97316' },
   prescription:{ icon: '💊', title: 'ใบสั่งยา',          color: '#10B981' },
@@ -120,11 +120,11 @@ function _docRow(d) {
         ${d.status === 'draft' ? `
           <button data-action="sign" data-id="${d.id}"
             class="text-xs px-2 py-1 rounded-lg font-semibold transition-colors"
-            style="background:#E8F5E9;color:#10B981">เซ็น</button>` : ''}
+            style="background:#E8F5E9;color:var(--color-success,#10B981)">เซ็น</button>` : ''}
         ${d.status !== 'voided' && d.status !== 'draft' ? `
           <button data-action="finalize" data-id="${d.id}"
             class="text-xs px-2 py-1 rounded-lg font-semibold transition-colors"
-            style="background:#E3F2FD;color:#3B82F6">ยืนยัน</button>` : ''}
+            style="background:#E3F2FD;color:var(--color-info,#3B82F6)">ยืนยัน</button>` : ''}
         <button data-action="delete" data-id="${d.id}"
           class="text-xs text-red-400 hover:text-red-600 transition-colors px-1">
           <i class="fas fa-trash"></i>
@@ -162,7 +162,7 @@ function _bindActions(container, sig) {
     if (action === 'delete') {
       if (btn.dataset.confirm !== 'true') {
         btn.dataset.confirm = 'true';
-        btn.style.cssText = 'color:#EF4444;font-size:0.7rem;';
+        btn.style.cssText = 'color:var(--color-danger,#EF4444);font-size:0.7rem;';
         btn.innerHTML = 'ยืนยันลบ?';
         setTimeout(() => { btn.dataset.confirm = 'false'; btn.style.cssText = ''; btn.innerHTML = '<i class="fas fa-trash"></i>'; }, 3000);
         return;
