@@ -5,10 +5,10 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import {
   ArrowRight, ArrowUpRight, BadgeCheck, BellRing, BookHeart, CalendarDays, Check, ChevronDown,
   ArrowLeft, Activity, Bell, Bot, Cloud, Database, Eye, Images, KeyRound, Network, Smartphone, Workflow,
-  ClipboardCheck, Globe, HeartHandshake, LayoutDashboard, MapPin, Menu, MessageCircleHeart,
+  ClipboardCheck, Copy, Globe, HeartHandshake, Mail, QrCode, LayoutDashboard, MapPin, Menu, MessageCircleHeart,
   ScanLine, Stethoscope, Store, Users, Volume2, VolumeX, X,
 } from 'lucide-react'
-import { APP_URL, LANGS, messages, REGISTRY, REQUESTS } from '../i18n/messages'
+import { APP_URL, DONATION, LANGS, messages, REGISTRY, REQUESTS } from '../i18n/messages'
 
 const LANG_KEY = 'fufu_lang'
 const MUSIC_KEY = 'fufu_music'
@@ -846,6 +846,16 @@ function Ecosystem({ active }) {
 function FreeLaunch() {
   const { t } = useLang()
   const f = t.free
+  const d = t.donate
+  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(DONATION.accountNumber.replace(/-/g, ''))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
+    } catch { /* the number stays selectable */ }
+  }
   return (
     <section className="free" aria-labelledby="free-title">
       <div className="wrap">
@@ -855,9 +865,41 @@ function FreeLaunch() {
             <h2 id="free-title">{f.title} <em>{f.titleEm}</em></h2>
             <p>{f.body}</p>
           </div>
-          <div className="free-donate"><HeartHandshake size={22} aria-hidden="true" /><span>{f.donate}</span></div>
+          <button type="button" className="free-donate" aria-expanded={open} aria-controls="donate-panel" onClick={() => setOpen(o => !o)}>
+            <HeartHandshake size={22} aria-hidden="true" /><span>{open ? d.close : d.open}</span>
+            <ChevronDown size={18} aria-hidden="true" className={open ? 'free-chev is-open' : 'free-chev'} />
+          </button>
           <Image className="free-mascot" src="/img/mascot/cat-cheer.webp" alt="" width={340} height={424} aria-hidden="true" />
         </Tilt>
+
+        <div id="donate-panel" className={open ? 'donate-panel is-open' : 'donate-panel'} hidden={!open}>
+          <div className="donate-bank">
+            <div className="donate-bank-head">
+              <Image src={DONATION.bankLogo} alt="" width={44} height={44} />
+              <div><small>{d.title}</small><b>{d.bank}</b></div>
+            </div>
+            <dl>
+              <div><dt>{d.name}</dt><dd>{DONATION.accountName}</dd></div>
+              <div><dt>{d.number}</dt><dd className="donate-number">{DONATION.accountNumber}</dd></div>
+            </dl>
+            <button type="button" className="btn btn-primary donate-copy" onClick={copy}>
+              {copied ? <Check size={17} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />} {copied ? d.copied : d.copy}
+            </button>
+            <p className="donate-note" role="status">{d.note}</p>
+          </div>
+          <div className="donate-paypal">
+            <p className="donate-pp-title"><QrCode size={18} aria-hidden="true" /> {d.ppTitle}</p>
+            <Image src={DONATION.paypalQr} alt={d.ppTitle} width={438} height={438} className="donate-qr" />
+            <p className="donate-note">{d.ppNote}</p>
+            <a className="btn btn-ghost donate-save" href={DONATION.paypalQr} download>{d.ppSave}</a>
+          </div>
+          <div className="donate-side">
+            <ul className="donate-uses">
+              {d.uses.map((u, i) => <li key={u}><span>{i + 1}</span>{u}</li>)}
+            </ul>
+            <a className="donate-link" href={`mailto:${DONATION.email}`}><Mail size={18} aria-hidden="true" /> {d.ask}<small>{DONATION.email}</small></a>
+          </div>
+        </div>
       </div>
     </section>
   )

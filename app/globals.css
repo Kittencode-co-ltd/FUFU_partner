@@ -815,3 +815,41 @@ main#main { margin-top: -74px; }
 .feature-cta { margin-top: 26px; }
 @media (max-width: 1060px) { .header-login { display: none; } }
 @media (max-width: 640px) { .header-app { display: none; } }
+
+/* ── Donation panel (FreeLaunch) ── */
+button.free-donate { cursor: pointer; font: inherit; font-weight: 700; font-size: 14.5px; transition: transform .2s var(--spring, ease), box-shadow .2s ease; }
+button.free-donate:hover { transform: translateY(-2px); box-shadow: var(--shadow-md, 0 10px 24px rgba(42,99,116,.14)); }
+.free-chev { transition: transform .3s ease; }
+.free-chev.is-open { transform: rotate(180deg); }
+.donate-panel { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.donate-panel[hidden] { display: none; }
+.donate-panel.is-open { animation: donate-in .35s cubic-bezier(.2,.8,.2,1); }
+@keyframes donate-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.donate-bank, .donate-side { border-radius: var(--radius-lg, 28px); background: #fff; border: 1px solid #d7ebe7; padding: clamp(20px, 3vw, 28px); box-shadow: var(--shadow-sm); }
+.donate-bank-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.donate-bank-head img { border-radius: 12px; }
+.donate-bank-head small { display: block; color: var(--muted, #5e7379); font-size: 12.5px; }
+.donate-bank-head b { font-size: 18px; color: var(--ink, #1d3640); }
+.donate-bank dl { display: grid; gap: 12px; margin: 0 0 16px; padding: 16px; border-radius: 18px; background: var(--mint-50, #eef8f6); }
+.donate-bank dt { font-size: 12.5px; color: var(--muted, #5e7379); }
+.donate-bank dd { margin: 2px 0 0; font-weight: 700; color: var(--ink, #1d3640); overflow-wrap: anywhere; }
+.donate-number { font-size: clamp(22px, 3vw, 28px); letter-spacing: .04em; color: var(--brand, #2a6374) !important; user-select: all; font-variant-numeric: tabular-nums; }
+.donate-copy { width: 100%; justify-content: center; }
+.donate-note { margin: 12px 0 0; font-size: 12.5px; line-height: 1.7; color: var(--muted, #5e7379); }
+.donate-side { display: flex; flex-direction: column; gap: 12px; }
+.donate-uses { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 10px; }
+.donate-uses li { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ink, #1d3640); }
+.donate-uses span { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--coral-50, #fdf0ea); color: var(--coral-600, #e0703f); font-size: 13px; font-weight: 800; }
+.donate-link { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line, #e4eae9); color: var(--brand, #2a6374); font-weight: 700; font-size: 14px; text-decoration: none; transition: background .2s ease; }
+.donate-link:hover { background: var(--mint-50, #eef8f6); }
+.donate-link small { flex-basis: 100%; padding-left: 26px; color: var(--muted, #5e7379); font-weight: 500; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .donate-panel { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .donate-panel.is-open { animation: none; } }
+/* PayPal QR column */
+.donate-panel { grid-template-columns: minmax(0, 1.2fr) minmax(0, .9fr) minmax(0, 1fr); }
+.donate-paypal { border-radius: var(--radius-lg, 28px); background: #fff; border: 1px solid #d7ebe7; padding: clamp(18px, 2.6vw, 24px); box-shadow: var(--shadow-sm); text-align: center; display: flex; flex-direction: column; align-items: center; }
+.donate-pp-title { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-weight: 800; color: var(--ink, #1d3640); }
+.donate-qr { width: auto; max-width: 100%; max-height: 260px; height: auto; border-radius: 16px; border: 1px solid var(--line, #e4eae9); }
+.donate-save { margin-top: 10px; }
+@media (max-width: 1080px) { .donate-panel { grid-template-columns: 1fr 1fr; } .donate-side { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .donate-panel { grid-template-columns: 1fr; } }

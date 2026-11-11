@@ -330,7 +330,7 @@ export const REQUESTS = ['469572', '471127', '485009', '485016']
 // ── Additional copy (v3 landing: free launch, partner pitch, interactive mascots) ──
 const extra = {
   th: {
-    free: { badge: 'ฟรี', title: 'ใช้ฟรีทุกฟีเจอร์', titleEm: 'ในช่วงเปิดตัว', body: 'ไม่มีค่าสมัคร ไม่มีแพ็กเกจรายเดือน ถ้าอยากให้ FUFU เติบโตต่อไป ร่วมสนับสนุนได้ผ่านเมนูบริจาคในแอป', donate: 'ร่วมบริจาคได้ในแอป' },
+    free: { badge: 'ฟรี', title: 'ใช้ฟรีทุกฟีเจอร์', titleEm: 'ในช่วงเปิดตัว', body: 'ไม่มีค่าสมัคร ไม่มีแพ็กเกจรายเดือน ถ้าอยากให้ FUFU เติบโตต่อไป ร่วมสนับสนุนได้ทันทีที่นี่ หรือผ่านเมนูบริจาคในแอป', donate: 'ร่วมบริจาคได้ในแอป' },
     partners: {
       title: 'เพิ่มลูกค้า ลดงานหน้าร้าน', titleEm: 'ด้วย FUFU Partner',
       lede: 'ระบบหลังบ้านสำหรับคลินิก ร้านค้า ร้านตัดแต่งขน และโรงแรมสัตว์เลี้ยง เชื่อมตรงกับเจ้าของสัตว์ที่ใช้ FUFU App',
@@ -347,7 +347,7 @@ const extra = {
     trust: { title: 'นวัตกรรมของเราเอง', titleEm: 'แจ้งลิขสิทธิ์แล้ว 4 ผลงาน', lede: 'ทุกชิ้นพัฒนาโดยทีม KITTEN CODE และแจ้งข้อมูลลิขสิทธิ์ต่อกรมทรัพย์สินทางปัญญา ประเภทวรรณกรรม (โปรแกรมคอมพิวเตอร์)', badge: 'แจ้งข้อมูลแล้ว', request: 'คำขอเลขที่', kinds: ['แอปพลิเคชันดูแลสุขภาพสัตว์เลี้ยง', 'AI คัดกรองโรคผิวหนังจากภาพถ่าย', 'ผู้ช่วยสัตวแพทย์ AI แบบสนทนา', 'ระบบบริหารคลินิกและธุรกิจสัตว์เลี้ยง'] },
   },
   en: {
-    free: { badge: 'Free', title: 'Every feature is free', titleEm: 'during launch', body: 'No sign-up fee and no monthly plan. If you’d like to help FUFU grow, you can support us through the donation menu in the app.', donate: 'Donate in the app' },
+    free: { badge: 'Free', title: 'Every feature is free', titleEm: 'during launch', body: 'No sign-up fee and no monthly plan. If you’d like to help FUFU grow, you can support us right here or through the donation menu in the app.', donate: 'Donate in the app' },
     partners: {
       title: 'More clients, less front-desk work', titleEm: 'with FUFU Partner',
       lede: 'A back office for clinics, shops, groomers and pet hotels — connected directly to pet owners on FUFU App.',
@@ -364,7 +364,7 @@ const extra = {
     trust: { title: 'Our own innovation,', titleEm: '4 registered works', lede: 'Built by the KITTEN CODE team and recorded with Thailand’s Department of Intellectual Property as literary works (computer programs).', badge: 'Registered', request: 'Request no.', kinds: ['Pet health app', 'AI skin-disease screening from photos', 'Conversational AI vet assistant', 'Clinic & pet business management'] },
   },
   zh: {
-    free: { badge: '免费', title: '上线期间', titleEm: '全部功能免费', body: '无注册费，无月费。如果您希望 FUFU 持续成长，可以通过应用内的捐助菜单支持我们。', donate: '在应用内捐助' },
+    free: { badge: '免费', title: '上线期间', titleEm: '全部功能免费', body: '无注册费，无月费。如果您希望 FUFU 持续成长，可以直接在这里或通过应用内的捐助菜单支持我们。', donate: '在应用内捐助' },
     partners: {
       title: '获客更多，前台更轻松', titleEm: '用 FUFU Partner',
       lede: '为诊所、宠物店、美容店和宠物酒店打造的后台系统，直接连接 FUFU App 上的宠物主人。',
@@ -381,7 +381,7 @@ const extra = {
     trust: { title: '自主创新，', titleEm: '4 项著作权登记', lede: '全部由 KITTEN CODE 团队开发，并向泰国知识产权厅登记为文字作品（计算机程序）。', badge: '已登记', request: '申请号', kinds: ['宠物健康应用', '基于照片的皮肤病 AI 筛查', '对话式 AI 兽医助手', '诊所与宠物企业管理系统'] },
   },
   ja: {
-    free: { badge: '無料', title: 'リリース期間中は', titleEm: '全機能が無料', body: '登録料も月額プランもありません。FUFU を応援したい方は、アプリ内の寄付メニューからご支援いただけます。', donate: 'アプリ内で寄付' },
+    free: { badge: '無料', title: 'リリース期間中は', titleEm: '全機能が無料', body: '登録料も月額プランもありません。FUFU を応援したい方は、ここから、またはアプリ内の寄付メニューからご支援いただけます。', donate: 'アプリ内で寄付' },
     partners: {
       title: '集客を増やし、受付業務を減らす', titleEm: 'FUFU Partner で',
       lede: '動物病院、ショップ、トリミング、ペットホテル向けの管理システム。FUFU App の飼い主と直接つながります。',
@@ -398,7 +398,7 @@ const extra = {
     trust: { title: '自社開発のイノベーション、', titleEm: '著作権届出 4 件', lede: 'すべて KITTEN CODE チームが開発し、タイ知的財産局に言語の著作物（コンピュータプログラム）として届出済みです。', badge: '届出済み', request: '申請番号', kinds: ['ペット健康アプリ', '写真による皮膚疾患 AI スクリーニング', '対話型 AI 獣医アシスタント', 'クリニック・ペット事業管理'] },
   },
   ko: {
-    free: { badge: '무료', title: '출시 기간 동안', titleEm: '모든 기능 무료', body: '가입비도 월 요금제도 없습니다. FUFU의 성장을 응원하고 싶다면 앱의 후원 메뉴를 이용해 주세요.', donate: '앱에서 후원하기' },
+    free: { badge: '무료', title: '출시 기간 동안', titleEm: '모든 기능 무료', body: '가입비도 월 요금제도 없습니다. FUFU의 성장을 응원하고 싶다면 여기에서 바로 또는 앱의 후원 메뉴로 후원해 주세요.', donate: '앱에서 후원하기' },
     partners: {
       title: '고객은 늘리고 접수 업무는 줄이고', titleEm: 'FUFU Partner로',
       lede: '동물병원, 펫숍, 미용실, 펫호텔을 위한 관리 시스템으로 FUFU App 보호자와 바로 연결됩니다.',
@@ -536,3 +536,21 @@ const APP_CTA = {
   ko: { open: 'FUFU App 열기', short: '앱 열기', try: 'FUFU App 무료로 사용하기', note: '설치 없이 브라우저에서 바로 사용' },
 }
 for (const [code, cta] of Object.entries(APP_CTA)) messages[code].app = cta
+
+// ── Donation panel on the landing page (public company bank account only) ─────
+export const DONATION = {
+  bankLogo: '/img/donation/kasikorn-logo.png',
+  accountNumber: '226-3-92729-2',
+  accountName: 'คิทเท่น โค้ด (Kitten Code Co., Ltd.)',
+  email: 'kittencode.co.ltd@gmail.com',
+  appUrl: 'https://fufu-web-app.vercel.app/donation',
+  paypalQr: '/img/donation/paypal-kitten.jpg',
+}
+const DONATE = {
+  th: { ppTitle: 'บริจาคผ่าน PayPal', ppNote: 'สแกน QR ด้วยแอป PayPal และตรวจชื่อผู้รับก่อนยืนยัน', ppSave: 'บันทึก QR', open: 'ร่วมบริจาคเลย', close: 'ซ่อนรายละเอียด', title: 'โอนผ่านบัญชีธนาคาร', bank: 'ธนาคารกสิกรไทย', name: 'ชื่อบัญชี', number: 'เลขบัญชี', copy: 'คัดลอกเลขบัญชี', copied: 'คัดลอกแล้ว', note: 'ตรวจชื่อบัญชีและยอดเงินในแอปธนาคารทุกครั้งก่อนยืนยัน การบริจาคเป็นไปตามความสมัครใจ และไม่เปลี่ยนสิทธิ์การใช้งานแอป', paypal: 'บริจาคผ่าน PayPal QR ได้ในแอป', ask: 'สอบถามเรื่องการบริจาค', uses: ['ค่าระบบ AI และเซิร์ฟเวอร์', 'ให้เจ้าของสัตว์ใช้ฟรีต่อไป', 'พัฒนาฟีเจอร์ใหม่'] },
+  en: { ppTitle: 'Donate with PayPal', ppNote: 'Scan the QR with the PayPal app and check the recipient before confirming.', ppSave: 'Save QR', open: 'Donate now', close: 'Hide details', title: 'Bank transfer', bank: 'Kasikorn Bank', name: 'Account name', number: 'Account number', copy: 'Copy account number', copied: 'Copied', note: 'Always check the account name and amount in your banking app before confirming. Donations are voluntary and do not change your app access.', paypal: 'PayPal QR is available in the app', ask: 'Questions about donating', uses: ['AI and server costs', 'Keeping FUFU free', 'New features'] },
+  zh: { ppTitle: '通过 PayPal 捐助', ppNote: '请用 PayPal 应用扫描二维码，并在确认前核对收款人。', ppSave: '保存二维码', open: '立即捐助', close: '收起详情', title: '银行转账', bank: '开泰银行', name: '账户名', number: '账号', copy: '复制账号', copied: '已复制', note: '确认前请务必在银行应用中核对账户名和金额。捐助完全自愿，不影响应用使用权限。', paypal: '应用内可使用 PayPal 二维码捐助', ask: '捐助相关咨询', uses: ['AI 与服务器费用', '让 FUFU 持续免费', '开发新功能'] },
+  ja: { ppTitle: 'PayPal で寄付', ppNote: 'PayPal アプリで QR を読み取り、確定前に受取人をご確認ください。', ppSave: 'QR を保存', open: '今すぐ寄付する', close: '詳細を閉じる', title: '銀行振込', bank: 'カシコン銀行', name: '口座名義', number: '口座番号', copy: '口座番号をコピー', copied: 'コピーしました', note: '確定前に、銀行アプリで口座名義と金額を必ずご確認ください。寄付は任意で、アプリの利用権限は変わりません。', paypal: 'PayPal QR はアプリ内で利用できます', ask: '寄付についてのお問い合わせ', uses: ['AI とサーバーの費用', 'FUFU を無料で続けるため', '新機能の開発'] },
+  ko: { ppTitle: 'PayPal로 후원', ppNote: 'PayPal 앱으로 QR을 스캔하고 확인 전에 받는 분을 확인하세요.', ppSave: 'QR 저장', open: '지금 후원하기', close: '내용 접기', title: '계좌 이체', bank: '카시콘 은행', name: '예금주', number: '계좌번호', copy: '계좌번호 복사', copied: '복사했어요', note: '확인 전에 은행 앱에서 예금주와 금액을 꼭 확인하세요. 후원은 자율이며 앱 이용 권한은 바뀌지 않아요.', paypal: 'PayPal QR은 앱에서 이용할 수 있어요', ask: '후원 문의', uses: ['AI와 서버 비용', 'FUFU 무료 운영', '새 기능 개발'] },
+}
+for (const [code, d] of Object.entries(DONATE)) messages[code].donate = d
