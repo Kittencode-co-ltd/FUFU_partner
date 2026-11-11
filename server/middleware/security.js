@@ -88,6 +88,29 @@ export function isNextRequest(path) {
   return path === '/' || path === '/_next' || path.startsWith('/_next/');
 }
 
+// Content-Security-Policy for the static partner portal pages (login / register / dashboard).
+// Used by securityHeaders below and by next.config.mjs when deployed on Vercel.
+export const PORTAL_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "style-src-attr 'unsafe-inline'",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: https:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
+export const BASE_SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+};
+
 export function securityHeaders(req, res, next) {
   const nonce = randomBytes(18).toString('base64');
   const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -137,7 +160,13 @@ export function corsOptions(env = process.env) {
     .map(value => value.trim())
     .filter(Boolean);
   const development = ['http://localhost:3000', 'http://127.0.0.1:3000'];
-  const allowed = new Set(configured.length ? configured : (env.NODE_ENV === 'production' ? [] : development));
+  // On Vercel the portal and the API share one origin; allow it automatically
+  const vercel = [env.VERCEL_URL, env.VERCEL_BRANCH_URL, env.VERCEL_PROJECT_PRODUCTION_URL]
+    .filter(Boolean).map(host => `https://${host}`);
+  const allowed = new Set([
+    ...(configured.length ? configured : (env.NODE_ENV === 'production' ? [] : development)),
+    ...vercel,
+  ]);
   return {
     credentials: false,
     origin(origin, callback) {

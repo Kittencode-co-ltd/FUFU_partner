@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node --import dotenv/config server/index.js dev",
     "start": "node --import dotenv/config server/index.js",
-    "build": "next build",
+    "build": "npm run build:css && next build",
     "lint": "eslint app eslint.config.mjs next.config.mjs && node --check server/index.js && node --check server/routes/appointments.js && node --check server/routes/clinic.js && node --check server/routes/visits.js && node --check public/js/partner/appointments-mvp.js && node --check public/sw.js",
     "typecheck": "tsc --noEmit",
     "build:css": "tailwindcss -i src/css/input.css -o public/css/main.css --minify",

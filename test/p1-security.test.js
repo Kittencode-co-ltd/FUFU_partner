@@ -14,7 +14,8 @@ test('every non-auth route installs requireAuth', async () => {
 });
 
 test('security foundation limits auth/mutations, restricts CORS and sets headers', async () => {
-  const index = await read('../server/index.js');
+  // Middleware lives in server/app.js, shared by the local server and the Vercel API route
+  const index = await read('../server/app.js');
   const security = await read('../server/middleware/security.js');
   const auth = await read('../server/routes/auth.js');
   assert.match(index, /mutationRateLimit/);
