@@ -22,3 +22,6 @@ docs/*
 
 # Next.js landing page
 .next/
+
+# temporary demo/test pages
+public/__*
