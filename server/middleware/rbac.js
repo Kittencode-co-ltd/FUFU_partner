@@ -25,9 +25,17 @@ export async function attachStoreRole(req, res, next) {
     // User-scoped queries keep authorization fail-closed under RLS.
     const { data: store } = await req.supabase
       .from('stores')
-      .select('owner_id, owner_email')
+      .select('owner_id, owner_email, is_verified')
       .eq('id', storeId)
       .single();
+
+    if (store && store.is_verified !== true) {
+      return res.status(403).json({
+        success: false,
+        code: 'PARTNER_PENDING_APPROVAL',
+        error: 'ร้านค้ายังรอ FUFU อนุมัติ จึงยังเข้าใช้งานระบบ Partner ไม่ได้',
+      });
+    }
 
     const isOwnerById    = store?.owner_id    && store.owner_id === req.user.id;
     const isOwnerByEmail = store?.owner_email && store.owner_email.toLowerCase() === req.user.email?.toLowerCase();

@@ -1,6 +1,7 @@
 import { Router }       from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { authRateLimit, clearFailedLoginAttempts, loginAttemptThrottle, recordFailedLogin } from '../middleware/security.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router   = Router();
 const supabase = createClient(
@@ -68,16 +69,18 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
   // 1. Look up owned stores (by owner_id, then by owner_email fallback)
   let { data: stores } = await userSb
     .from('stores')
-    .select('id, name, category')
+    .select('id, name, category, is_verified')
     .eq('owner_id', data.user.id);
 
   if (!stores?.length) {
     const { data: byEmail } = await userSb
       .from('stores')
-      .select('id, name, category')
+      .select('id, name, category, is_verified')
       .eq('owner_email', data.user.email);
     stores = byEmail;
   }
+  let hasPartnerStore = Boolean(stores?.length);
+  stores = (stores || []).filter(store => store.is_verified === true);
 
   // 2. If not owner → check staff membership
   let isStaffMember = false;
@@ -93,15 +96,24 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
       const storeIds = [...new Set(staffRows.map(s => s.store_id))];
       const { data: staffStores } = await userSb
         .from('stores')
-        .select('id, name, category')
+        .select('id, name, category, is_verified')
         .in('id', storeIds);
-      stores = (staffStores || []).map(store => {
+      hasPartnerStore = hasPartnerStore || Boolean(staffStores?.length);
+      stores = (staffStores || []).filter(store => store.is_verified === true).map(store => {
         const staffRow = staffRows.find(s => s.store_id === store.id);
         // normalize role → roles[] for frontend compatibility
         const roleArr = staffRow?.role ? [staffRow.role] : ['staff'];
         return { ...store, staff_roles: roleArr, staff_role: staffRow?.role, is_staff: true };
       });
     }
+  }
+
+  if (hasPartnerStore && !stores?.length) {
+    return res.status(403).json({
+      success: false,
+      code: 'PARTNER_PENDING_APPROVAL',
+      error: 'บัญชีพาร์ทเนอร์กำลังรอ FUFU อนุมัติ กรุณารอการตรวจสอบก่อนเข้าใช้งาน',
+    });
   }
 
   // 3. No store and not staff → user is a mobile-only account, needs onboarding
@@ -203,6 +215,7 @@ router.post('/register', authRateLimit, async (req, res) => {
       owner_id:    userId,
       owner_email: userEmail,
       is_active:   true,
+      is_verified: false,
     }])
     .select('id, name, category')
     .single();
@@ -221,13 +234,42 @@ router.post('/register', authRateLimit, async (req, res) => {
     });
   }
 
-  res.json({
-    success:       true,
-    token,
-    refresh_token: newUser.session.refresh_token,
-    user:  { id: userId, email: userEmail },
+  res.status(202).json({
+    success: true,
+    pending_approval: true,
+    user: { id: userId, email: userEmail },
     stores: [store],
+    message: 'สมัครสำเร็จ บัญชีกำลังรอ FUFU อนุมัติก่อนเข้าใช้งาน',
   });
+});
+
+// Confirm access on every dashboard load, including sessions issued before
+// approval checks were enabled.
+router.get('/partner-access', requireAuth, async (req, res) => {
+  let { data: owned } = await req.supabase
+    .from('stores')
+    .select('id, is_verified')
+    .eq('owner_id', req.user.id);
+  if (!owned?.length) {
+    const { data: byEmail } = await req.supabase
+      .from('stores').select('id, is_verified').eq('owner_email', req.user.email);
+    owned = byEmail;
+  }
+  const ownedStores = owned || [];
+  const verifiedOwned = ownedStores.some(store => store.is_verified === true);
+  if (verifiedOwned) return res.json({ success: true, status: 'approved' });
+
+  const { data: staffRows } = await req.supabase
+    .from('staff').select('store_id').eq('email', req.user.email).eq('is_active', true);
+  if (staffRows?.length) {
+    const { data: staffStores } = await req.supabase
+      .from('stores').select('is_verified').in('id', staffRows.map(row => row.store_id));
+    if (staffStores?.some(store => store.is_verified === true)) {
+      return res.json({ success: true, status: 'approved' });
+    }
+  }
+
+  return res.json({ success: true, status: ownedStores.length || staffRows?.length ? 'pending' : 'onboarding' });
 });
 
 // ─── POST /api/auth/change-password ──────────────────────────────────────────

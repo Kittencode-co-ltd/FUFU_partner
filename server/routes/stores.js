@@ -42,7 +42,7 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'name and category required' });
   }
 
-  const store = { name, category, owner_id: req.user.id, owner_email: req.user.email };
+  const store = { name, category, owner_id: req.user.id, owner_email: req.user.email, is_verified: false };
   if (branch_name) store.branch_name = branch_name;
 
   let { data, error } = await req.supabase

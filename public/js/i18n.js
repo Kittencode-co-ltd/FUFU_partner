@@ -25,6 +25,7 @@
   const M = {
     th: {
       back: 'กลับหน้าหลัก', lang: 'เปลี่ยนภาษา', portal: 'Partner Portal',
+      logout: 'ออกจากระบบ', pendingTitle: 'รอการอนุมัติ', pendingApproval: 'บัญชีพาร์ทเนอร์ของคุณกำลังรอ FUFU อนุมัติ เมื่ออนุมัติแล้วจึงจะเข้าใช้งานได้',
       tabLogin: 'เข้าสู่ระบบ', tabRegister: 'สมัครพาร์ทเนอร์',
       loginTitle: 'ยินดีต้อนรับกลับ', loginSub: 'เข้าสู่ระบบด้วยบัญชี FUFU Partner ของคุณ',
       email: 'อีเมล', password: 'รหัสผ่าน', forgot: 'ลืมรหัสผ่าน?', remember: 'จดจำการเข้าสู่ระบบ',
@@ -47,6 +48,7 @@
     },
     en: {
       back: 'Back to home', lang: 'Change language', portal: 'Partner Portal',
+      logout: 'Sign out', pendingTitle: 'Waiting for approval', pendingApproval: 'Your partner account is waiting for FUFU approval. You can access the system after it is approved.',
       tabLogin: 'Sign in', tabRegister: 'Become a partner',
       loginTitle: 'Welcome back', loginSub: 'Sign in with your FUFU Partner account',
       email: 'Email', password: 'Password', forgot: 'Forgot password?', remember: 'Remember me',
@@ -69,6 +71,7 @@
     },
     zh: {
       back: '返回首页', lang: '切换语言', portal: '合作伙伴平台',
+      logout: '退出登录', pendingTitle: '等待审核', pendingApproval: '您的合作伙伴账号正在等待 FUFU 审核。审核通过后即可使用。',
       tabLogin: '登录', tabRegister: '成为合作伙伴',
       loginTitle: '欢迎回来', loginSub: '使用您的 FUFU Partner 账号登录',
       email: '电子邮箱', password: '密码', forgot: '忘记密码？', remember: '记住登录',
@@ -91,6 +94,7 @@
     },
     ja: {
       back: 'ホームへ戻る', lang: '言語を変更', portal: 'パートナーポータル',
+      logout: 'ログアウト', pendingTitle: '承認待ち', pendingApproval: 'パートナーアカウントは FUFU の承認待ちです。承認後にご利用いただけます。',
       tabLogin: 'ログイン', tabRegister: 'パートナー登録',
       loginTitle: 'おかえりなさい', loginSub: 'FUFU Partner アカウントでログイン',
       email: 'メールアドレス', password: 'パスワード', forgot: 'パスワードをお忘れですか？', remember: 'ログイン状態を保持',
@@ -113,6 +117,7 @@
     },
     ko: {
       back: '홈으로', lang: '언어 변경', portal: '파트너 포털',
+      logout: '로그아웃', pendingTitle: '승인 대기 중', pendingApproval: '파트너 계정은 FUFU 승인 대기 중입니다. 승인 후 이용할 수 있습니다.',
       tabLogin: '로그인', tabRegister: '파트너 가입',
       loginTitle: '다시 오신 것을 환영합니다', loginSub: 'FUFU Partner 계정으로 로그인하세요',
       email: '이메일', password: '비밀번호', forgot: '비밀번호를 잊으셨나요?', remember: '로그인 상태 유지',

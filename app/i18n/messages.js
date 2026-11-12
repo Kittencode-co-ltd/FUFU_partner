@@ -527,7 +527,8 @@ const HERO_ALT = {
 for (const [code, alt] of Object.entries(HERO_ALT)) messages[code].hero.photoAlt = alt
 
 // ── "Open FUFU App" call-to-action (web app) ───────────────────────────────────
-export const APP_URL = 'https://fufu-web-app.vercel.app/auth'
+const APP_ORIGIN = (process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://app.fufupetcare.com').replace(/\/$/, '')
+export const APP_URL = `${APP_ORIGIN}/auth`
 const APP_CTA = {
   th: { open: 'เข้าใช้งาน FUFU App', short: 'เปิดแอป', try: 'ลองใช้ FUFU App ฟรี', note: 'ใช้งานผ่านเว็บได้ทันที ไม่ต้องติดตั้ง' },
   en: { open: 'Open FUFU App', short: 'Open app', try: 'Try FUFU App free', note: 'Runs in your browser — nothing to install' },
@@ -543,7 +544,7 @@ export const DONATION = {
   accountNumber: '226-3-92729-2',
   accountName: 'คิทเท่น โค้ด (Kitten Code Co., Ltd.)',
   email: 'kittencode.co.ltd@gmail.com',
-  appUrl: 'https://fufu-web-app.vercel.app/donation',
+  appUrl: `${APP_ORIGIN}/donation`,
   paypalQr: '/img/donation/paypal-kitten.jpg',
 }
 const DONATE = {

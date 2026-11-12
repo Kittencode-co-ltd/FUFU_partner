@@ -27,6 +27,14 @@ Production-safe default คือ `PARTNER_MVP_MODE=true` และ workspace �
 
 > เวอร์ชันก่อนหน้าเป็น PHP — ปัจจุบันย้ายมาเป็น Node/Express ครบทั้งหมดแล้ว
 
+## 🌐 Production domains
+
+- Partner portal and FUFU introduction site: `https://fufupetcare.com`
+- FUFU Webapp: `https://app.fufupetcare.com`
+- In Vercel, assign the apex domain to the `FUFU_partner` project and the `app` subdomain to the `FUFU-app-web` project. Use the DNS record values Vercel displays for each project.
+- Set `CORS_ORIGINS=https://fufupetcare.com,https://app.fufupetcare.com` and `NEXT_PUBLIC_WEBAPP_URL=https://app.fufupetcare.com` in the Partner Vercel project's Production environment.
+- The Partner landing page and donation links use `NEXT_PUBLIC_WEBAPP_URL` when set, otherwise they default to `https://app.fufupetcare.com`.
+
 ---
 
 ## 📁 Project Structure

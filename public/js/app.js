@@ -209,6 +209,13 @@ async function bootRegister() {
       return;
     }
 
+    if (result.pending_approval) {
+      form.reset();
+      showToast(result.message || tr('pendingApproval', 'สมัครสำเร็จ บัญชีกำลังรอ FUFU อนุมัติก่อนเข้าใช้งาน'));
+      setTimeout(() => { window.location.href = '/login.html'; }, 2200);
+      return;
+    }
+
     // ✅ Success — save token + select store immediately (no login redirect)
     storage.set(STORAGE_KEYS.TOKEN,         result.token);
     storage.set(STORAGE_KEYS.REFRESH_TOKEN, result.refresh_token || '');
@@ -271,8 +278,15 @@ function renderCreateStore(container, token, showToast, selectStore) {
     });
 
     if (res?.success) {
-      showToast(`สร้าง "${name}" เรียบร้อย`);
-      setTimeout(() => selectStore(res.data), 800);
+      const { storage } = await import('./utils/storage.js');
+      storage.clearSession();
+      container.innerHTML = `
+        <div class="rounded-2xl bg-white p-6 text-center space-y-3">
+          <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-2xl">⏳</div>
+          <h3 class="font-semibold text-slate-800">${tr('pendingTitle', 'รอการอนุมัติ')}</h3>
+          <p class="text-sm leading-6 text-slate-500">${tr('pendingApproval', 'สร้างร้านแล้ว บัญชีกำลังรอ FUFU อนุมัติก่อนเข้าใช้งาน')}</p>
+          <a class="btn-primary inline-flex justify-center px-5" href="/">${tr('back', 'กลับหน้าหลัก')}</a>
+        </div>`;
     } else {
       showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
       btn.disabled = false;
@@ -296,6 +310,31 @@ async function bootOnboarding() {
 async function bootDashboard() {
   const { requireAuth } = await import('./auth.js');
   if (!requireAuth()) return;
+  const { apiFetch } = await import('./utils/api-client.js');
+  const access = await apiFetch('/api/auth/partner-access');
+  if (!access?.success) return;
+  if (access.status !== 'approved') {
+    const { storage } = await import('./utils/storage.js');
+    if (access.status === 'onboarding') {
+      storage.clearSession();
+      window.location.replace('/login.html');
+      return;
+    }
+    document.body.innerHTML = `
+      <main class="min-h-screen grid place-items-center bg-[#faf7f2] p-5">
+        <section class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+          <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-amber-50 text-2xl">⏳</div>
+          <h1 class="text-xl font-bold text-slate-800">${tr('pendingTitle', 'รอการอนุมัติ')}</h1>
+          <p class="mt-3 text-sm leading-6 text-slate-500">${tr('pendingApproval', 'บัญชีพาร์ทเนอร์ของคุณยังรอ FUFU อนุมัติ เมื่ออนุมัติแล้วจึงจะเข้าใช้งานได้')}</p>
+          <button id="pending-logout" class="btn-primary mt-6 w-full">${tr('logout', 'ออกจากระบบ')}</button>
+        </section>
+      </main>`;
+    document.getElementById('pending-logout')?.addEventListener('click', async () => {
+      const { logout } = await import('./auth.js');
+      logout();
+    });
+    return;
+  }
   const { initDashboard } = await import('./partner/dashboard.js');
   await initDashboard();
 }

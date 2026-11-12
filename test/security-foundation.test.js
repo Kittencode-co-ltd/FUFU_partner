@@ -20,6 +20,14 @@ test('partner auth never bypasses verification with service role', async () => {
   const source = await read('../server/routes/auth.js');
   assert.doesNotMatch(source, /service_role|SERVICE_ROLE|auth\.admin|email_confirm/);
   assert.match(source, /needs_email_verification/);
+  assert.match(source, /is_verified: false/);
+  assert.match(source, /PARTNER_PENDING_APPROVAL/);
+  assert.match(source, /router\.get\('\/partner-access', requireAuth/);
+  const rbac = await read('../server/middleware/rbac.js');
+  assert.match(rbac, /store\.is_verified !== true/);
+  const approvalMigration = await read('../supabase/migrations/20261112000100_partner_approval_gate.sql');
+  assert.match(approvalMigration, /auth\.uid\(\) is not null/);
+  assert.match(approvalMigration, /before insert or update of is_verified on public\.stores/i);
 });
 
 test('core RLS has explicit owner and clinic policies', async () => {
