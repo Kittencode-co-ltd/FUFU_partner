@@ -160,11 +160,17 @@ export function corsOptions(env = process.env) {
     .map(value => value.trim())
     .filter(Boolean);
   const development = ['http://localhost:3000', 'http://127.0.0.1:3000'];
-  // On Vercel the portal and the API share one origin; allow it automatically
+  // The public Partner portal is hosted on the apex domain; the Webapp may call
+  // approved Partner endpoints from its app subdomain. Keep both allowed even
+  // when a Vercel environment still has an older CORS_ORIGINS value.
+  const productionDomains = ['https://fufupetcare.com', 'https://app.fufupetcare.com'];
+  // Also allow Vercel's generated deployment URLs for previews and deployments.
   const vercel = [env.VERCEL_URL, env.VERCEL_BRANCH_URL, env.VERCEL_PROJECT_PRODUCTION_URL]
     .filter(Boolean).map(host => `https://${host}`);
   const allowed = new Set([
-    ...(configured.length ? configured : (env.NODE_ENV === 'production' ? [] : development)),
+    ...configured,
+    ...productionDomains,
+    ...(env.NODE_ENV === 'production' ? [] : development),
     ...vercel,
   ]);
   return {

@@ -17,7 +17,7 @@ export function requestContext(req, res, next) {
 export function sanitizedErrorHandler(err, req, res, _next) {
   console.error(JSON.stringify({
     level: 'error', request_id: req.requestId, method: req.method,
-    path: req.path, error: err?.name || 'Error',
+    path: req.path, origin: req.get('origin') || null, error: err?.name || 'Error',
   }));
   if (process.env.ERROR_MONITOR_URL) {
     fetch(process.env.ERROR_MONITOR_URL, {
