@@ -80,6 +80,8 @@ export function createApiApp({ withFallback = true } = {}) {
       success: false,
       error: 'API endpoint not found',
       code: 'NOT_FOUND',
+      path: req.path,
+      method: req.method,
       request_id: req.requestId,
     }));
     app.use(sanitizedErrorHandler);
