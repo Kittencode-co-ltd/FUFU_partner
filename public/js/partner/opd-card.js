@@ -14,7 +14,7 @@ const VITALS_NORMAL = {
 };
 
 const FREQ_LABELS = { SID: 'วันละ 1×', BID: 'วันละ 2×', TID: 'วันละ 3×', QID: 'วันละ 4×', PRN: 'เมื่อจำเป็น' };
-const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+const SPECIES_EMOJI = { dog: '', cat: '', rabbit: '', bird: '', other: '' };
 const COMMISSION_RATE = 0.05;
 
 let _currentQueue = null;
@@ -140,13 +140,13 @@ function _buildHTML() {
   <div class="space-y-5 w-full">
 
     ${viewOnly ? `<div class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-body">
-      <span class="text-base">👁</span> โหมดดูข้อมูลเท่านั้น — สิทธิ์ของคุณไม่อนุญาตให้แก้ไข OPD
+      <span class="text-base"><svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span> โหมดดูข้อมูลเท่านั้น — สิทธิ์ของคุณไม่อนุญาตให้แก้ไข OPD
     </div>` : ''}
 
     <!-- ══ Patient Search Panel ══════════════════════════════════════════════ -->
     <div id="opd-search-panel" class="${hasPatient ? 'hidden' : ''} card p-5 border-2 border-dashed border-primary/40">
       <div class="flex items-center gap-2 mb-3 flex-wrap">
-        <span class="text-xl leading-none">🔍</span>
+        <span class="text-xl leading-none"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0015.803 15.803z"/></svg></span>
         <h3 class="font-semibold text-navy">ค้นหาผู้ป่วย</h3>
         <span class="text-xs text-slate-400 font-body">— HN, ชื่อสัตว์เลี้ยง, ชื่อเจ้าของ หรือเบอร์โทร</span>
       </div>
@@ -173,7 +173,7 @@ function _buildHTML() {
       <div class="flex items-center gap-3 mt-3 flex-wrap">
         <button id="opd-walkin-btn"
           class="btn-outline text-sm px-4 py-2 flex items-center gap-1.5">
-          🚶 Walk-in / ไม่มีประวัติ
+         Walk-in / ไม่มีประวัติ
         </button>
         <span class="text-xs text-slate-400 font-body">
           เคล็ดลับ: พิมพ์ <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-</kbd> แล้วตามด้วยตัวเลข เช่น <kbd class="bg-slate-100 rounded px-1 text-slate-500">HN-000042</kbd>
@@ -182,14 +182,14 @@ function _buildHTML() {
 
       <!-- In-progress queue -->
       <div class="mt-4 border-t border-slate-100 pt-3">
-        <p class="text-xs font-semibold text-slate-400 font-body mb-2">🟢 คิวที่กำลังตรวจอยู่</p>
+        <p class="text-xs font-semibold text-slate-400 font-body mb-2">คิวที่กำลังตรวจอยู่</p>
         <div id="opd-queue-list" class="space-y-1.5"></div>
       </div>
     </div>
 
     <!-- Allergies warning banner (shown by _loadPetProfile if pet has allergies) -->
     <div id="opd-allergy-banner" class="hidden card border-2 border-red-300 bg-red-50 p-3 flex items-center gap-3">
-      <span class="text-2xl flex-shrink-0">⚠️</span>
+      <span class="text-2xl flex-shrink-0"><svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg></span>
       <div>
         <div class="font-bold text-red-700 text-sm">แพ้ยา / อาหาร — ระวัง!</div>
         <div id="opd-allergy-text" class="text-red-600 font-body text-sm mt-0.5"></div>
@@ -199,7 +199,7 @@ function _buildHTML() {
     <!-- Patient bar -->
     <div class="card p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
       <div class="w-12 h-12 rounded-xl bg-primary-subtle flex items-center justify-center text-2xl flex-shrink-0">
-        ${SPECIES_EMOJI[sp] || '🐾'}
+        ${SPECIES_EMOJI[sp] || ''}
       </div>
       <div class="flex-1 min-w-0">
         <div class="relative flex items-center gap-2 flex-wrap">
@@ -229,26 +229,26 @@ function _buildHTML() {
       </div>
       <div class="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end w-full sm:w-auto">
         <span id="save-status" class="text-xs text-slate-400 font-body"></span>
-        ${!r.id ? `<button id="opd-change-patient" class="${hasPatient ? '' : 'hidden'} btn-outline text-sm px-3 py-2" title="เลือกผู้ป่วยใหม่">🔄 เปลี่ยน</button>` : ''}
+        ${!r.id ? `<button id="opd-change-patient" class="${hasPatient ? '' : 'hidden'} btn-outline text-sm px-3 py-2" title="เลือกผู้ป่วยใหม่">เปลี่ยน</button>` : ''}
         <button id="opd-back-btn"     class="btn-outline text-sm px-3 py-2">← กลับ</button>
-        <button id="opd-referral-btn" class="btn-outline text-sm px-4 py-2">📋 ส่งตัว</button>
-        ${can('opd','create') || can('opd','edit') ? `<button id="opd-save-btn" class="btn-outline text-sm px-4 py-2">💾 บันทึก</button>` : ''}
+        <button id="opd-referral-btn" class="btn-outline text-sm px-4 py-2">ส่งตัว</button>
+        ${can('opd','create') || can('opd','edit') ? `<button id="opd-save-btn" class="btn-outline text-sm px-4 py-2">บันทึก</button>` : ''}
         ${can('opd','edit') ? `<button id="opd-complete-btn" class="btn-primary text-sm px-4 py-2">✓ เสร็จสิ้น</button>` : ''}
-        <button id="opd-goto-pos" class="hidden btn-primary text-sm px-4 py-2">💳 ไปชำระเงิน</button>
+        <button id="opd-goto-pos" class="hidden btn-primary text-sm px-4 py-2">ไปชำระเงิน</button>
       </div>
     </div>
 
     <!-- Vitals -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-      ${_vitalInput('v-temp', '🌡', 'อุณหภูมิ', r.temperature_c || v.temp || '', 'temp')}
-      ${_vitalInput('v-weight', '⚖', 'น้ำหนัก', r.weight_kg || v.weight || '', 'weight')}
-      ${_vitalInput('v-hr', '❤', 'ชีพจร', r.heart_rate || v.hr || '', 'hr')}
-      ${_vitalInput('v-rr', '🫁', 'หายใจ', r.respiratory_rate || v.rr || '', 'rr')}
+      ${_vitalInput('v-temp', '', 'อุณหภูมิ', r.temperature_c || v.temp || '', 'temp')}
+      ${_vitalInput('v-weight', '', 'น้ำหนัก', r.weight_kg || v.weight || '', 'weight')}
+      ${_vitalInput('v-hr', '', 'ชีพจร', r.heart_rate || v.hr || '', 'hr')}
+      ${_vitalInput('v-rr', '', 'หายใจ', r.respiratory_rate || v.rr || '', 'rr')}
     </div>
 
     <!-- SOAP Template Picker -->
     <div class="card p-3 flex items-center gap-3 flex-wrap">
-      <span class="text-sm font-semibold text-slate-500 flex-shrink-0">📋 โหลดแม่แบบ:</span>
+      <span class="text-sm font-semibold text-slate-500 flex-shrink-0">โหลดแม่แบบ:</span>
       <select id="soap-tmpl-select" class="input-field flex-1 min-w-44 py-1.5 text-sm">
         <option value="">— เลือกแม่แบบ (โหลดจาก template) —</option>
       </select>
@@ -267,7 +267,7 @@ function _buildHTML() {
     <!-- Medical Images (Lab results, X-ray, etc.) -->
     <div class="card p-4">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-navy">🖼 ภาพถ่าย / ผลแลป / X-Ray</h3>
+        <h3 class="font-semibold text-navy">ภาพถ่าย / ผลแลป / X-Ray</h3>
         ${can('opd','create') || can('opd','edit') ? `<label id="img-upload-label"
           class="cursor-pointer text-sm text-primary border border-primary px-3 py-1 rounded-lg
                  hover:bg-primary-subtle transition-colors font-semibold">
@@ -284,12 +284,12 @@ function _buildHTML() {
     <!-- RX — Prescription -->
     <div class="card p-4">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-navy">💊 RX — ใบสั่งยา</h3>
+        <h3 class="font-semibold text-navy">RX — ใบสั่งยา</h3>
         <div class="flex gap-2">
           <button id="print-labels-btn"
             class="text-sm text-slate-500 border border-slate-200 px-3 py-1 rounded-lg
                    hover:bg-slate-50 transition-colors">
-            🏷 ฉลากยา
+           ฉลากยา
           </button>
           ${can('opd','create') || can('opd','edit') ? `<button id="add-rx-btn"
             class="text-sm text-primary border border-primary px-3 py-1 rounded-lg
@@ -574,13 +574,13 @@ function _bindMainSearch(c) {
     }
 
     results.innerHTML = rows.map((r, i) => {
-      const emoji  = SPECIES_EMOJI[r.species] || '🐾';
+      const emoji  = SPECIES_EMOJI[r.species] || '';
       const hnTag  = r.hn
         ? `<span class="text-xs bg-brand-subtle text-brand rounded px-1.5 py-0.5 font-mono font-semibold">${formatHN(r.hn, r.created_at)}</span>`
         : '';
       const breedTxt = r.breed ? `<span class="text-xs text-slate-400 font-body">${r.breed}</span>` : '';
       const allergyBadge = r.allergies
-        ? `<span class="text-xs bg-red-100 text-red-600 rounded px-1.5 py-0.5 font-body">⚠ แพ้ยา</span>`
+        ? `<span class="text-xs bg-red-100 text-red-600 rounded px-1.5 py-0.5 font-body">แพ้ยา</span>`
         : '';
       return `
         <div class="flex items-center gap-3 px-4 py-3 hover:bg-primary-subtle cursor-pointer
@@ -725,7 +725,7 @@ function _bindPetSearch(container) {
     const header = q ? '' : `<div class="px-4 py-1.5 text-xs text-slate-400 font-body border-b border-slate-100">ค้นหาสัตว์เลี้ยงในระบบ</div>`;
 
     dropdown.innerHTML = header + rows.map((r, i) => {
-      const emoji = SPECIES_EMOJI[r.species] || '🐾';
+      const emoji = SPECIES_EMOJI[r.species] || '';
       return `
         <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors"
              data-ridx="${i}">
@@ -828,7 +828,7 @@ async function _completeRecord() {
   // Update complete button to done state
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '✅ เสร็จสิ้นแล้ว';
+    btn.textContent = 'เสร็จสิ้นแล้ว';
     btn.className = btn.className.replace('btn-primary', 'btn-outline opacity-60');
   }
 
@@ -902,7 +902,7 @@ async function _saveRecord(status = 'in_progress') {
     _updateSaveStatus('✓ บันทึกแล้ว');
     _saveDraft(); // update draft with record.id so refresh can locate it
   } else {
-    _updateSaveStatus('⚠ บันทึกไม่สำเร็จ');
+    _updateSaveStatus('บันทึกไม่สำเร็จ');
     showToast('บันทึกไม่สำเร็จ', 'error');
   }
 }
@@ -922,7 +922,7 @@ function _openReferralModal() {
   modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4 my-4">
-      <h3 class="font-bold text-navy text-lg">📋 ใบส่งตัวสัตว์ป่วย</h3>
+      <h3 class="font-bold text-navy text-lg">ใบส่งตัวสัตว์ป่วย</h3>
       <div>
         <label class="input-label">คลินิก / โรงพยาบาลปลายทาง *</label>
         <input id="ref-dest" class="input-field" placeholder="โรงพยาบาลสัตว์...">
@@ -942,7 +942,7 @@ function _openReferralModal() {
       </div>
       <div class="flex gap-3">
         <button id="ref-cancel" class="btn-outline flex-1">ยกเลิก</button>
-        <button id="ref-print"  class="btn-primary flex-1">🖨 พิมพ์ใบส่งตัว</button>
+        <button id="ref-print"  class="btn-primary flex-1">พิมพ์ใบส่งตัว</button>
       </div>
     </div>`;
 
@@ -1064,7 +1064,7 @@ async function _openRxModal() {
         <select id="rx-product" class="input-field">
           <option value="">— พิมพ์ชื่อยาเอง —</option>
           ${products.map(p => `<option value="${p.id}" data-name="${p.name}" data-stock="${p.stock}" data-unit="${p.unit || 'ชิ้น'}">
-            ${p.icon || '💊'} ${p.name} (คงเหลือ ${p.stock} ${p.unit || 'ชิ้น'})
+            ${p.icon || ''} ${p.name} (คงเหลือ ${p.stock} ${p.unit || 'ชิ้น'})
           </option>`).join('')}
         </select>
       </div>
@@ -1122,10 +1122,10 @@ async function _openRxModal() {
       const stock = parseInt(opt.dataset.stock);
       const warn = modal.querySelector('#rx-stock-warn');
       if (stock <= 0) {
-        warn.textContent = `⚠️ สต็อกหมด ไม่สามารถตัดได้`;
+        warn.textContent = `สต็อกหมด ไม่สามารถตัดได้`;
         warn.classList.remove('hidden');
       } else if (stock <= 5) {
-        warn.textContent = `⚠️ สต็อกเหลือน้อย: ${stock} ${opt.dataset.unit}`;
+        warn.textContent = `สต็อกเหลือน้อย: ${stock} ${opt.dataset.unit}`;
         warn.classList.remove('hidden');
       } else {
         warn.classList.add('hidden');
@@ -1316,7 +1316,7 @@ function _openSaveTemplateModal() {
   modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
   modal.innerHTML = `
     <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
-      <h3 class="font-bold text-navy text-lg">📋 บันทึกแม่แบบ SOAP</h3>
+      <h3 class="font-bold text-navy text-lg">บันทึกแม่แบบ SOAP</h3>
       <div>
         <label class="input-label">ชื่อแม่แบบ *</label>
         <input id="tmpl-name" class="input-field" placeholder="เช่น โรคพาร์โว, แผลผ่าตัดทำหมัน...">

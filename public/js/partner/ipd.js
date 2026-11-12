@@ -15,17 +15,17 @@ const STATUS_CFG = {
   maintenance: { color: '#6B7280', bg: 'rgba(107,114,128,0.10)', icon: 'fa-wrench',    label: 'ซ่อม'    },
   reserved:    { color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)',  icon: 'fa-clock',     label: 'จอง'     },
 };
-const TYPE_ICON    = { standard: '🏠', large: '🏡', icu: '🏥', isolation: '⚠️' };
+const TYPE_ICON    = { standard: '', large: '', icu: '', isolation: '' };
 const VITALS_NORMAL = {
-  temperature:      { min: 37.5, max: 39.2, unit: '°C',   icon: '🌡' },
-  heart_rate:       { min: 60,   max: 140,  unit: 'bpm',  icon: '❤' },
-  respiratory_rate: { min: 10,   max: 30,   unit: '/min', icon: '🫁' },
-  weight_kg:        { min: null, max: null,  unit: 'kg',   icon: '⚖' },
+  temperature:      { min: 37.5, max: 39.2, unit: '°C',   icon: '' },
+  heart_rate:       { min: 60,   max: 140,  unit: 'bpm',  icon: '' },
+  respiratory_rate: { min: 10,   max: 30,   unit: '/min', icon: '' },
+  weight_kg:        { min: null, max: null,  unit: 'kg',   icon: '' },
 };
 const SPECIES_OPTS = [
-  { v: 'dog',    l: '🐕 สุนัข' }, { v: 'cat',    l: '🐈 แมว' },
-  { v: 'rabbit', l: '🐰 กระต่าย' }, { v: 'bird', l: '🐦 นก' },
-  { v: 'other',  l: '🐾 อื่นๆ' },
+  { v: 'dog',    l: 'สุนัข' }, { v: 'cat',    l: 'แมว' },
+  { v: 'rabbit', l: 'กระต่าย' }, { v: 'bird', l: 'นก' },
+  { v: 'other',  l: 'อื่นๆ' },
 ];
 
 export async function renderIPDWard(container) {
@@ -99,7 +99,7 @@ async function _render(container) {
       ${_settingsMode ? `
       <div class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold font-body"
            style="background:var(--color-warning-subtle,#FEF3C7);color:var(--color-warning-strong,#92400E);border:1px solid #FCD34D">
-        ⚙️ <strong>Settings Mode</strong> — กดที่กรงเพื่อแก้ไข · ปุ่ม 🗑 เพื่อลบ · "+ เพิ่มกรง" เพื่อเพิ่มใหม่
+       <strong>Settings Mode</strong> — กดที่กรงเพื่อแก้ไข · ปุ่มเพื่อลบ · "+ เพิ่มกรง" เพื่อเพิ่มใหม่
       </div>` : ''}
 
       <!-- Stats -->
@@ -120,7 +120,7 @@ async function _render(container) {
         <!-- Cage map -->
         <div class="md:col-span-1 lg:col-span-3 card p-4">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold text-navy">🏥 แผนผัง Ward</h3>
+            <h3 class="font-semibold text-navy">แผนผัง Ward</h3>
             <div class="flex items-center gap-3">
               <div class="hidden sm:flex flex-wrap gap-2">
                 ${Object.entries(STATUS_CFG).map(([, v]) => `
@@ -137,7 +137,7 @@ async function _render(container) {
           </div>
           ${cages.length === 0
             ? `<div class="py-12 text-center space-y-3">
-                <div class="text-4xl">🏠</div>
+                <div class="text-4xl"><svg class="w-10 h-10 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819"/></svg></div>
                 <div class="text-slate-400 font-body text-sm">ยังไม่มีกรง</div>
                 <button id="add-first-cage-btn"
                   class="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold
@@ -183,7 +183,7 @@ function _reattachCageListeners(container, cages) {
     });
   });
 
-  // Edit buttons (✏️)
+  // Edit buttons ()
   container.querySelectorAll('[data-cage-action="edit"]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -192,7 +192,7 @@ function _reattachCageListeners(container, cages) {
     });
   });
 
-  // Delete buttons (🗑)
+  // Delete buttons ()
   container.querySelectorAll('[data-cage-action="delete"]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -221,7 +221,7 @@ function _cageCard(cage) {
         </button>` : ''}
       </div>
       <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-bold text-navy truncate mr-1">${TYPE_ICON[cage.cage_type] || '🏠'} ${cage.cage_number}</span>
+        <span class="text-sm font-bold text-navy truncate mr-1">${TYPE_ICON[cage.cage_type] || ''} ${cage.cage_number}</span>
         <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${cfg.color}"></span>
       </div>
       ${adm ? `
@@ -249,7 +249,7 @@ async function _renderDetail(cage, container) {
     panel.innerHTML = `
       <div class="flex flex-col h-full">
         <div class="flex-1 flex flex-col items-center justify-center text-center py-6 space-y-2">
-          <div class="text-3xl">${TYPE_ICON[cage.cage_type] || '🏠'}</div>
+          <div class="text-3xl">${TYPE_ICON[cage.cage_type] || ''}</div>
           <div class="font-semibold text-navy">กรง ${cage.cage_number}</div>
           <div class="text-xs text-slate-400 font-body">
             ${STATUS_CFG[cage.status]?.label || ''} · ฿${(cage.daily_rate||0).toLocaleString()}/วัน
@@ -327,7 +327,7 @@ async function _renderDetail(cage, container) {
       <!-- Belongings -->
       <div>
         <div class="flex items-center justify-between mb-1.5">
-          <span class="font-semibold text-sm text-navy">🎒 ของที่ฝากมา</span>
+          <span class="font-semibold text-sm text-navy">ของที่ฝากมา</span>
           <button id="add-belonging-btn" class="text-xs text-primary hover:underline font-semibold">+ เพิ่ม</button>
         </div>
         <div id="belongings-list" class="flex flex-wrap gap-1.5 min-h-6">
@@ -344,7 +344,7 @@ async function _renderDetail(cage, container) {
       <!-- Daily notes -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <span class="font-semibold text-sm text-navy">📝 บันทึกประจำวัน</span>
+          <span class="font-semibold text-sm text-navy">บันทึกประจำวัน</span>
           <span id="notes-save-status" class="text-xs text-slate-400 font-body"></span>
         </div>
         <textarea id="daily-notes" rows="3"
@@ -359,7 +359,7 @@ async function _renderDetail(cage, container) {
       <!-- Treatments -->
       <div>
         <div class="flex items-center justify-between mb-1.5">
-          <span class="font-semibold text-sm text-navy">💊 Treatment <span class="text-xs text-slate-400 font-body">(${done}/${treatments.length})</span></span>
+          <span class="font-semibold text-sm text-navy">Treatment <span class="text-xs text-slate-400 font-body">(${done}/${treatments.length})</span></span>
           <button id="add-treatment-btn" class="text-xs text-primary hover:underline font-semibold">+ เพิ่ม</button>
         </div>
         ${treatments.length > 0 ? `
@@ -416,7 +416,7 @@ async function _renderDetail(cage, container) {
       const res = await apiFetch(`/api/ipd/admissions/${adm.id}`, {
         method: 'PATCH', body: JSON.stringify({ daily_notes: e.target.value }),
       });
-      if (statusEl) statusEl.textContent = res?.success ? '✓ บันทึกแล้ว' : '⚠ ไม่สำเร็จ';
+      if (statusEl) statusEl.textContent = res?.success ? '✓ บันทึกแล้ว' : 'ไม่สำเร็จ';
     }, 1500);
   });
 
@@ -432,20 +432,20 @@ async function _renderDetail(cage, container) {
 // ─── Treatment row ────────────────────────────────────────────────────────────
 
 function _treatmentRow(t) {
-  const TYPE_ICON_MAP = { medication: '💊', feeding: '🍽️', vitals: '🩺', observation: '👁️', procedure: '🔧' };
+  const TYPE_ICON_MAP = { medication: '', feeding: '', vitals: '', observation: '', procedure: '' };
   const isDone = t.status === 'done';
 
   const statusIcons = isDone ? [
-    t.eat_status  ? `<span title="กิน: ${t.eat_status}">${t.eat_status === 'good' ? '🍽️✅' : t.eat_status === 'little' ? '🍽️⚡' : '🍽️❌'}</span>` : '',
-    t.poop_status ? `<span title="ถ่าย: ${t.poop_status}">${t.poop_status === 'normal' ? '💩✅' : t.poop_status === 'abnormal' ? '💩⚠️' : ''}</span>` : '',
-    t.pee_status  ? `<span title="ฉี่: ${t.pee_status}">${t.pee_status === 'normal' ? '💧✅' : t.pee_status === 'abnormal' ? '💧⚠️' : ''}</span>` : '',
+    t.eat_status  ? `<span title="กิน: ${t.eat_status}">${t.eat_status === 'good' ? '' : t.eat_status === 'little' ? '' : ''}</span>` : '',
+    t.poop_status ? `<span title="ถ่าย: ${t.poop_status}">${t.poop_status === 'normal' ? '' : t.poop_status === 'abnormal' ? '' : ''}</span>` : '',
+    t.pee_status  ? `<span title="ฉี่: ${t.pee_status}">${t.pee_status === 'normal' ? '' : t.pee_status === 'abnormal' ? '' : ''}</span>` : '',
   ].filter(Boolean).join('') : '';
 
   return `
     <div class="flex items-start gap-2 p-2 rounded-lg text-xs group
                 ${isDone ? 'bg-green-50' : 'bg-white border border-slate-100'}">
       <span class="text-slate-400 font-mono w-10 flex-shrink-0 pt-0.5">${t.treatment_time}</span>
-      <span class="text-base flex-shrink-0">${TYPE_ICON_MAP[t.treatment_type] || '📝'}</span>
+      <span class="text-base flex-shrink-0">${TYPE_ICON_MAP[t.treatment_type] || ''}</span>
       <div class="flex-1 min-w-0">
         <div class="font-semibold text-navy truncate">${t.description || '—'}</div>
         ${t.dosage ? `<div class="text-slate-400">${t.dosage}</div>` : ''}
@@ -477,10 +477,10 @@ function _openAddCageModal(container) {
           <input id="c-num" class="input-field" placeholder="A-01"></div>
         <div><label class="input-label">ประเภท</label>
           <select id="c-type" class="input-field">
-            <option value="standard">🏠 Standard</option>
-            <option value="large">🏡 Large</option>
-            <option value="icu">🏥 ICU</option>
-            <option value="isolation">⚠️ Isolation</option>
+            <option value="standard">Standard</option>
+            <option value="large">Large</option>
+            <option value="icu">ICU</option>
+            <option value="isolation">Isolation</option>
           </select></div>
         <div><label class="input-label">ชั้น</label>
           <input id="c-floor" class="input-field" type="number" value="1" min="1"></div>
@@ -558,7 +558,7 @@ function _deleteCage(cage, container) {
   m.innerHTML = `
     <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
       <div class="text-center">
-        <div class="text-4xl mb-3">🗑</div>
+        <div class="text-4xl mb-3"><svg class="w-10 h-10 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg></div>
         <h3 class="font-bold text-navy text-lg">ลบกรง ${cage.cage_number}?</h3>
         <p class="text-sm text-slate-500 font-body mt-1">การกระทำนี้ไม่สามารถย้อนกลับได้</p>
       </div>
@@ -586,7 +586,7 @@ function _deleteCage(cage, container) {
 
 function _openAdmitModal(cage, container) {
   let _sel = null; // selected pet { pet_id, pet_name, species, breed, hn, allergies, owner_name, recent_count }
-  const EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+  const EMOJI = { dog: '', cat: '', rabbit: '', bird: '', other: '' };
 
   const m = document.createElement('div');
   m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
@@ -651,11 +651,11 @@ function _openAdmitModal(cage, container) {
     const recentBadge  = pet.recent_count > 0
       ? `<span class="text-xs text-slate-400 font-body">ประวัติ OPD ${pet.recent_count} ครั้ง</span>` : '';
     const allergyWarn  = pet.allergies
-      ? `<div class="mt-2 text-xs text-red-600 font-semibold bg-red-50 rounded-lg px-2 py-1">⚠️ แพ้: ${pet.allergies}</div>` : '';
+      ? `<div class="mt-2 text-xs text-red-600 font-semibold bg-red-50 rounded-lg px-2 py-1">แพ้: ${pet.allergies}</div>` : '';
 
     petCard.innerHTML = `
       <div class="flex items-center gap-3">
-        <span class="text-3xl">${EMOJI[pet.species] || '🐾'}</span>
+        <span class="text-3xl">${EMOJI[pet.species] || ''}</span>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-bold text-primary-dark">${pet.pet_name}</span>
@@ -723,9 +723,9 @@ function _openAdmitModal(cage, container) {
       dropdown.innerHTML = rows.map((r, i) => r._no_pet
         ? `<div class="px-4 py-2 text-xs text-slate-400 font-body">${r.owner_name} — ยังไม่มีสัตว์เลี้ยงในระบบ</div>`
         : `<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors" data-ridx="${i}">
-             <span class="text-xl">${EMOJI[r.species]||'🐾'}</span>
+             <span class="text-xl">${EMOJI[r.species]||''}</span>
              <div class="flex-1 min-w-0">
-               <div class="font-semibold text-navy">${r.pet_name}${r.allergies?' ⚠️':''}</div>
+               <div class="font-semibold text-navy">${r.pet_name}${r.allergies?'':''}</div>
                <div class="text-xs text-slate-400 font-body">
                  ${SPECIES_OPTS.find(s=>s.v===r.species)?.l||r.species}${r.breed?' · '+r.breed:''} ·
                  เจ้าของ: ${r.owner_name}${r.owner_phone?' · '+r.owner_phone:''}
@@ -802,7 +802,7 @@ function _openAdmitModal(cage, container) {
 function _registerThenAdmit(parentModal, onDone) {
   parentModal.style.visibility = 'hidden';
 
-  const EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+  const EMOJI = { dog: '', cat: '', rabbit: '', bird: '', other: '' };
 
   // Step 1: Create owner
   const m1 = document.createElement('div');
@@ -866,7 +866,7 @@ function _registerThenAdmit(parentModal, onDone) {
       <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
         <h3 class="font-bold text-navy text-lg">ลงทะเบียนใหม่ — 2/2 สัตว์เลี้ยง</h3>
         <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">
-          👤 ${owner.name} · ${owner.phone || ''}
+         ${owner.name} · ${owner.phone || ''}
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="col-span-2">
@@ -887,8 +887,8 @@ function _registerThenAdmit(parentModal, onDone) {
             <label class="input-label">เพศ</label>
             <select id="p-gender" class="input-field">
               <option value="unknown">ไม่ระบุ</option>
-              <option value="male">เพศผู้ ♂</option>
-              <option value="female">เพศเมีย ♀</option>
+              <option value="male">เพศผู้</option>
+              <option value="female">เพศเมีย</option>
             </select>
           </div>
           <div>
@@ -1056,11 +1056,11 @@ function _openAddTreatmentModal(adm, container, cage) {
           <input id="t-time" class="input-field" type="time" value="${new Date().toTimeString().slice(0,5)}"></div>
         <div><label class="input-label">ประเภท</label>
           <select id="t-type" class="input-field">
-            <option value="medication">💊 ยา</option>
-            <option value="feeding">🍽️ อาหาร</option>
-            <option value="vitals">🩺 Vitals</option>
-            <option value="observation">👁️ สังเกต</option>
-            <option value="procedure">🔧 หัตถการ</option>
+            <option value="medication">ยา</option>
+            <option value="feeding">อาหาร</option>
+            <option value="vitals">Vitals</option>
+            <option value="observation">สังเกต</option>
+            <option value="procedure">หัตถการ</option>
           </select></div>
         <div class="col-span-2" id="t-product-row">
           <label class="input-label">เลือกจากคลัง (ไม่บังคับ)</label>
@@ -1068,7 +1068,7 @@ function _openAddTreatmentModal(adm, container, cage) {
             <option value="">— กำลังโหลด... —</option>
           </select>
           <div id="t-stock-warn" class="hidden mt-1 text-xs font-semibold text-amber-600 bg-amber-50 rounded-lg px-2 py-1">
-            ⚠️ สินค้าคงเหลือน้อย — กรุณาเติมสต็อก
+           สินค้าคงเหลือน้อย — กรุณาเติมสต็อก
           </div>
         </div>
         <div class="col-span-2"><label class="input-label">รายละเอียด *</label>
@@ -1118,7 +1118,7 @@ function _openAddTreatmentModal(adm, container, cage) {
     const descEl = m.querySelector('#t-desc');
 
     if (e.target.value && !isNaN(stock) && stock <= 5) {
-      warnEl.textContent = `⚠️ สินค้าคงเหลือน้อย (${stock} หน่วย) — กรุณาเติมสต็อก`;
+      warnEl.textContent = `สินค้าคงเหลือน้อย (${stock} หน่วย) — กรุณาเติมสต็อก`;
       warnEl.classList.remove('hidden');
     } else {
       warnEl.classList.add('hidden');
@@ -1159,7 +1159,7 @@ function _openDoneModal(treatment, cage, container) {
     <div class="space-y-4">
       <p class="text-xs text-slate-400 font-body">บันทึกสถานะเพิ่มเติม (ไม่บังคับ)</p>
       <div>
-        <label class="input-label mb-1.5">🍽️ การกิน</label>
+        <label class="input-label mb-1.5">การกิน</label>
         <div class="flex gap-2">
           ${[['good','กินดี'],['little','กินน้อย'],['none','ไม่กิน']].map(([v,l]) =>
             `<label class="flex-1 text-center">
@@ -1171,7 +1171,7 @@ function _openDoneModal(treatment, cage, container) {
         </div>
       </div>
       <div>
-        <label class="input-label mb-1.5">💩 ถ่าย</label>
+        <label class="input-label mb-1.5">ถ่าย</label>
         <div class="flex gap-2">
           ${[['normal','ปกติ'],['abnormal','ผิดปกติ'],['none','ยังไม่ถ่าย']].map(([v,l]) =>
             `<label class="flex-1 text-center">
@@ -1183,7 +1183,7 @@ function _openDoneModal(treatment, cage, container) {
         </div>
       </div>
       <div>
-        <label class="input-label mb-1.5">💧 ฉี่</label>
+        <label class="input-label mb-1.5">ฉี่</label>
         <div class="flex gap-2">
           ${[['normal','ปกติ'],['abnormal','ผิดปกติ'],['none','ยังไม่ฉี่']].map(([v,l]) =>
             `<label class="flex-1 text-center">
@@ -1258,7 +1258,7 @@ async function _discharge(admId, container) {
       <button id="print-discharge-btn"
         class="text-sm border border-slate-200 text-slate-500 px-4 py-2 rounded-xl
                hover:border-primary hover:text-primary transition-colors font-semibold">
-        🖨 พิมพ์ Discharge Summary
+       พิมพ์ Discharge Summary
       </button>
     </div>`;
 
@@ -1339,7 +1339,7 @@ async function _renderVitals(adm, panel) {
   section.innerHTML = `
     <div>
       <div class="flex items-center justify-between mb-1.5">
-        <span class="font-semibold text-sm text-navy">🩺 Vital Signs
+        <span class="font-semibold text-sm text-navy">Vital Signs
           <span class="text-xs text-slate-400 font-body">(${vitals.length} ครั้ง)</span>
         </span>
         <button id="add-vitals-btn" class="text-xs text-primary hover:underline font-semibold">+ บันทึก</button>
@@ -1365,10 +1365,10 @@ async function _renderVitals(adm, panel) {
               <thead class="text-slate-400">
                 <tr>
                   <th class="text-left py-1">เวลา</th>
-                  <th class="text-center">🌡°C</th>
-                  <th class="text-center">❤bpm</th>
-                  <th class="text-center">⚖kg</th>
-                  <th class="text-center">🫁/min</th>
+                  <th class="text-center">°C</th>
+                  <th class="text-center">bpm</th>
+                  <th class="text-center">kg</th>
+                  <th class="text-center">/min</th>
                   <th></th>
                 </tr>
               </thead>
@@ -1409,13 +1409,13 @@ function _openAddVitalsModal(adm, panel) {
         <div><label class="input-label">เวลา</label>
           <input id="vt-time" class="input-field" type="time" value="${timeStr}"></div>
         <div></div>
-        <div><label class="input-label">🌡 อุณหภูมิ (°C)</label>
+        <div><label class="input-label">อุณหภูมิ (°C)</label>
           <input id="vt-temp" class="input-field" type="number" step="0.1" placeholder="38.5"></div>
-        <div><label class="input-label">❤ ชีพจร (bpm)</label>
+        <div><label class="input-label">ชีพจร (bpm)</label>
           <input id="vt-hr" class="input-field" type="number" placeholder="80"></div>
-        <div><label class="input-label">⚖ น้ำหนัก (kg)</label>
+        <div><label class="input-label">น้ำหนัก (kg)</label>
           <input id="vt-wt" class="input-field" type="number" step="0.1" placeholder="5.2"></div>
-        <div><label class="input-label">🫁 หายใจ (/min)</label>
+        <div><label class="input-label">หายใจ (/min)</label>
           <input id="vt-rr" class="input-field" type="number" placeholder="20"></div>
         <div class="col-span-2">
           <label class="input-label">ความเจ็บปวด 0–10</label>

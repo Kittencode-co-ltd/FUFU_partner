@@ -172,10 +172,10 @@ function _openAddModal(container) {
         <div class="grid grid-cols-2 gap-3">
           <div><label class="input-label">ความสำคัญ</label>
             <select id="tk-priority" class="input-field">
-              <option value="normal">➡️ ปกติ</option>
-              <option value="high">⬆️ สูง</option>
-              <option value="urgent">🔥 ด่วน</option>
-              <option value="low">⬇️ ต่ำ</option>
+              <option value="normal">ปกติ</option>
+              <option value="high">สูง</option>
+              <option value="urgent">ด่วน</option>
+              <option value="low">ต่ำ</option>
             </select></div>
           <div><label class="input-label">กำหนดส่ง</label>
             <input id="tk-due" class="input-field" type="date"></div>

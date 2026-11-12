@@ -1,15 +1,16 @@
 ﻿import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
+import { speciesIcon } from '../utils/icons.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { formatHN, escapeHtml } from '../utils/formatters.js';
 
 const SPECIES = {
-  dog:    { label: 'สุนัข',      emoji: '🐕' },
-  cat:    { label: 'แมว',        emoji: '🐈' },
-  rabbit: { label: 'กระต่าย',   emoji: '🐰' },
-  bird:   { label: 'นก',         emoji: '🐦' },
-  other:  { label: 'อื่นๆ',      emoji: '🐾' },
+  dog:    { label: 'สุนัข',      emoji: '' },
+  cat:    { label: 'แมว',        emoji: '' },
+  rabbit: { label: 'กระต่าย',   emoji: '' },
+  bird:   { label: 'นก',         emoji: '' },
+  other:  { label: 'อื่นๆ',      emoji: '' },
 };
 
 const BREEDS = {
@@ -134,7 +135,7 @@ async function _renderAppointments(el) {
 
       <!-- Header -->
       <div class="flex items-center justify-between">
-        <h3 class="font-semibold text-navy">📅 นัดหมาย</h3>
+        <h3 class="font-semibold text-navy">นัดหมาย</h3>
         <button id="new-appt-btn" class="btn-primary text-sm px-4 py-2">+ นัดหมายใหม่</button>
       </div>
 
@@ -354,7 +355,7 @@ async function _renderListPanel(listEl) {
   if (!appts.length) {
     listEl.innerHTML = `
       <div class="card p-10 text-center space-y-2">
-        <div class="text-3xl">📭</div>
+        <div class="text-3xl"><svg class="w-8 h-8 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z"/></svg></div>
         <div class="text-slate-400 font-body text-sm">ไม่มีนัดหมาย<br><span class="text-xs">${title}</span></div>
       </div>`;
     return;
@@ -404,7 +405,7 @@ function _apptCard(a) {
         ${isToday ? '<div class="text-xs text-slate-400 font-body">วันนี้</div>' : `<div class="text-xs text-slate-400 font-body">${new Date(a.appt_date).toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</div>`}
       </div>
       <div class="w-10 h-10 rounded-xl bg-primary-subtle flex items-center justify-center text-xl flex-shrink-0">
-        ${sp.emoji}
+        ${speciesIcon(pet?.species, "w-5 h-5 text-primary")}
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
@@ -417,7 +418,7 @@ function _apptCard(a) {
         ${a.notes ? `<div class="text-xs text-slate-400 font-body mt-0.5">${a.notes}</div>` : ''}
       </div>
       <div class="flex gap-2 flex-shrink-0">
-        ${pet ? `<button data-appt-action="view" data-pet-id="${pet.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">🐾 โปรไฟล์</button>` : ''}
+        ${pet ? `<button data-appt-action="view" data-pet-id="${pet.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">โปรไฟล์</button>` : ''}
         ${canCheckin ? `<button data-appt-action="checkin" data-appt-id="${a.id}" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">✓ Check-in</button>` : ''}
         ${a.status === 'scheduled' ? `<button data-appt-action="cancel" data-appt-id="${a.id}" class="text-xs border border-slate-200 text-slate-400 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">ยกเลิก</button>` : ''}
       </div>
@@ -447,7 +448,7 @@ async function _cancelAppt(apptId, el) {
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
       <div style="background:var(--color-surface,#fff);border-radius:16px;padding:28px 28px 24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
-        <div style="font-size:40px;margin-bottom:12px;">📅</div>
+        <div style="font-size:40px;margin-bottom:12px;"><svg class="w-10 h-10 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5m-9-6h.008v.008H12V10.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM12 13.5h.008v.008H12V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM12 16.5h.008v.008H12V16.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div>
         <div style="font-size:17px;font-weight:700;color:var(--color-fg,#1e293b);margin-bottom:8px;">ยืนยันการยกเลิกนัดหมาย</div>
         <div style="font-size:14px;color:var(--color-fg-muted,#64748b);margin-bottom:24px;line-height:1.5;">คุณต้องการยกเลิกนัดหมายนี้ใช่ไหม?<br>การดำเนินการนี้ไม่สามารถย้อนกลับได้</div>
         <div style="display:flex;gap:10px;">
@@ -479,7 +480,7 @@ async function _renderPetsList(el) {
   el.innerHTML = `
     <div class="space-y-4">
       <div class="card p-4 flex gap-3">
-        <input id="pet-search" class="input-field flex-1" placeholder="🔍 ค้นหาชื่อสัตว์ / เลข HN / เจ้าของ / เบอร์โทร">
+        <input id="pet-search" class="input-field flex-1" placeholder="ค้นหาชื่อสัตว์ / เลข HN / เจ้าของ / เบอร์โทร">
         <button id="new-pet-btn" class="btn-primary text-sm px-4 py-2 whitespace-nowrap">+ สัตว์เลี้ยงใหม่</button>
       </div>
       <div id="pet-search-results" class="space-y-2">
@@ -528,7 +529,7 @@ async function _searchPets(q, el) {
   resultsEl.innerHTML = owners.flatMap(owner =>
     (owner.pets || [{ _ownerOnly: true }]).map(pet => pet._ownerOnly
       ? `<div class="card p-4 flex items-center gap-3 cursor-pointer hover:shadow-card-hover transition-shadow" data-pet-id="">
-           <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl">👤</div>
+           <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg></div>
            <div class="flex-1">
              <div class="font-semibold text-navy">${owner.name}</div>
              <div class="text-sm text-slate-500 font-body">${owner.phone || ''} — ยังไม่มีสัตว์เลี้ยงในระบบ</div>
@@ -536,7 +537,7 @@ async function _searchPets(q, el) {
          </div>`
       : `<div class="card p-4 flex items-center gap-4 cursor-pointer hover:shadow-card-hover transition-shadow" data-pet-id="${pet.id}">
            <div class="w-10 h-10 rounded-xl bg-primary-subtle flex items-center justify-center text-xl">
-             ${SPECIES[pet.species]?.emoji || '🐾'}
+             ${speciesIcon(pet.species, "w-5 h-5 text-primary")}
            </div>
            <div class="flex-1">
              <div class="flex items-center gap-2 flex-wrap">
@@ -585,7 +586,7 @@ export function renderPetProfile(container, pet) {
       <!-- Header -->
       <div class="card p-5 flex items-center gap-4">
         <div class="w-16 h-16 rounded-xl bg-primary-subtle flex items-center justify-center text-3xl flex-shrink-0">
-          ${sp.emoji}
+          ${speciesIcon(pet.species, "w-8 h-8 text-primary")}
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
@@ -596,21 +597,21 @@ export function renderPetProfile(container, pet) {
             ${pet.is_neutered ? `<span class="badge bg-purple-50 text-purple-600 text-xs">ทำหมันแล้ว</span>` : ''}
           </div>
           <div class="text-sm text-slate-500 font-body mt-1">
-            ${age ? `อายุ ${age} · ` : ''}${pet.gender === 'male' ? 'เพศผู้ ♂' : pet.gender === 'female' ? 'เพศเมีย ♀' : ''}
+            ${age ? `อายุ ${age} · ` : ''}${pet.gender === 'male' ? 'เพศผู้' : pet.gender === 'female' ? 'เพศเมีย' : ''}
             ${pet.color ? ` · ${pet.color}` : ''}
             ${pet.weight_kg ? ` · ${pet.weight_kg} kg` : ''}
             ${pet.microchip_no ? ` · ชิป: ${pet.microchip_no}` : ''}
           </div>
-          ${pet.allergies ? `<div class="text-xs text-red-500 font-body mt-1">⚠️ แพ้: ${pet.allergies}</div>` : ''}
+          ${pet.allergies ? `<div class="text-xs text-red-500 font-body mt-1">แพ้: ${pet.allergies}</div>` : ''}
         </div>
         <div class="flex-shrink-0">
-          <button id="new-appt-from-profile" class="btn-primary text-sm px-3 py-2">📅 นัดหมาย</button>
+          <button id="new-appt-from-profile" class="btn-primary text-sm px-3 py-2">นัดหมาย</button>
         </div>
       </div>
 
       <!-- Owner info -->
       <div class="card p-4 flex items-center gap-4">
-        <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">👤</div>
+        <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg></div>
         <div class="flex-1">
           <div class="font-semibold text-navy">${owner.name || '—'}</div>
           <div class="text-sm text-slate-500 font-body">
@@ -625,7 +626,7 @@ export function renderPetProfile(container, pet) {
           <button data-profile-tab="${t}"
             class="profile-tab px-4 py-2 rounded-lg text-sm font-semibold transition-colors
                    ${i===0 ? 'bg-white text-navy shadow-card' : 'text-slate-500 hover:text-navy'}">
-            ${t==='history' ? '📋 ประวัติรักษา' : t==='vaccines' ? '💉 วัคซีน' : '📅 นัดหมาย'}
+            ${t==='history' ? 'ประวัติรักษา' : t==='vaccines' ? 'วัคซีน' : 'นัดหมาย'}
           </button>`).join('')}
       </div>
 
@@ -720,7 +721,7 @@ function _renderHistory(records) {
           ${auditTs ? `<div class="text-xs text-slate-400 font-body mt-1">บันทึก: ${auditTs}${r.created_by ? ' · ' + r.created_by : ''}</div>` : ''}
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          ${r.weight_kg ? `<span class="badge badge-navy text-xs">⚖ ${r.weight_kg}kg</span>` : ''}
+          ${r.weight_kg ? `<span class="badge badge-navy text-xs">${r.weight_kg}kg</span>` : ''}
           <button class="text-red-500 hover:text-red-700 text-xs font-body px-1" data-delete-record title="ลบบันทึกนี้">ลบ</button>
         </div>
       </div>`;
@@ -756,10 +757,10 @@ function _renderVaccines(vaccines, petId, medicalRecords = []) {
   function _vaccineBadge(v) {
     if (!v.next_due_date) return '';
     if (v.next_due_date < today) {
-      return `<span class="text-xs font-semibold bg-red-100 text-red-600 rounded-lg px-2 py-0.5">⚠️ เกินกำหนด</span>`;
+      return `<span class="text-xs font-semibold bg-red-100 text-red-600 rounded-lg px-2 py-0.5">เกินกำหนด</span>`;
     }
     if (v.next_due_date <= soon30) {
-      return `<span class="text-xs font-semibold bg-amber-100 text-amber-600 rounded-lg px-2 py-0.5">🔔 ใกล้ถึงกำหนด</span>`;
+      return `<span class="text-xs font-semibold bg-amber-100 text-amber-600 rounded-lg px-2 py-0.5">ใกล้ถึงกำหนด</span>`;
     }
     return `<span class="text-xs font-semibold bg-primary-subtle text-primary rounded-lg px-2 py-0.5">✓ ปกติ</span>`;
   }
@@ -788,7 +789,7 @@ function _renderVaccines(vaccines, petId, medicalRecords = []) {
 
     return `
       <div class="card p-4 mb-3">
-        <h4 class="font-semibold text-navy text-sm mb-3">⚖ น้ำหนักตามเวลา</h4>
+        <h4 class="font-semibold text-navy text-sm mb-3">น้ำหนักตามเวลา</h4>
         <svg viewBox="0 0 ${W} ${H}" class="w-full" style="height:100px">
           <!-- Grid lines -->
           <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="#e2e8f0" stroke-width="1"/>
@@ -828,7 +829,7 @@ function _renderVaccines(vaccines, petId, medicalRecords = []) {
               <div class="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div class="flex items-center gap-2 flex-wrap">
-                    <span class="font-semibold text-navy">💉 ${v.vaccine_name}</span>
+                    <span class="font-semibold text-navy">${v.vaccine_name}</span>
                     ${_vaccineBadge(v)}
                     ${v.batch_no ? `<span class="text-xs text-slate-400 font-body">Lot: ${v.batch_no}</span>` : ''}
                   </div>
@@ -867,7 +868,7 @@ async function _renderOwnersList(el) {
   el.innerHTML = `
     <div class="space-y-4">
       <div class="card p-4 flex gap-3">
-        <input id="owner-search" class="input-field flex-1" placeholder="🔍 ค้นหาชื่อ / เบอร์โทร / อีเมล">
+        <input id="owner-search" class="input-field flex-1" placeholder="ค้นหาชื่อ / เบอร์โทร / อีเมล">
         <button id="new-owner-btn" class="btn-primary text-sm px-4 py-2 whitespace-nowrap">+ เพิ่มเจ้าของ</button>
       </div>
       <div id="owner-results" class="space-y-2">
@@ -894,7 +895,7 @@ async function _renderOwnersList(el) {
       <div class="card overflow-hidden">
         <div class="owner-row p-4 flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors select-none"
              data-owner-id="${o.id}">
-          <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">👤</div>
+          <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg></div>
           <div class="flex-1 min-w-0">
             <div class="font-semibold text-navy">${o.name}</div>
             <div class="text-sm text-slate-500 font-body truncate">
@@ -917,7 +918,7 @@ async function _renderOwnersList(el) {
               <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-base flex-shrink-0">
                 ${p.photo_url
                   ? `<img src="${p.photo_url}" class="w-full h-full object-cover rounded-lg">`
-                  : sp.emoji}
+                  : speciesIcon(p.species, "w-4 h-4 text-slate-400")}
               </div>
               <div class="flex-1 min-w-0">
                 <div class="font-semibold text-sm text-navy">${p.name}</div>
@@ -970,7 +971,7 @@ function _openApptModal(el, pet = null) {
   // When called without a pet, show owner/pet search fields
   const ownerPetSection = pet ? `
     <div class="bg-primary-subtle rounded-lg px-4 py-2 text-sm text-primary-dark font-semibold">
-      🐾 ${pet.name} · เจ้าของ: ${pet.pet_owners?.name || '—'}
+     ${pet.name} · เจ้าของ: ${pet.pet_owners?.name || '—'}
     </div>` : `
     <div class="space-y-2">
       <div class="relative">
@@ -1032,7 +1033,7 @@ function _openApptModal(el, pet = null) {
 
     function _selectOwner(owner) {
       _selectedOwnerId = owner.id;
-      ownerLabel.textContent = `👤 ${owner.name}${owner.phone ? ' · ' + owner.phone : ''}`;
+      ownerLabel.textContent = `${owner.name}${owner.phone ? ' · ' + owner.phone : ''}`;
       ownerBadge.classList.remove('hidden');
       ownerInput.parentElement.classList.add('hidden');
       ownerDd.classList.add('hidden');
@@ -1040,7 +1041,7 @@ function _openApptModal(el, pet = null) {
       // Populate pet dropdown
       const pets = owner.pets || [];
       petSelect.innerHTML = `<option value="">— ไม่ระบุสัตว์เลี้ยง —</option>` +
-        pets.map(p => `<option value="${p.id}">${SPECIES[p.species]?.emoji || '🐾'} ${p.name}</option>`).join('');
+        pets.map(p => `<option value="${p.id}">${SPECIES[p.species]?.emoji || ''} ${p.name}</option>`).join('');
       petSelect.disabled = false;
       petSelect.addEventListener('change', () => { _selectedPetId = petSelect.value || null; });
     }
@@ -1163,7 +1164,7 @@ function _openNewPetFlow(el) {
       resultsEl.innerHTML = owners.map(o => `
         <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-primary-subtle transition-colors cursor-pointer border border-slate-100"
              data-oid="${o.id}" data-oname="${o.name}" data-ophone="${o.phone || ''}" data-oemail="${o.email || ''}">
-          <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-lg flex-shrink-0">👤</div>
+          <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-lg flex-shrink-0"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg></div>
           <div class="flex-1 min-w-0">
             <div class="font-semibold text-navy text-sm">${o.name}</div>
             <div class="text-xs text-slate-500 font-body">
@@ -1279,7 +1280,7 @@ function _openAddPetModal(el, owner) {
     <div class="space-y-4">
       <!-- Owner badge (read-only) -->
       <div class="bg-primary-subtle rounded-xl px-4 py-3 flex items-center gap-3">
-        <span class="text-xl">👤</span>
+        <span class="text-xl"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg></span>
         <div class="flex-1 min-w-0">
           <div class="font-semibold text-primary-dark text-sm">${owner.name}</div>
           ${(owner.phone || owner.email) ? `<div class="text-xs text-slate-500 font-body">${owner.phone || ''}${owner.email ? (owner.phone ? ' · ' : '') + owner.email : ''}</div>` : ''}
@@ -1306,8 +1307,8 @@ function _openAddPetModal(el, owner) {
           <label class="input-label">เพศ</label>
           <select id="ap-gender" class="input-field">
             <option value="unknown">ไม่ระบุ</option>
-            <option value="male">เพศผู้ ♂</option>
-            <option value="female">เพศเมีย ♀</option>
+            <option value="male">เพศผู้</option>
+            <option value="female">เพศเมีย</option>
           </select>
         </div>
         <div>

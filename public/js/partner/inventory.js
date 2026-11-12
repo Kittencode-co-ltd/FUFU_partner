@@ -5,12 +5,12 @@ import { STORAGE_KEYS } from '../utils/config.js';
 import { icon } from '../utils/icons.js';
 
 const CATEGORIES = {
-  medicine:  { label: 'ยา',        icon: 'pills',        emoji: '💊' },
-  vaccine:   { label: 'วัคซีน',    icon: 'syringe',      emoji: '💉' },
-  food:      { label: 'อาหาร',     icon: 'bone',         emoji: '🦴' },
-  accessory: { label: 'อุปกรณ์',   icon: 'stethoscope',  emoji: '🩺' },
-  service:   { label: 'บริการ',    icon: 'hospital',     emoji: '🏥' },
-  grooming:  { label: 'Grooming',  icon: 'cut',          emoji: '✂️' },
+  medicine:  { label: 'ยา',        icon: 'pills',        emoji: '' },
+  vaccine:   { label: 'วัคซีน',    icon: 'syringe',      emoji: '' },
+  food:      { label: 'อาหาร',     icon: 'bone',         emoji: '' },
+  accessory: { label: 'อุปกรณ์',   icon: 'stethoscope',  emoji: '' },
+  service:   { label: 'บริการ',    icon: 'hospital',     emoji: '' },
+  grooming:  { label: 'Grooming',  icon: 'cut',          emoji: '' },
 };
 
 const ADJUST_REASONS = [
@@ -44,10 +44,10 @@ function _shellHTML() {
     <div class="space-y-4 w-full">
       <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
         ${[
-          { id: 'products',  label: '📦 สินค้า' },
-          { id: 'alerts',    label: '⚠️ แจ้งเตือน' },
-          { id: 'movements', label: '📋 ความเคลื่อนไหว' },
-          { id: 'suppliers', label: '🏭 ซัพพลายเออร์' },
+          { id: 'products',  label: 'สินค้า' },
+          { id: 'alerts',    label: 'แจ้งเตือน' },
+          { id: 'movements', label: 'ความเคลื่อนไหว' },
+          { id: 'suppliers', label: 'ซัพพลายเออร์' },
         ].map(t => `
           <button data-tab="${t.id}"
             class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold transition-colors
@@ -92,7 +92,7 @@ async function _renderProducts(el) {
   if (_products.length === 0) {
     el.innerHTML = `
       <div class="card p-10 text-center space-y-4">
-        <div class="text-4xl">📦</div>
+        <div class="text-4xl"><svg class="w-10 h-10 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg></div>
         <div class="font-semibold text-navy">ยังไม่มีสินค้า</div>
         <button id="add-product-btn" class="btn-primary">+ เพิ่มสินค้าแรก</button>
       </div>`;
@@ -103,7 +103,7 @@ async function _renderProducts(el) {
   el.innerHTML = `
     <div class="flex flex-wrap gap-3 items-center mb-4">
       <input id="product-search" class="input-field flex-1 min-w-48 max-w-xs text-sm"
-        placeholder="🔍 ค้นหาชื่อสินค้า...">
+        placeholder="ค้นหาชื่อสินค้า...">
       <select id="category-filter" class="input-field text-sm w-40">
         <option value="">ทุกหมวด</option>
         ${Object.entries(CATEGORIES).map(([k, v]) =>
@@ -192,12 +192,12 @@ function _productCard(p) {
         <button data-action="batches"
           class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
           title="ดู Lot / Batch">
-          📋 ดู Batch
+         ดู Batch
         </button>
         <button data-action="adjust"
           class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
           title="ปรับยอดสต็อก">
-          ⚖️ ปรับยอด
+         ปรับยอด
         </button>
         <button data-action="edit"
           class="col-span-2 text-xs border border-slate-200 text-slate-400 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
@@ -209,19 +209,19 @@ function _productCard(p) {
 
 function _stockBadge(stock, rp) {
   const r = rp || 0;
-  if (stock === 0)  return { badge: 'bg-red-100 text-red-700',    label: '🔴 หมด' };
-  if (stock <= 3)   return { badge: 'bg-red-100 text-red-600',    label: '🔴 วิกฤต' };
-  if (stock <= r)   return { badge: 'bg-amber-100 text-amber-700', label: '🟡 ใกล้หมด' };
-  return                   { badge: 'badge-teal',                  label: '🟢 ปกติ' };
+  if (stock === 0)  return { badge: 'bg-red-100 text-red-700',    label: 'หมด' };
+  if (stock <= 3)   return { badge: 'bg-red-100 text-red-600',    label: 'วิกฤต' };
+  if (stock <= r)   return { badge: 'bg-amber-100 text-amber-700', label: 'ใกล้หมด' };
+  return                   { badge: 'badge-teal',                  label: 'ปกติ' };
 }
 
 function _expiryBadge(d) {
   if (!d) return null;
   const days = Math.ceil((new Date(d) - new Date()) / 86400000);
-  if (days <= 0)  return `<span class="badge bg-red-100 text-red-700 text-xs">❌ หมดอายุแล้ว</span>`;
-  if (days <= 30) return `<span class="badge bg-red-50 text-red-600 text-xs">⏰ หมดใน ${days} วัน</span>`;
-  if (days <= 60) return `<span class="badge bg-orange-50 text-orange-600 text-xs">⏰ หมดใน ${days} วัน</span>`;
-  if (days <= 90) return `<span class="badge bg-blue-50 text-blue-600 text-xs">⏰ หมดใน ${days} วัน</span>`;
+  if (days <= 0)  return `<span class="badge bg-red-100 text-red-700 text-xs">หมดอายุแล้ว</span>`;
+  if (days <= 30) return `<span class="badge bg-red-50 text-red-600 text-xs">หมดใน ${days} วัน</span>`;
+  if (days <= 60) return `<span class="badge bg-orange-50 text-orange-600 text-xs">หมดใน ${days} วัน</span>`;
+  if (days <= 90) return `<span class="badge bg-blue-50 text-blue-600 text-xs">หมดใน ${days} วัน</span>`;
   return null;
 }
 
@@ -239,7 +239,7 @@ async function _renderAlerts(el) {
   const reorder = reorderRes?.data || [];
 
   if (expiry.length === 0 && reorder.length === 0) {
-    el.innerHTML = `<div class="card p-10 text-center text-slate-400 font-body">✅ ไม่มีการแจ้งเตือน</div>`;
+    el.innerHTML = `<div class="card p-10 text-center text-slate-400 font-body">ไม่มีการแจ้งเตือน</div>`;
     return;
   }
 
@@ -253,10 +253,10 @@ async function _renderAlerts(el) {
   });
 
   el.innerHTML = `<div class="space-y-5">
-    ${_alertSection('🔴 หมดอายุแล้ว',       grouped.expired,  'bg-red-50 border-red-200 text-red-700',       true)}
-    ${_alertSection('🟠 หมดใน 30 วัน',       grouped.critical, 'bg-orange-50 border-orange-200 text-orange-700', false)}
-    ${_alertSection('🟡 หมดใน 31–60 วัน',    grouped.warning,  'bg-amber-50 border-amber-200 text-amber-700',  false)}
-    ${_alertSection('🔵 หมดใน 61–90 วัน',    grouped.caution,  'bg-blue-50 border-blue-200 text-blue-600',    false)}
+    ${_alertSection('หมดอายุแล้ว',       grouped.expired,  'bg-red-50 border-red-200 text-red-700',       true)}
+    ${_alertSection('หมดใน 30 วัน',       grouped.critical, 'bg-orange-50 border-orange-200 text-orange-700', false)}
+    ${_alertSection('หมดใน 31–60 วัน',    grouped.warning,  'bg-amber-50 border-amber-200 text-amber-700',  false)}
+    ${_alertSection('หมดใน 61–90 วัน',    grouped.caution,  'bg-blue-50 border-blue-200 text-blue-600',    false)}
     ${reorder.length > 0 ? _reorderSection(reorder) : ''}
   </div>`;
 
@@ -312,12 +312,12 @@ function _alertSection(title, items, cls, showExpireBtn) {
 function _reorderSection(items) {
   return `
     <div>
-      <h3 class="font-semibold text-navy mb-2">📦 ต้องสั่งซื้อ (${items.length})</h3>
+      <h3 class="font-semibold text-navy mb-2">ต้องสั่งซื้อ (${items.length})</h3>
       <div class="space-y-2">
         ${items.map(p => `
           <div class="card px-4 py-3 flex items-center justify-between gap-3">
             <div class="flex-1 min-w-0">
-              <span class="font-semibold text-sm text-navy">${p.icon || '📦'} ${p.name}</span>
+              <span class="font-semibold text-sm text-navy">${p.icon || ''} ${p.name}</span>
               <div class="text-xs text-slate-400 font-body mt-0.5">
                 คงเหลือ <b class="text-red-500">${p.current_stock}</b>
                 · จุดสั่ง ${p.reorder_point} · แนะนำสั่ง ${p.reorder_qty || '?'} ${p.unit || 'ชิ้น'}
@@ -428,7 +428,7 @@ async function _renderMovements(el, params = {}) {
                     <div class="text-xs text-slate-400 font-body">${time}</div>
                   </td>
                   <td class="py-2.5 px-4">
-                    <span class="font-semibold text-navy text-xs">${m.products?.icon || '📦'} ${m.products?.name || '—'}</span>
+                    <span class="font-semibold text-navy text-xs">${m.products?.icon || ''} ${m.products?.name || '—'}</span>
                   </td>
                   <td class="py-2.5 px-4"><span class="badge ${cfg.cls} text-xs">${cfg.label}</span></td>
                   <td class="py-2.5 px-4 text-right font-bold ${m.quantity > 0 ? 'text-primary' : 'text-red-500'}">
@@ -469,7 +469,7 @@ async function _renderSuppliers(el) {
         ? `<div class="card p-10 text-center text-slate-400 font-body">ยังไม่มีซัพพลายเออร์</div>`
         : _suppliers.map(s => `
             <div class="card p-4 flex items-center gap-4" data-supplier-id="${s.id}">
-              <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0">🏭</div>
+              <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"/></svg></div>
               <div class="flex-1 min-w-0">
                 <div class="font-semibold text-navy">${s.name}</div>
                 <div class="text-sm text-slate-500 font-body">
@@ -563,7 +563,7 @@ function _openProductModal(tabEl, existing = null) {
     const footer = modal.querySelector('.flex.gap-3.pt-2');
     const delBtn = document.createElement('button');
     delBtn.className = 'text-sm border border-red-200 text-red-500 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 font-semibold';
-    delBtn.textContent = '🗑 ลบ';
+    delBtn.textContent = 'ลบ';
     footer.prepend(delBtn);
     delBtn.addEventListener('click', async () => {
       if (delBtn.dataset.confirm !== 'true') {
@@ -571,14 +571,14 @@ function _openProductModal(tabEl, existing = null) {
         delBtn.style.cssText = 'background:var(--color-danger,#EF4444);color:var(--color-fg-inverse,#fff);border-color:var(--color-danger,#EF4444);';
         delBtn.dataset.confirm = 'true';
         setTimeout(() => {
-          if (delBtn.dataset.confirm === 'true') { delBtn.textContent = '🗑 ลบ'; delBtn.style.cssText = ''; delBtn.dataset.confirm = ''; }
+          if (delBtn.dataset.confirm === 'true') { delBtn.textContent = 'ลบ'; delBtn.style.cssText = ''; delBtn.dataset.confirm = ''; }
         }, 3000);
         return;
       }
       delBtn.disabled = true; delBtn.textContent = 'กำลังลบ...';
       const res = await apiFetch(`/api/inventory/products/${existing.id}`, { method: 'PATCH', body: JSON.stringify({ is_active: false }) });
       if (res?.success) { showToast(`ลบ "${existing.name}" แล้ว`, 'info'); modal.remove(); await _renderProducts(tabEl); }
-      else { showToast(res?.error || 'เกิดข้อผิดพลาด', 'error'); delBtn.disabled = false; delBtn.textContent = '🗑 ลบ'; }
+      else { showToast(res?.error || 'เกิดข้อผิดพลาด', 'error'); delBtn.disabled = false; delBtn.textContent = 'ลบ'; }
     });
   }
 
@@ -666,7 +666,7 @@ function _openReceiveModal(product, tabEl) {
 }
 
 async function _openBatchModal(product) {
-  const modal = _createModal(`📋 Batch — ${product.name}`, `
+  const modal = _createModal(`Batch — ${product.name}`, `
     <div class="text-center py-6 text-slate-400 font-body animate-pulse">กำลังโหลด...</div>`);
 
   const res = await apiFetch(`/api/inventory/batches?store_id=${_storeId}&product_id=${product.id}`);
@@ -714,7 +714,7 @@ async function _openBatchModal(product) {
 }
 
 function _openAdjustModal(product, tabEl) {
-  const modal = _createModal(`⚖️ ปรับยอดสต็อก — ${product.name}`, `
+  const modal = _createModal(`ปรับยอดสต็อก — ${product.name}`, `
     <div class="space-y-3">
       <div class="bg-slate-50 rounded-xl p-3 text-sm font-body">
         สต็อกปัจจุบัน: <b class="text-navy text-lg">${product.stock || 0}</b> ${product.unit || 'ชิ้น'}

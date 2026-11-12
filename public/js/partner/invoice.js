@@ -61,7 +61,7 @@ export function generateInvoiceHTML(data) {
     <div style="max-width:800px;margin:0 auto;padding:30px;font-family:'Prompt','Noto Sans Thai',sans-serif;color:#1E293B;background:#fff">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #2A6374">
         <div>
-          <div style="font-size:24px;font-weight:700;color:#2A6374;margin-bottom:4px">🐾 FUFU</div>
+          <div style="font-size:24px;font-weight:700;color:#2A6374;margin-bottom:4px">FUFU</div>
           <div style="font-size:18px;font-weight:600">${docTitle}</div>
           ${!isReceipt ? '<div style="font-size:11px;color:#64748B;margin-top:2px">ต้นฉบับ / Original</div>' : ''}
         </div>

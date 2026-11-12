@@ -249,7 +249,7 @@ export async function renderUserManagement(container) {
     <div class="space-y-4 w-full">
       <div class="card p-5">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-navy">👥 จัดการพนักงาน</h3>
+          <h3 class="font-semibold text-navy">จัดการพนักงาน</h3>
           ${isOwner ? '<button class="btn-primary text-sm px-4 py-2" id="invite-btn">+ เพิ่มพนักงาน</button>' : ''}
         </div>
         <div class="flex gap-2 flex-wrap mb-4" id="role-filters">
@@ -279,7 +279,7 @@ export async function renderUserManagement(container) {
       </div>
 
       <div class="card p-5">
-        <h3 class="font-semibold text-navy mb-3">📋 สิทธิ์ตามบทบาท</h3>
+        <h3 class="font-semibold text-navy mb-3">สิทธิ์ตามบทบาท</h3>
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           ${Object.values(ROLES).map(r => `
             <div class="p-3 rounded-xl border border-slate-100" style="background:${r.color}08">

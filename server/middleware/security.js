@@ -84,8 +84,10 @@ export const mutationRateLimit = rateLimit({ scope: 'mutation', windowMs: 60_000
 
 // Requests rendered by Next.js (see server/index.js). Everything else is the static
 // partner portal in public/ (login/register/dashboard .html + ES modules).
+const NEXT_PAGES = new Set(['/', '/login', '/register', '/onboarding']);
 export function isNextRequest(path) {
-  return path === '/' || path === '/_next' || path.startsWith('/_next/');
+  const clean = path.length > 1 ? path.replace(/\/+$/, '') : path;
+  return NEXT_PAGES.has(clean) || path === '/_next' || path.startsWith('/_next/');
 }
 
 // Content-Security-Policy for the static partner portal pages (login / register / dashboard).

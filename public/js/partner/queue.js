@@ -188,7 +188,7 @@ function _renderInbox(appointments) {
         method: 'PATCH', body: JSON.stringify({ store_id: _storeId }),
       });
     }
-    showToast(`✅ ยืนยัน ${ids.length} รายการแล้ว`);
+    showToast(`ยืนยัน ${ids.length} รายการแล้ว`);
     await _loadQueue();
   });
 
@@ -205,7 +205,7 @@ function _renderInbox(appointments) {
       });
       if (res?.success) {
         const q = res.data?.queue_entry;
-        showToast(`✅ ยืนยันแล้ว — คิว A${String(q?.queue_number || '').padStart(3, '0')}`);
+        showToast(`ยืนยันแล้ว — คิว A${String(q?.queue_number || '').padStart(3, '0')}`);
         await _loadQueue();
       } else {
         showToast(res?.error || 'ยืนยันไม่สำเร็จ', 'error');
@@ -493,7 +493,7 @@ async function _handleCardAction(e) {
 
   if (res?.success) {
     await _loadQueue();
-    showToast(action === 'recall' ? '🔁 เรียกซ้ำแล้ว' : _statusMsg(newStatus));
+    showToast(action === 'recall' ? 'เรียกซ้ำแล้ว' : _statusMsg(newStatus));
   } else {
     showToast('เกิดข้อผิดพลาด', 'error');
     btn.disabled = false;

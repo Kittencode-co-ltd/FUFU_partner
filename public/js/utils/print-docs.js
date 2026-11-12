@@ -66,7 +66,7 @@ export function printDrugLabels({ prescriptions, petName, ownerName, storeName, 
         <div class="drug">${_esc(rx.drug || rx.name || '—')}</div>
         ${instr ? `<div class="instr">${_esc(instr)}</div>` : ''}
         ${rx.note ? `<div class="note">${_esc(rx.note)}</div>` : ''}
-        <div class="patient">🐾 ${_esc(petName)}${ownerName ? ` · ${_esc(ownerName)}` : ''}</div>
+        <div class="patient">${_esc(petName)}${ownerName ? ` · ${_esc(ownerName)}` : ''}</div>
         <div class="date">${_thaiDate(date)}</div>
       </div>`;
   }).join('');
@@ -103,7 +103,7 @@ export function printDrugLabels({ prescriptions, petName, ownerName, storeName, 
 </head>
 <body>
   ${labels}
-  <button class="print-btn" data-print>🖨 พิมพ์ฉลาก</button>
+  <button class="print-btn" data-print>พิมพ์ฉลาก</button>
 </body>
 </html>`;
 
@@ -214,7 +214,7 @@ export function printReferralLetter({
     </div>
   </div>
 
-  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 
@@ -245,10 +245,10 @@ export function printDischargeSummary({ storeName, adm, treatments = [], vitals 
   const latestVital = vitals[vitals.length - 1];
   const vitalsHtml  = latestVital ? `
     <p style="margin:4px 0;font-size:10pt;">
-      ${latestVital.temperature      ? `🌡 ${latestVital.temperature}°C · ` : ''}
-      ${latestVital.heart_rate       ? `❤ ${latestVital.heart_rate} bpm · ` : ''}
-      ${latestVital.respiratory_rate ? `🫁 ${latestVital.respiratory_rate}/min · ` : ''}
-      ${latestVital.weight_kg        ? `⚖ ${latestVital.weight_kg} kg` : ''}
+      ${latestVital.temperature      ? `${latestVital.temperature}°C · ` : ''}
+      ${latestVital.heart_rate       ? `${latestVital.heart_rate} bpm · ` : ''}
+      ${latestVital.respiratory_rate ? `${latestVital.respiratory_rate}/min · ` : ''}
+      ${latestVital.weight_kg        ? `${latestVital.weight_kg} kg` : ''}
     </p>` : '<p style="color:#888;font-size:10pt;">ไม่มีข้อมูล</p>';
 
   const html = `<!DOCTYPE html>
@@ -346,7 +346,7 @@ export function printDischargeSummary({ storeName, adm, treatments = [], vitals 
     </div>
   </div>
 
-  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 
@@ -448,7 +448,7 @@ export function printConsentForm({
     </div>
   </div>
 
-  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 

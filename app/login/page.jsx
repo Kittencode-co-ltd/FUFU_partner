@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
+import { AlertCircle, ArrowLeft, ChevronRight, Loader2, Store } from 'lucide-react'
+import { AuthShell, CATEGORIES, PasswordInput, useAuthLang } from '../components/auth-ui'
 import styles from './page.module.css'
 
 const KEYS = {
@@ -11,40 +12,41 @@ const KEYS = {
   storeName: 'fufu_store_name', storeCategory: 'fufu_store_category', role: 'fufu_role',
   storeActive: 'fufu_store_active', email: 'fufu_remember_email',
 }
-const CATEGORY = {
-  vet_clinic: ['คลินิกสัตวแพทย์', '🏥', 'vet'],
-  pet_shop: ['ร้านค้าสัตว์เลี้ยง', '🛒', 'shop'],
-  pet_hotel: ['โรงแรมสัตว์เลี้ยง', '🏨', 'hotel'],
-  pet_grooming: ['บริการอาบน้ำตัดขน', '✂️', 'grooming'],
-}
 
 export default function LoginPage() {
+  const { t } = useAuthLang()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [stores, setStores] = useState(null)
-  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     if (localStorage.getItem(KEYS.token) && localStorage.getItem(KEYS.storeId)) {
       window.location.replace('/dashboard.html')
+      return
+    }
+    // Restore the remembered email (the static login page did this too)
+    if (localStorage.getItem(KEYS.remember) === '1') {
+      const saved = localStorage.getItem(KEYS.email)
+      if (saved) { setEmail(saved); setRemember(true) } // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [])
 
   function chooseStore(store) {
-    const category = CATEGORY[store.category] || ['', '', 'vet']
+    const category = CATEGORIES[store.category] ?? CATEGORIES.vet_clinic
     localStorage.setItem(KEYS.storeId, store.id)
     localStorage.setItem(KEYS.storeName, store.name)
     localStorage.setItem(KEYS.storeCategory, store.category || 'vet_clinic')
-    localStorage.setItem(KEYS.role, category[2])
+    localStorage.setItem(KEYS.role, category.role)
     localStorage.setItem(KEYS.storeActive, store.is_active === false ? 'false' : 'true')
     window.location.assign('/dashboard.html')
   }
 
   async function submit(event) {
     event.preventDefault()
+    if (!email.trim() || !password) { setError(t('errEmpty')); return }
     setError('')
     setBusy(true)
     try {
@@ -53,9 +55,9 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
       })
-      const result = await response.json()
+      const result = await response.json().catch(() => ({}))
       if (!response.ok || !result.success) {
-        setError(result.error || 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+        setError(result.error || t('errGeneric'))
         return
       }
 
@@ -72,70 +74,67 @@ export default function LoginPage() {
       }
 
       if (!result.stores?.length || result.needs_onboarding) {
-        window.location.assign('/onboarding.html')
+        window.location.assign('/onboarding')
       } else if (result.stores.length === 1) {
         chooseStore(result.stores[0])
       } else {
         setStores(result.stores)
       }
     } catch {
-      setError('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')
+      setError(t('errNetwork'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <div className={styles.shell}>
-      <header className={styles.topbar}>
-        <Link href="/" className={styles.back}>← <span>กลับหน้าหลัก</span></Link>
-        <span className={styles.language}>◎ TH⌄</span>
-      </header>
-      <main className={styles.main}>
-        <section className={styles.card}>
-          <Link href="/" className={styles.brand} aria-label="FUFU Pet Care">
-            <Image src="/img/brand/fufu-mark.webp" alt="" width={72} height={72} priority />
-            <span><b>FUFU</b> <em>Pet Care</em></span>
-            <small>PARTNER PORTAL</small>
-          </Link>
-          {stores ? (
-            <>
-              <button className={styles.backInline} onClick={() => setStores(null)}>← ย้อนกลับ</button>
-              <h1 className={styles.title}>เลือกร้านค้า</h1>
-              <p className={styles.subtitle}>เลือกสาขาที่ต้องการเข้าใช้งาน</p>
-              <div className={styles.storeList}>
-                {stores.map(store => {
-                  const category = CATEGORY[store.category] || ['ร้านค้า', '🏪', 'vet']
-                  return <button key={store.id} className={styles.store} onClick={() => chooseStore(store)}>
-                    <span className={styles.storeIcon}>{category[1]}</span>
-                    <span><strong>{store.name}</strong><small>{category[0]}{store.is_active === false ? ' · ปิดใช้งาน (ดูข้อมูลได้)' : ''}</small></span>
-                    <span aria-hidden="true">›</span>
-                  </button>
-                })}
-              </div>
-            </>
-          ) : (
-            <>
-              <nav className={styles.tabs} aria-label="บัญชี">
-                <Link href="/login" className={styles.activeTab}>เข้าสู่ระบบ</Link>
-                <Link href="/register.html">สมัครพาร์ทเนอร์</Link>
-              </nav>
-              <h1 className={styles.title}>ยินดีต้อนรับกลับ</h1>
-              <p className={styles.subtitle}>เข้าสู่ระบบด้วยบัญชี FUFU Partner ของคุณ</p>
-              {error && <p className={styles.error} role="alert">{error}</p>}
-              <form className={styles.form} onSubmit={submit}>
-                <label className={styles.field}><span>อีเมล</span><input autoComplete="username" inputMode="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="clinic@example.com" /></label>
-                <label className={styles.field}><span>รหัสผ่าน</span><span className={styles.password}><input autoComplete="current-password" type={showPassword ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" /><button type="button" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}>{showPassword ? 'ซ่อน' : 'แสดง'}</button></span></label>
-                <label className={styles.remember}><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} /> จดจำการเข้าสู่ระบบ</label>
-                <button className={styles.submit} disabled={busy}>{busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</button>
-              </form>
-              <p className={styles.footer}>ยังไม่มีบัญชี? <Link href="/register.html">สมัครเป็นพาร์ทเนอร์</Link></p>
-            </>
-          )}
-        </section>
-        <p className={styles.secure}>♙ เชื่อมต่อแบบเข้ารหัส · ข้อมูลแยกตามสิทธิ์</p>
-      </main>
-      <footer className={styles.copyright}>© 2026 FUFU Pet Care · KITTEN CODE Co., Ltd.</footer>
-    </div>
+    <AuthShell>
+      {stores ? (
+        <>
+          <button type="button" className={styles.backInline} onClick={() => setStores(null)}><ArrowLeft size={16} aria-hidden="true" />{t('backBtn')}</button>
+          <h1 className={styles.title}>{t('storeTitle')}</h1>
+          <p className={styles.subtitle}>{t('chooseStoreSub')}</p>
+          <div className={styles.storeList}>
+            {stores.map(store => {
+              const cat = CATEGORIES[store.category]
+              const Icon = cat?.icon ?? Store
+              return (
+                <button type="button" key={store.id} className={styles.store} onClick={() => chooseStore(store)}>
+                  <span className={styles.storeIcon}><Icon size={20} aria-hidden="true" /></span>
+                  <span className={styles.storeText}>
+                    <strong>{store.name}</strong>
+                    <small>{t(cat?.key ?? 'storeFallback')}{store.is_active === false && <span className={styles.inactive}> · {t('inactive')}</span>}</small>
+                  </span>
+                  <ChevronRight size={18} className={styles.storeArrow} aria-hidden="true" />
+                </button>
+              )
+            })}
+          </div>
+        </>
+      ) : (
+        <>
+          <nav className={styles.tabs} aria-label={t('portal')}>
+            <Link href="/login" className={styles.activeTab} aria-current="page">{t('tabLogin')}</Link>
+            <Link href="/register">{t('tabRegister')}</Link>
+          </nav>
+          <h1 className={styles.title}>{t('loginTitle')}</h1>
+          <p className={styles.subtitle}>{t('loginSub')}</p>
+          {error && <p className={styles.error} role="alert"><AlertCircle size={16} aria-hidden="true" /><span>{error}</span></p>}
+          <form className={styles.form} onSubmit={submit} noValidate>
+            <label className={styles.field}><span>{t('email')}</span>
+              <input autoComplete="username" inputMode="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="clinic@example.com" />
+            </label>
+            <label className={styles.field}><span>{t('password')}</span>
+              <PasswordInput autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} />
+            </label>
+            <label className={styles.remember}><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} /> {t('remember')}</label>
+            <button type="submit" className={styles.submit} disabled={busy}>
+              {busy && <Loader2 size={17} className={styles.spin} aria-hidden="true" />}{busy ? t('signingIn') : t('submitLogin')}
+            </button>
+          </form>
+          <p className={styles.footer}>{t('noAccount')} <Link href="/register">{t('joinLink')}</Link></p>
+        </>
+      )}
+    </AuthShell>
   )
 }

@@ -4,7 +4,7 @@ import { showToast }  from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { formatThaiDate, escapeHtml } from '../utils/formatters.js';
 
-const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+const SPECIES_EMOJI = { dog: '', cat: '', rabbit: '', bird: '', other: '' };
 const STATUS_CFG = {
   in_progress: { label: 'กำลังรักษา', cls: 'bg-blue-50 text-blue-600' },
   completed:   { label: 'เสร็จสิ้น',   cls: 'badge-teal' },
@@ -76,7 +76,7 @@ function _renderList(records) {
 }
 
 function _recordRow(r) {
-  const sp      = SPECIES_EMOJI[r.species] || '🐾';
+  const sp      = SPECIES_EMOJI[r.species] || '';
   const cfg     = STATUS_CFG[r.status]     || STATUS_CFG.in_progress;
   const date    = formatThaiDate(r.visit_date || r.created_at);
   const rxCount = (r.prescriptions || r.prescribed_meds || []).length;
@@ -91,15 +91,15 @@ function _recordRow(r) {
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-semibold text-navy text-sm truncate">${escapeHtml(r.pet_name) || '(ไม่ระบุชื่อ)'}</span>
             <span class="badge ${cfg.cls}">${cfg.label}</span>
-            ${rxCount ? `<span class="text-xs badge badge-navy">💊 ${rxCount}</span>` : ''}
+            ${rxCount ? `<span class="text-xs badge badge-navy">${rxCount}</span>` : ''}
           </div>
           <div class="text-xs text-slate-500 font-body mt-0.5 truncate">
             ${r.owner_name ? `${escapeHtml(r.owner_name)} · ` : ''}${date}${snippet ? ` · ${escapeHtml(snippet)}` : ''}
           </div>
         </div>
         <div class="flex-shrink-0 flex gap-1.5 items-center">
-          ${r.weight_kg     ? `<span class="hidden sm:inline-flex text-xs badge badge-navy">⚖ ${r.weight_kg}kg</span>` : ''}
-          ${r.temperature_c ? `<span class="hidden sm:inline-flex text-xs badge badge-navy">🌡 ${r.temperature_c}°C</span>` : ''}
+          ${r.weight_kg     ? `<span class="hidden sm:inline-flex text-xs badge badge-navy">${r.weight_kg}kg</span>` : ''}
+          ${r.temperature_c ? `<span class="hidden sm:inline-flex text-xs badge badge-navy">${r.temperature_c}°C</span>` : ''}
           <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
@@ -118,7 +118,7 @@ function _handleRowClick(e) {
 // ─── Read-only view modal ─────────────────────────────────────────────────────
 
 function _openRecordView(r) {
-  const sp        = SPECIES_EMOJI[r.species] || '🐾';
+  const sp        = SPECIES_EMOJI[r.species] || '';
   const cfg       = STATUS_CFG[r.status]     || STATUS_CFG.in_progress;
   const date      = formatThaiDate(r.visit_date || r.created_at);
   const rxs       = r.prescriptions || r.prescribed_meds || [];
@@ -137,19 +137,19 @@ function _openRecordView(r) {
 
   const vitalsHtml = (r.temperature_c || r.heart_rate || r.respiratory_rate || r.weight_kg) ? `
     <div class="flex flex-wrap gap-2">
-      ${r.temperature_c    ? `<span class="badge badge-navy">🌡 ${r.temperature_c}°C</span>` : ''}
-      ${r.heart_rate       ? `<span class="badge badge-navy">❤ ${r.heart_rate} bpm</span>` : ''}
-      ${r.respiratory_rate ? `<span class="badge badge-navy">🫁 ${r.respiratory_rate}/min</span>` : ''}
-      ${r.weight_kg        ? `<span class="badge badge-navy">⚖ ${r.weight_kg} kg</span>` : ''}
+      ${r.temperature_c    ? `<span class="badge badge-navy">${r.temperature_c}°C</span>` : ''}
+      ${r.heart_rate       ? `<span class="badge badge-navy">${r.heart_rate} bpm</span>` : ''}
+      ${r.respiratory_rate ? `<span class="badge badge-navy">${r.respiratory_rate}/min</span>` : ''}
+      ${r.weight_kg        ? `<span class="badge badge-navy">${r.weight_kg} kg</span>` : ''}
     </div>` : '';
 
   const rxHtml = rxs.length ? `
     <div>
-      <div class="text-xs font-semibold text-slate-400 font-body mb-1.5">💊 ใบสั่งยา (${rxs.length} รายการ)</div>
+      <div class="text-xs font-semibold text-slate-400 font-body mb-1.5">ใบสั่งยา (${rxs.length} รายการ)</div>
       <div class="space-y-1.5">
         ${rxs.map(rx => `
           <div class="flex items-start gap-2 text-sm bg-slate-50 rounded-lg px-3 py-2">
-            <span class="text-base">💊</span>
+            <span class="text-base"><svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/></svg></span>
             <div class="flex-1 min-w-0">
               <span class="font-semibold text-navy">${escapeHtml(rx.drug || rx.name || '?')}</span>
               ${rx.dose ? `<span class="text-slate-500 font-body ml-1">· ${escapeHtml(rx.dose)}</span>` : ''}
@@ -207,7 +207,7 @@ function _openRecordView(r) {
         ${canEdit ? `
           <button id="view-edit"
             class="btn-primary flex-1 text-sm py-2.5">
-            ✏️ แก้ไข OPD Card
+           แก้ไข OPD Card
           </button>
           <button id="view-delete"
             class="text-sm px-4 py-2.5 rounded-xl border border-red-200 text-red-400

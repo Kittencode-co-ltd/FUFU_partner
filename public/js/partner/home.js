@@ -579,12 +579,12 @@ function _barChart(data, valFn, labelFn, dateFn, color) {
 }
 
 function _paymentBars(byMethod, total) {
-  const PM = { cash: { label: 'เงินสด', icon: '💵' }, transfer: { label: 'โอนเงิน', icon: '🏦' },
-               card: { label: 'บัตรเครดิต', icon: '💳' }, promptpay: { label: 'พร้อมเพย์', icon: '📱' } };
+  const PM = { cash: { label: 'เงินสด', icon: '' }, transfer: { label: 'โอนเงิน', icon: '' },
+               card: { label: 'บัตรเครดิต', icon: '' }, promptpay: { label: 'พร้อมเพย์', icon: '' } };
   const entries = Object.entries(byMethod).sort(([,a],[,b]) => b - a);
   if (!entries.length) return `<div class="text-slate-400 font-body text-sm text-center py-4">ยังไม่มีข้อมูล</div>`;
   return entries.map(([method, amount]) => {
-    const pm  = PM[method] || { label: method, icon: '💳' };
+    const pm  = PM[method] || { label: method, icon: '' };
     const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
     return `
       <div class="mb-2.5">

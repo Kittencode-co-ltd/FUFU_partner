@@ -5,10 +5,10 @@ import { bindPrintButton } from '../utils/print-docs.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
 const PAYMENT_METHODS = {
-  cash:      { label: 'เงินสด',    icon: '💵' },
-  transfer:  { label: 'โอนเงิน',   icon: '🏦' },
-  card:      { label: 'บัตรเครดิต', icon: '💳' },
-  promptpay: { label: 'พร้อมเพย์',  icon: '📱' },
+  cash:      { label: 'เงินสด',    icon: '' },
+  transfer:  { label: 'โอนเงิน',   icon: '' },
+  card:      { label: 'บัตรเครดิต', icon: '' },
+  promptpay: { label: 'พร้อมเพย์',  icon: '' },
 };
 
 // ─── Entry ────────────────────────────────────────────────────────────────────
@@ -372,7 +372,7 @@ async function _openAddItemModal(storeId, items, container) {
   const productOptions = products.length
     ? products.map(p =>
         `<option value="inv:${p.id}" data-name="${p.name}" data-price="${p.sell_price||0}">
-          ${p.icon||'📦'} ${p.name} (฿${p.sell_price||0})
+          ${p.icon||''} ${p.name} (฿${p.sell_price||0})
         </option>`
       ).join('')
     : `<option disabled>ยังไม่มีสินค้าในคลัง</option>`;
@@ -387,15 +387,15 @@ async function _openAddItemModal(storeId, items, container) {
       <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-sm">
         <button id="tab-svc" data-tab="svc"
           class="flex-1 py-1.5 rounded-md font-semibold transition-colors bg-white text-navy shadow-sm">
-          🏥 ค่าบริการ
+         ค่าบริการ
         </button>
         <button id="tab-inv" data-tab="inv"
           class="flex-1 py-1.5 rounded-md font-semibold transition-colors text-slate-500 hover:text-navy">
-          💊 สินค้า / ยา
+         สินค้า / ยา
         </button>
         <button id="tab-custom" data-tab="custom"
           class="flex-1 py-1.5 rounded-md font-semibold transition-colors text-slate-500 hover:text-navy">
-          ✏️ พิมพ์เอง
+         พิมพ์เอง
         </button>
       </div>
 
@@ -561,10 +561,10 @@ function _showReceipt(container, result, items, discount, vatAmount, vatRate, me
   container.innerHTML = `
     <div class="max-w-md mx-auto space-y-4">
       <div class="card p-6 text-center space-y-3">
-        <div class="text-5xl">✅</div>
+        <div class="text-5xl"><svg class="w-12 h-12 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
         <h2 class="font-bold text-navy text-xl">ชำระเงินสำเร็จ</h2>
         <p class="text-slate-400 font-body text-sm">${result.invoice_number}</p>
-        ${petName ? `<p class="text-sm font-semibold text-navy font-body">🐾 ${petName}${ownerName ? ' · ' + ownerName : ''}</p>` : ''}
+        ${petName ? `<p class="text-sm font-semibold text-navy font-body">${petName}${ownerName ? ' · ' + ownerName : ''}</p>` : ''}
         <div class="text-3xl font-bold text-primary">฿${total.toLocaleString('th-TH')}</div>
         <p class="text-sm text-slate-500 font-body">${pm.icon} ${pm.label}</p>
       </div>
@@ -588,7 +588,7 @@ function _showReceipt(container, result, items, discount, vatAmount, vatRate, me
       </div>
 
       <div class="flex gap-3">
-        <button id="receipt-print" class="btn-outline flex-1 py-3">🖨 พิมพ์ / PDF</button>
+        <button id="receipt-print" class="btn-outline flex-1 py-3">พิมพ์ / PDF</button>
         <button id="receipt-done"  class="btn-primary flex-1 py-3">กลับหน้าคิว</button>
       </div>
     </div>`;
@@ -670,7 +670,7 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
     ${storeTaxId ? 'เลขภาษี ' + esc(storeTaxId) + '<br>' : ''}
     ${dateStr}<br>
     เลขที่: ${esc(invoiceNumber)}
-    ${petName ? `<br>🐾 ${esc(petName)}${ownerName ? ' · ' + esc(ownerName) : ''}` : ''}
+    ${petName ? `<br>${esc(petName)}${ownerName ? ' · ' + esc(ownerName) : ''}` : ''}
   </div>
 
   <hr class="dashed">
@@ -713,7 +713,7 @@ function _printReceipt({ invoiceNumber, storeName, petName, ownerName, items, su
     Powered by FUFU Partner
   </div>
 
-  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 

@@ -427,7 +427,7 @@ export async function initDashboard() {
       const banner = document.createElement('section');
       banner.className = 'mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-sm';
       banner.setAttribute('role', 'status');
-      banner.innerHTML = '<div class="flex items-start gap-3"><span class="text-xl" aria-hidden="true">⚠️</span><div><strong class="block">ร้านถูกปิดใช้งานชั่วคราว</strong><p class="mt-1 text-sm">ขณะนี้คุณดูข้อมูลใน Partner ได้ แต่ยังทำรายการหรือแก้ไขข้อมูลไม่ได้ กรุณาติดต่อผู้ดูแลระบบ FUFU เพื่อเปิดใช้งาน</p></div></div>';
+      banner.innerHTML = '<div class="flex items-start gap-3"><span class="text-xl" aria-hidden="true"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg></span><div><strong class="block">ร้านถูกปิดใช้งานชั่วคราว</strong><p class="mt-1 text-sm">ขณะนี้คุณดูข้อมูลใน Partner ได้ แต่ยังทำรายการหรือแก้ไขข้อมูลไม่ได้ กรุณาติดต่อผู้ดูแลระบบ FUFU เพื่อเปิดใช้งาน</p></div></div>';
       main.prepend(banner);
       main.classList.add('partner-store-readonly');
       main.addEventListener('click', event => {

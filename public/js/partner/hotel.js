@@ -4,9 +4,9 @@ import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
 const ROOM_TYPES = {
-  standard: { label: 'Standard', icon: '🛏', price: 400 },
-  deluxe:   { label: 'Deluxe',   icon: '⭐', price: 650 },
-  suite:    { label: 'Suite',    icon: '👑', price: 900 },
+  standard: { label: 'Standard', icon: '', price: 400 },
+  deluxe:   { label: 'Deluxe',   icon: '', price: 650 },
+  suite:    { label: 'Suite',    icon: '', price: 900 },
 };
 const STATUS_CFG = {
   available:   { label: 'ว่าง',          cls: 'border-primary bg-primary-subtle text-primary-dark' },
@@ -17,7 +17,7 @@ const STATUS_CFG = {
 
 let _storeId = '';
 let _hotelSelPet = null; // { pet_id, pet_name, species, owner_name, owner_phone } | null
-const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+const SPECIES_EMOJI = { dog: '', cat: '', rabbit: '', bird: '', other: '' };
 
 let _hotelView = 'rooms'; // 'rooms' | 'calendar'
 
@@ -33,12 +33,12 @@ function _renderShell(container) {
         <button data-hotel-tab="rooms"
           class="hotel-tab px-4 py-2 rounded-lg text-sm font-semibold transition-colors
                  ${_hotelView === 'rooms' ? 'bg-white text-navy shadow-card' : 'text-slate-500 hover:text-navy'}">
-          🏨 ห้องพัก
+         ห้องพัก
         </button>
         <button data-hotel-tab="calendar"
           class="hotel-tab px-4 py-2 rounded-lg text-sm font-semibold transition-colors
                  ${_hotelView === 'calendar' ? 'bg-white text-navy shadow-card' : 'text-slate-500 hover:text-navy'}">
-          📅 ปฏิทิน
+         ปฏิทิน
         </button>
       </div>
       <div id="hotel-content"></div>
@@ -74,8 +74,8 @@ async function _renderRooms(container) {
     <div class="space-y-5 w-full">
       <!-- Stats -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-        ${[['🟢','ว่าง',stats.available,'text-primary'],['🐾','มีผู้เข้าพัก',stats.occupied,'text-orange-500'],
-           ['🔧','ซ่อมบำรุง',stats.maintenance,'text-slate-400'],['🧹','ทำความสะอาด',stats.cleaning,'text-blue-500']]
+        ${[['','ว่าง',stats.available,'text-primary'],['','มีผู้เข้าพัก',stats.occupied,'text-orange-500'],
+           ['','ซ่อมบำรุง',stats.maintenance,'text-slate-400'],['','ทำความสะอาด',stats.cleaning,'text-blue-500']]
           .map(([icon,label,val,cls])=>`<div class="card p-4 text-center"><div class="text-2xl">${icon}</div><div class="text-xs text-slate-400 font-body mt-1">${label}</div><div class="text-2xl font-bold ${cls} mt-1">${val}</div></div>`).join('')}
       </div>
 
@@ -87,7 +87,7 @@ async function _renderRooms(container) {
       <!-- Room grid -->
       ${rooms.length === 0
         ? `<div class="card p-10 text-center space-y-3">
-             <div class="text-4xl">🏨</div>
+             <div class="text-4xl"><svg class="w-10 h-10 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg></div>
              <div class="font-semibold text-navy">ยังไม่มีห้องพัก</div>
              <button id="add-room-btn2" class="btn-primary">+ เพิ่มห้องแรก</button>
            </div>`
@@ -123,7 +123,7 @@ function _roomCard(r) {
       <div class="text-xs font-semibold mb-2">${cfg.label}</div>
       ${b ? `
         <div class="text-xs font-body text-slate-600 space-y-0.5">
-          <div class="font-semibold truncate">🐾 ${b.pet_name}</div>
+          <div class="font-semibold truncate">${b.pet_name}</div>
           <div class="truncate">เจ้าของ: ${b.owner_name}</div>
           <div>ออก: ${b.check_out_date}</div>
         </div>` : `
@@ -294,11 +294,11 @@ function _openCheckinModal(room, container) {
     s1.classList.add('hidden'); s2.classList.remove('hidden'); confBtn.disabled = false;
     m.querySelector('#hs-pet-card').innerHTML = `
       <div class="flex items-center gap-3">
-        <span class="text-2xl">${SPECIES_EMOJI[pet.species]||'🐾'}</span>
+        <span class="text-2xl">${SPECIES_EMOJI[pet.species]||''}</span>
         <div>
           <div class="font-bold text-primary-dark">${pet.pet_name}</div>
           <div class="text-xs text-slate-500 font-body">เจ้าของ: ${pet.owner_name}${pet.owner_phone?' · '+pet.owner_phone:''}</div>
-          ${pet.allergies?`<div class="text-xs text-red-600 mt-0.5">⚠️ แพ้: ${pet.allergies}</div>`:''}
+          ${pet.allergies?`<div class="text-xs text-red-600 mt-0.5">แพ้: ${pet.allergies}</div>`:''}
         </div>
       </div>`;
   }
@@ -334,8 +334,8 @@ function _openCheckinModal(room, container) {
 
       dd.innerHTML = rows.map((r, i) =>
         `<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors" data-hi="${i}">
-           <span>${SPECIES_EMOJI[r.species]||'🐾'}</span>
-           <div><div class="font-semibold text-navy text-sm">${r.pet_name}${r.allergies?' ⚠️':''}</div>
+           <span>${SPECIES_EMOJI[r.species]||''}</span>
+           <div><div class="font-semibold text-navy text-sm">${r.pet_name}${r.allergies?'':''}</div>
            <div class="text-xs text-slate-400 font-body">เจ้าของ: ${r.owner_name}${r.owner_phone?' · '+r.owner_phone:''}</div></div>
          </div>`
       ).join('') + `<div class="border-t px-4 py-2"><button id="hd-reg2" class="text-xs text-primary hover:underline font-body">+ ลงทะเบียนใหม่</button></div>`;
@@ -426,12 +426,12 @@ function _hotelRegister(parentModal, onDone) {
     m2.innerHTML = `
       <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
         <h3 class="font-bold text-navy text-lg">ลงทะเบียน — 2/2 สัตว์เลี้ยง</h3>
-        <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">👤 ${owner.name} · ${owner.phone||''}</div>
+        <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">${owner.name} · ${owner.phone||''}</div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="input-label">ชื่อสัตว์ *</label><input id="hp-name" class="input-field" placeholder="บัดดี้" autofocus></div>
           <div><label class="input-label">ชนิด</label>
             <select id="hp-species" class="input-field">
-              <option value="dog">🐕 สุนัข</option><option value="cat">🐈 แมว</option><option value="rabbit">🐰 กระต่าย</option><option value="bird">🐦 นก</option><option value="other">🐾 อื่นๆ</option>
+              <option value="dog">สุนัข</option><option value="cat">แมว</option><option value="rabbit">กระต่าย</option><option value="bird">นก</option><option value="other">อื่นๆ</option>
             </select>
           </div>
           <div class="col-span-2"><label class="input-label">แพ้ยา/อาหาร</label><input id="hp-allergy" class="input-field" placeholder="ถ้าไม่มีเว้นว่าง"></div>
@@ -464,7 +464,7 @@ function _openCheckoutModal(room, container) {
   const modal = _modal(`Check-out ห้อง ${room.room_number}`, `
     <div class="space-y-3">
       <div class="bg-slate-50 rounded-xl p-4 space-y-1 font-body text-sm">
-        <div class="font-bold text-navy text-base">🐾 ${b.pet_name}</div>
+        <div class="font-bold text-navy text-base">${b.pet_name}</div>
         <div class="text-slate-500">เจ้าของ: ${b.owner_name} · ${b.owner_phone||''}</div>
         <div class="text-slate-500">เช็คอิน: ${b.check_in_date} → เช็คเอาต์: ${b.check_out_date}</div>
         <div class="text-primary font-bold text-lg mt-2">ยอดรวม: ฿${(b.total_amount||0).toLocaleString('th-TH')}</div>

@@ -5,18 +5,18 @@ import { bindPrintButton } from '../utils/print-docs.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
 const SERVICES = [
-  { id: 'bath',       name: 'อาบน้ำ',             icon: '🛁', price: 200 },
-  { id: 'nail',       name: 'ตัดเล็บ',             icon: '💅', price: 80  },
-  { id: 'ear',        name: 'ทำความสะอาดหู',       icon: '👂', price: 100 },
-  { id: 'teeth',      name: 'แปรงฟัน',             icon: '🪥', price: 120 },
-  { id: 'spa',        name: 'สปาผิว',              icon: '💆', price: 350 },
-  { id: 'haircut',    name: 'ตัดขน',               icon: '✂️', price: 300 },
+  { id: 'bath',       name: 'อาบน้ำ',             icon: '', price: 200 },
+  { id: 'nail',       name: 'ตัดเล็บ',             icon: '', price: 80  },
+  { id: 'ear',        name: 'ทำความสะอาดหู',       icon: '', price: 100 },
+  { id: 'teeth',      name: 'แปรงฟัน',             icon: '', price: 120 },
+  { id: 'spa',        name: 'สปาผิว',              icon: '', price: 350 },
+  { id: 'haircut',    name: 'ตัดขน',               icon: '', price: 300 },
   // add-ons
-  { id: 'cologne',    name: 'น้ำหอม',              icon: '🌸', price: 50  },
-  { id: 'blueberry',  name: 'สระบลูเบอร์รี่',      icon: '🫐', price: 150 },
-  { id: 'detangle',   name: 'แก้ขนพัน',            icon: '🧶', price: 200 },
-  { id: 'anal',       name: 'บีบต่อมกลิ่น',        icon: '🐾', price: 80  },
-  { id: 'bandana',    name: 'ผ้าพันคอ',             icon: '🎀', price: 30  },
+  { id: 'cologne',    name: 'น้ำหอม',              icon: '', price: 50  },
+  { id: 'blueberry',  name: 'สระบลูเบอร์รี่',      icon: '', price: 150 },
+  { id: 'detangle',   name: 'แก้ขนพัน',            icon: '', price: 200 },
+  { id: 'anal',       name: 'บีบต่อมกลิ่น',        icon: '', price: 80  },
+  { id: 'bandana',    name: 'ผ้าพันคอ',             icon: '', price: 30  },
 ];
 
 let _storeId     = '';
@@ -70,7 +70,7 @@ async function _render(container) {
 
       <!-- Stats -->
       <div class="grid grid-cols-3 gap-2">
-        ${[['⏳','รอ',waiting,'text-amber-500'],['✂️','กำลังทำ',inProg,'text-primary'],['✅','เสร็จ',done,'text-slate-400']]
+        ${[['','รอ',waiting,'text-amber-500'],['','กำลังทำ',inProg,'text-primary'],['','เสร็จ',done,'text-slate-400']]
           .map(([i,l,v,c])=>`<div class="card p-2 sm:p-3 text-center"><div class="text-xl sm:text-2xl">${i}</div><div class="text-xs text-slate-400 font-body mt-0.5 truncate">${l}</div><div class="text-xl sm:text-2xl font-bold ${c} mt-1">${v}</div></div>`).join('')}
       </div>
 
@@ -118,7 +118,7 @@ function _sessionCard(s) {
       <div class="flex items-start gap-3">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-semibold text-navy">✂️ ${s.pet_name || '—'}</span>
+            <span class="font-semibold text-navy">${s.pet_name || '—'}</span>
             <span class="badge ${cfg.cls} text-xs">${cfg.label}</span>
           </div>
           <div class="text-sm text-slate-500 font-body mt-0.5">
@@ -126,7 +126,7 @@ function _sessionCard(s) {
             ${elapsed ? `· เริ่มมา ${elapsed}` : ''}
           </div>
           ${svcs.length ? `<div class="flex flex-wrap gap-1 mt-2">
-            ${svcs.map(sv=>`<span class="badge badge-navy text-xs">${sv.icon||'✂️'} ${sv.name}</span>`).join('')}
+            ${svcs.map(sv=>`<span class="badge badge-navy text-xs">${sv.icon||''} ${sv.name}</span>`).join('')}
             <span class="text-xs text-primary font-semibold ml-1">฿${total.toLocaleString()}</span>
           </div>` : ''}
           ${s.status === 'in_progress' ? `
@@ -142,10 +142,10 @@ function _sessionCard(s) {
         </div>
         <div class="flex flex-col gap-2 flex-shrink-0">
           ${s.status === 'waiting' ? `
-            <button data-action="services" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">🛁 บริการ</button>
-            <button data-action="start" data-id="${s.id}" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">▶ เริ่ม</button>` : ''}
+            <button data-action="services" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">บริการ</button>
+            <button data-action="start" data-id="${s.id}" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">เริ่ม</button>` : ''}
           ${s.status === 'in_progress' ? `
-            <button data-action="services" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">🛁 แก้ไขบริการ</button>
+            <button data-action="services" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">แก้ไขบริการ</button>
             <div class="flex gap-1">
               ${[25,50,75].map(p => `<button data-action="progress" data-id="${s.id}" data-pct="${p}"
                 class="text-xs border border-slate-200 text-slate-500 px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors
@@ -153,7 +153,7 @@ function _sessionCard(s) {
             </div>
             <button data-action="complete" data-id="${s.id}" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">✓ เสร็จสิ้น</button>` : ''}
           ${s.status === 'done' ? `
-            <button data-action="print" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">🖨 รายงาน</button>` : ''}
+            <button data-action="print" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">รายงาน</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -258,7 +258,7 @@ function _openCompleteModal(session, container) {
     });
     report.referred_to_clinic = Object.values(report.checklist).some(v => v === 'abnormal');
     const res = await apiFetch(`/api/grooming/${session.id}/complete`, { method: 'PATCH', body: JSON.stringify({ health_report: report }) });
-    if (res?.success) { modal.remove(); await _render(container); showToast('บันทึกเสร็จสิ้นแล้ว' + (report.referred_to_clinic ? ' ⚠️ พบความผิดปกติ' : '')); }
+    if (res?.success) { modal.remove(); await _render(container); showToast('บันทึกเสร็จสิ้นแล้ว' + (report.referred_to_clinic ? 'พบความผิดปกติ' : '')); }
     else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
   });
 }
@@ -275,7 +275,7 @@ function _bindGroomSearch(container) {
   const input    = container.querySelector('#ga-search');
   const dropdown = container.querySelector('#ga-dropdown');
   if (!input || !dropdown) return;
-  const EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+  const EMOJI = { dog: '', cat: '', rabbit: '', bird: '', other: '' };
   let timer;
 
   input.addEventListener('input', () => {
@@ -301,7 +301,7 @@ function _bindGroomSearch(container) {
       dropdown.innerHTML = rows.map((r, i) => r._no_pet
         ? `<div class="px-4 py-2 text-xs text-slate-400 font-body">${r.owner_name} — ยังไม่มีสัตว์เลี้ยง</div>`
         : `<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors" data-ri="${i}">
-             <span>${EMOJI[r.species]||'🐾'}</span>
+             <span>${EMOJI[r.species]||''}</span>
              <div><div class="font-semibold text-navy text-sm">${r.pet_name}</div>
              <div class="text-xs text-slate-400 font-body">เจ้าของ: ${r.owner_name}</div></div>
            </div>`).join('')
@@ -327,7 +327,7 @@ function _updateGroomChip(container) {
   const chip = container.querySelector('#ga-chip');
   if (!el || !chip) return;
   if (_selPet) {
-    chip.textContent = `🐾 ${_selPet.pet_name} · ${_selPet.owner_name}`;
+    chip.textContent = `${_selPet.pet_name} · ${_selPet.owner_name}`;
     el.classList.remove('hidden'); el.classList.add('flex');
   } else {
     el.classList.add('hidden'); el.classList.remove('flex');
@@ -397,12 +397,12 @@ function _groomRegister(container) {
     m2.innerHTML = `
       <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
         <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 2/2 สัตว์เลี้ยง</h3>
-        <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">👤 ${owner.name} · ${owner.phone||''}</div>
+        <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">${owner.name} · ${owner.phone||''}</div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="input-label">ชื่อสัตว์เลี้ยง *</label><input id="rp-name" class="input-field" placeholder="บัดดี้" autofocus></div>
           <div><label class="input-label">ชนิด</label>
             <select id="rp-species" class="input-field">
-              <option value="dog">🐕 สุนัข</option><option value="cat">🐈 แมว</option><option value="rabbit">🐰 กระต่าย</option><option value="bird">🐦 นก</option><option value="other">🐾 อื่นๆ</option>
+              <option value="dog">สุนัข</option><option value="cat">แมว</option><option value="rabbit">กระต่าย</option><option value="bird">นก</option><option value="other">อื่นๆ</option>
             </select>
           </div>
         </div>
@@ -490,13 +490,13 @@ function _printGroomReport(session) {
   <h2>รายงานสุขภาพ</h2>
   ${Object.entries(checkLabels).map(([k, l]) =>
     `<div class="check"><span>${l}</span>
-     <span class="${checks[k]==='abnormal'?'abnormal':'ok'}">${checks[k]==='abnormal'?'⚠ ผิดปกติ':'✓ ปกติ'}</span></div>`
+     <span class="${checks[k]==='abnormal'?'abnormal':'ok'}">${checks[k]==='abnormal'?'ผิดปกติ':'✓ ปกติ'}</span></div>`
   ).join('')}
   ${report.notes ? `<p style="margin-top:4px;font-size:10pt;color:#555;">หมายเหตุ: ${esc(report.notes)}</p>` : ''}
-  ${report.referred_to_clinic ? `<p style="margin-top:4px;color:#dc2626;font-weight:bold;">⚠ แนะนำพาพบสัตวแพทย์</p>` : ''}` : ''}
+  ${report.referred_to_clinic ? `<p style="margin-top:4px;color:#dc2626;font-weight:bold;">แนะนำพาพบสัตวแพทย์</p>` : ''}` : ''}
 
   <div class="footer">ขอบคุณที่ใช้บริการ · Powered by FUFU Partner</div>
-  <button class="print-btn" data-print>🖨 พิมพ์ / บันทึก PDF</button>
+  <button class="print-btn" data-print>พิมพ์ / บันทึก PDF</button>
 </body>
 </html>`;
 

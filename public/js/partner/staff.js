@@ -13,11 +13,11 @@ const MODULE_LABELS = {
 };
 
 const ROLES_CFG = {
-  counter:  { label: 'เคาน์เตอร์',   icon: '📋', desc: 'รับคนไข้, นัดหมาย, POS' },
-  doctor:   { label: 'แพทย์',         icon: '👨‍⚕️', desc: 'OPD, ประวัติ, สั่งยา' },
-  pharmacy: { label: 'สต็อก/เภสัช',  icon: '📦', desc: 'จัดยา, รับสินค้า' },
-  finance:  { label: 'การเงิน',       icon: '💰', desc: 'รายได้, ใบเสร็จ' },
-  all:      { label: 'Full Access',   icon: '🏥', desc: 'เข้าถึงทุกส่วน' },
+  counter:  { label: 'เคาน์เตอร์',   icon: '', desc: 'รับคนไข้, นัดหมาย, POS' },
+  doctor:   { label: 'แพทย์',         icon: '', desc: 'OPD, ประวัติ, สั่งยา' },
+  pharmacy: { label: 'สต็อก/เภสัช',  icon: '', desc: 'จัดยา, รับสินค้า' },
+  finance:  { label: 'การเงิน',       icon: '', desc: 'รายได้, ใบเสร็จ' },
+  all:      { label: 'Full Access',   icon: '', desc: 'เข้าถึงทุกส่วน' },
 };
 
 const POSITIONS = [
@@ -242,7 +242,7 @@ async function _openAddModal(container) {
     if (res?.success) {
       modal.remove();
       if (res.is_new_account && res.temp_password) {
-        _showPasswordModal('สร้าง account สำเร็จ! 🎉', name, email, res.temp_password);
+        _showPasswordModal('สร้าง account สำเร็จ!', name, email, res.temp_password);
       } else {
         showToast(`เพิ่ม ${name} แล้ว`);
       }
@@ -320,7 +320,7 @@ async function _openEditModal(member, container) {
           <button id="reset-pw-btn"
             class="w-full text-sm px-4 py-2.5 rounded-lg border border-amber-300 text-amber-700
                    bg-amber-50 hover:bg-amber-100 font-semibold transition-colors">
-            🔑 สุ่มรหัสผ่านชั่วคราวใหม่
+           สุ่มรหัสผ่านชั่วคราวใหม่
           </button>
         </div>
       </div>
@@ -338,7 +338,7 @@ async function _openEditModal(member, container) {
     btn.disabled = false; btn.textContent = 'ตั้งรหัส';
     if (res?.success) {
       modal.remove();
-      _showPasswordModal('ตั้งรหัสผ่านสำเร็จ 🔑', res.name, res.email, res.temp_password);
+      _showPasswordModal('ตั้งรหัสผ่านสำเร็จ', res.name, res.email, res.temp_password);
     } else {
       showToast(res?.error || 'ตั้งรหัสผ่านไม่สำเร็จ', 'error');
     }
@@ -387,11 +387,11 @@ async function _openEditModal(member, container) {
 
     const res = await apiFetch(`/api/staff/${member.id}/reset-password`, { method: 'PATCH' });
 
-    btn.disabled = false; btn.textContent = '🔑 รีเซ็ตรหัสผ่าน';
+    btn.disabled = false; btn.textContent = 'รีเซ็ตรหัสผ่าน';
 
     if (res?.success) {
       modal.remove();
-      _showPasswordModal('รีเซ็ตรหัสผ่านสำเร็จ 🔑', res.name, res.email, res.temp_password);
+      _showPasswordModal('รีเซ็ตรหัสผ่านสำเร็จ', res.name, res.email, res.temp_password);
     } else {
       showToast(res?.error || 'รีเซ็ตรหัสผ่านไม่สำเร็จ', 'error');
     }
@@ -420,7 +420,7 @@ function _showPasswordModal(title, name, email, password) {
         </div>
       </div>
       <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 font-body">
-        ⚠️ ส่งข้อมูลนี้ให้พนักงาน และแนะนำให้เปลี่ยนรหัสผ่านหลัง login ครั้งแรก
+       ส่งข้อมูลนี้ให้พนักงาน และแนะนำให้เปลี่ยนรหัสผ่านหลัง login ครั้งแรก
       </div>
       <button id="close-pw" class="btn-primary w-full">รับทราบ</button>
     </div>`;
@@ -536,7 +536,7 @@ async function _openRolesPanel(storeId) {
       <div class="rounded-xl border border-slate-100 overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-3 bg-slate-50/60 border-b border-slate-100">
           <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
-               style="background:${(r.color || '#6B7280')}22">${r.icon || '👤'}</div>
+               style="background:${(r.color || '#6B7280')}22">${r.icon || ''}</div>
           <div class="flex-1 min-w-0">
             <div class="font-semibold text-navy text-sm">${r.name}</div>
             <div class="text-xs text-slate-400 font-body truncate">${r.desc || ''}</div>

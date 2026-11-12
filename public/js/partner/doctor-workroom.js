@@ -13,7 +13,7 @@ document.addEventListener('click', (e) => {
   if (wrap && e.target.tagName !== 'INPUT') wrap.querySelector('input')?.focus();
 });
 
-const SPECIES_EMOJI = { dog: '🐕', cat: '🐈', rabbit: '🐰', bird: '🐦', other: '🐾' };
+const SPECIES_EMOJI = { dog: '', cat: '', rabbit: '', bird: '', other: '' };
 
 const VACCINE_LIST = [
   // สุนัข
@@ -183,18 +183,18 @@ function _buildLayout() {
 <div class="wr-layout">
   <div class="wr-topbar">
     ${q ? `
-      <div class="wr-patient-chip">🐾 ${_esc(petName)}${ownerName ? ' · ' + _esc(ownerName) : ''}</div>
+      <div class="wr-patient-chip">${_esc(petName)}${ownerName ? ' · ' + _esc(ownerName) : ''}</div>
       ${num ? `<div class="wr-queue-chip">คิว ${num}</div>` : ''}
-    ` : '<div class="wr-patient-chip" style="background:var(--color-surface-sunken,#f1f5f9);color:var(--color-fg-muted,#64748b);border-color:var(--color-line,#e2e8f0);">🔍 ยังไม่มีผู้ป่วย</div>'}
+    ` : '<div class="wr-patient-chip" style="background:var(--color-surface-sunken,#f1f5f9);color:var(--color-fg-muted,#64748b);border-color:var(--color-line,#e2e8f0);">ยังไม่มีผู้ป่วย</div>'}
     <div class="wr-spacer"></div>
     <span class="wr-autosave" id="wr-autosave"></span>
-    ${can('opd','edit') ? `<button class="wr-btn-done" id="wr-done-btn"${!q ? ' disabled' : ''}>✓ เสร็จสิ้น</button>` : `<span style="font-size:12px;color:#d97706;background:var(--color-warning-faint,#fffbeb);border:1px solid #fde68a;border-radius:8px;padding:4px 10px;">👁 ดูข้อมูลเท่านั้น</span>`}
+    ${can('opd','edit') ? `<button class="wr-btn-done" id="wr-done-btn"${!q ? ' disabled' : ''}>✓ เสร็จสิ้น</button>` : `<span style="font-size:12px;color:#d97706;background:var(--color-warning-faint,#fffbeb);border:1px solid #fde68a;border-radius:8px;padding:4px 10px;">ดูข้อมูลเท่านั้น</span>`}
   </div>
 
   <div class="wr-body">
     <div class="wr-left" id="wr-pet-panel">
       <div style="display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:8px;color:var(--color-fg-subtle,#94a3b8);">
-        <span style="font-size:32px;">🐾</span>
+        <span style="font-size:32px;"><svg class="w-8 h-8 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm8 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM4.5 8a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm15 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM12 10c-3.314 0-6 2.686-6 6 0 1.657.672 2.5 2 2.5h8c1.328 0 2-.843 2-2.5 0-3.314-2.686-6-6-6z"/></svg></span>
         <span style="font-size:13px;">กำลังโหลด...</span>
       </div>
     </div>
@@ -204,7 +204,7 @@ function _buildLayout() {
         <div class="wr-tab active" data-tab="opd">OPD Card</div>
         <div class="wr-tab" data-tab="history">ประวัติรักษา</div>
         <div class="wr-tab" data-tab="invoice">ใบสั่งยา / Invoice</div>
-        <div class="wr-tab" data-tab="appt">📅 นัดหมาย</div>
+        <div class="wr-tab" data-tab="appt">นัดหมาย</div>
       </div>
       <div class="wr-tab-content" id="wr-tab-content"></div>
     </div>
@@ -259,7 +259,7 @@ async function _handleDone() {
 
   // ── บันทึกแล้ว — เปิดให้บันทึกซ้ำได้จนกว่าจะชำระเงิน ───────────────────────
   if (btn) {
-    btn.textContent = '💾 บันทึกอีกครั้ง';
+    btn.textContent = 'บันทึกอีกครั้ง';
     btn.style.background = '';
     btn.style.color      = '';
     btn.style.border     = '';
@@ -273,7 +273,7 @@ async function _handleDone() {
     payTopBtn.id        = 'wr-send-pay-top';
     payTopBtn.className = 'wr-btn-done';
     payTopBtn.style.cssText = 'background:#0369a1;';
-    payTopBtn.textContent   = '📤 ส่งชำระเงิน';
+    payTopBtn.textContent   = 'ส่งชำระเงิน';
     payTopBtn.addEventListener('click', _sendToPayment);
     topbar.appendChild(payTopBtn);
   }
@@ -284,7 +284,7 @@ async function _handleDone() {
     if (c) _renderInvoiceTab(c);
   }
 
-  showToast('✅ บันทึก OPD เสร็จสิ้น — กด "ส่งชำระเงิน" เพื่อส่งไปเคาน์เตอร์');
+  showToast('บันทึก OPD เสร็จสิ้น — กด "ส่งชำระเงิน" เพื่อส่งไปเคาน์เตอร์');
 }
 
 // ── ส่งรายการไปชำระที่เคาน์เตอร์ ─────────────────────────────────────────────
@@ -349,7 +349,7 @@ async function _loadVaccinations(petId) {
 
   const hdr = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <div class="wr-section-label" style="margin:0;">💉 วัคซีน</div>
+      <div class="wr-section-label" style="margin:0;">วัคซีน</div>
       <button id="wr-add-vax-btn"
         style="background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;border-radius:6px;
                padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">
@@ -386,7 +386,7 @@ function _renderPetPanel() {
   const panel = _container?.querySelector('#wr-pet-panel');
   if (!panel) return;
   const p = _petData || {};
-  const emoji = SPECIES_EMOJI[p.species] || '🐾';
+  const emoji = SPECIES_EMOJI[p.species] || '';
   const genderMap = { male: 'เพศผู้', female: 'เพศเมีย' };
 
   let age = '';
@@ -413,11 +413,11 @@ function _renderPetPanel() {
     ${(p.owner_phone || _queueItem?.owner_phone) ? `<div class="wr-info-row"><span class="wr-info-label">โทร</span><span class="wr-info-value">${_esc(p.owner_phone || _queueItem?.owner_phone)}</span></div>` : ''}
 
     <div class="wr-section-label">โรคประจำตัว / แพ้ยา</div>
-    ${p.allergies ? `<div class="wr-allergy-box">⚠️ แพ้: ${_esc(p.allergies)}</div>` : `<span style="font-size:12px;color:var(--color-fg-subtle,#94a3b8);">ไม่มี</span>`}
+    ${p.allergies ? `<div class="wr-allergy-box">แพ้: ${_esc(p.allergies)}</div>` : `<span style="font-size:12px;color:var(--color-fg-subtle,#94a3b8);">ไม่มี</span>`}
     ${p.chronic_conditions ? `<div style="font-size:12px;color:var(--color-fg-secondary,#334155);margin-top:6px;">${_esc(p.chronic_conditions)}</div>` : ''}
 
     <div id="wr-vaccine-section" style="margin-top:4px;">
-      <div class="wr-section-label">💉 วัคซีน</div>
+      <div class="wr-section-label">วัคซีน</div>
       <p style="color:var(--color-fg-subtle,#94a3b8);font-size:12px;">กำลังโหลด...</p>
     </div>`;
 }
@@ -426,7 +426,7 @@ function _renderEmptyPetPanel() {
   const panel = _container?.querySelector('#wr-pet-panel');
   if (!panel) return;
   panel.innerHTML = `
-    <div class="wr-section-label" style="margin-top:0;">🔍 ค้นหาผู้ป่วย</div>
+    <div class="wr-section-label" style="margin-top:0;">ค้นหาผู้ป่วย</div>
 
     <!-- Search input -->
     <div style="position:relative;margin-bottom:8px;">
@@ -460,11 +460,11 @@ function _renderEmptyPetPanel() {
              padding:7px;font-size:12px;color:var(--color-fg-muted,#64748b);cursor:pointer;
              font-family:inherit;transition:all .15s;text-align:center;"
       class="wr-hover-brand">
-      🚶 Walk-in / ไม่มีประวัติ
+     Walk-in / ไม่มีประวัติ
     </button>
 
     <div style="margin-top:14px;border-top:1px solid var(--color-surface-sunken,#f1f5f9);padding-top:12px;">
-      <div class="wr-section-label" style="margin-top:0;">🟢 คิวที่กำลังตรวจอยู่</div>
+      <div class="wr-section-label" style="margin-top:0;">คิวที่กำลังตรวจอยู่</div>
       <div id="wr-queue-list" style="font-size:12px;color:var(--color-fg-subtle,#94a3b8);">กำลังโหลด...</div>
     </div>`;
 
@@ -537,7 +537,7 @@ async function _loadQueueSection(panel) {
       const chip = _container?.querySelector('.wr-patient-chip');
       if (chip) {
         chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:var(--color-brand-faint,#ECF7F5);border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:var(--color-brand-strong,#1B414B);white-space:nowrap;';
-        chip.textContent   = `🐾 ${_queueItem.pet_name}${_queueItem.owner_name ? ' · ' + _queueItem.owner_name : ''}`;
+        chip.textContent   = `${_queueItem.pet_name}${_queueItem.owner_name ? ' · ' + _queueItem.owner_name : ''}`;
       }
       const qChip = _container?.querySelector('.wr-queue-chip');
       if (qChip) qChip.textContent = `คิว A${String(q.queue_number).padStart(3,'0')}`;
@@ -591,12 +591,12 @@ function _bindPanelSearch(panel) {
     }
 
     results.innerHTML = rows.map((r, i) => {
-      const emoji    = SPECIES_EMOJI[r.pet.species] || '🐾';
+      const emoji    = SPECIES_EMOJI[r.pet.species] || '';
       const hnBadge  = r.pet.hn
         ? `<span style="background:var(--color-brand-subtle,#D7EEEB);color:var(--color-brand-strong,#1B414B);border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;font-family:monospace;">${formatHN(r.pet.hn, r.pet.created_at)}</span>`
         : '';
       const allBadge = r.pet.allergies
-        ? `<span style="background:var(--color-danger-subtle,#fee2e2);color:var(--color-danger-strong,#991b1b);border-radius:4px;padding:1px 5px;font-size:10px;">⚠ แพ้ยา</span>`
+        ? `<span style="background:var(--color-danger-subtle,#fee2e2);color:var(--color-danger-strong,#991b1b);border-radius:4px;padding:1px 5px;font-size:10px;">แพ้ยา</span>`
         : '';
       return `
         <div data-ridx="${i}"
@@ -663,7 +663,7 @@ function _showWalkinForm(panel) {
         ← กลับค้นหา
       </button>
     </div>
-    <div style="font-size:13px;font-weight:700;color:var(--color-fg,#1e293b);margin-bottom:2px;">🚶 Walk-in</div>
+    <div style="font-size:13px;font-weight:700;color:var(--color-fg,#1e293b);margin-bottom:2px;">Walk-in</div>
     <div style="font-size:11px;color:var(--color-fg-subtle,#94a3b8);margin-bottom:14px;">ระบบจะสร้างประวัติและ HN ให้อัตโนมัติ</div>
 
     <div class="wr-form-group">
@@ -684,8 +684,8 @@ function _showWalkinForm(panel) {
       <label class="wr-form-label">เพศ</label>
       <select id="wr-wk-gender" class="wr-form-input">
         <option value="">— ไม่ระบุ —</option>
-        <option value="male">♂ เพศผู้</option>
-        <option value="female">♀ เพศเมีย</option>
+        <option value="male">เพศผู้</option>
+        <option value="female">เพศเมีย</option>
       </select>
     </div>
 
@@ -785,7 +785,7 @@ function _selectPatientFromSearch(pet, owner) {
   const chip = _container?.querySelector('.wr-patient-chip');
   if (chip) {
     chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:var(--color-brand-faint,#ECF7F5);border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:var(--color-brand-strong,#1B414B);white-space:nowrap;';
-    chip.textContent   = `🐾 ${pet ? pet.name : 'Walk-in'}${owner?.name ? ' · ' + owner.name : ''}`;
+    chip.textContent   = `${pet ? pet.name : 'Walk-in'}${owner?.name ? ' · ' + owner.name : ''}`;
   }
 
   // Enable done button
@@ -804,7 +804,7 @@ function _selectPatientFromSearch(pet, owner) {
                padding:5px 14px;font-size:11px;color:var(--color-fg-muted,#64748b);cursor:pointer;
                font-family:inherit;transition:all .15s;"
         class="wr-hover-brand">
-        🔄 เปลี่ยนผู้ป่วย
+       เปลี่ยนผู้ป่วย
       </button>`;
     panel.prepend(changeWrap);
     changeWrap.querySelector('#wr-change-patient')?.addEventListener('click', () => {
@@ -818,7 +818,7 @@ function _selectPatientFromSearch(pet, owner) {
       const c = _container?.querySelector('.wr-patient-chip');
       if (c) {
         c.style.cssText = 'display:flex;align-items:center;gap:6px;background:var(--color-surface-sunken,#f1f5f9);color:var(--color-fg-muted,#64748b);border:1px solid var(--color-line,#e2e8f0);border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;white-space:nowrap;';
-        c.textContent = '🔍 ยังไม่มีผู้ป่วย';
+        c.textContent = 'ยังไม่มีผู้ป่วย';
       }
       const db = _container?.querySelector('#wr-done-btn');
       if (db) db.disabled = true;
@@ -845,7 +845,7 @@ function _openVaccineModalWR(petId) {
   modal.innerHTML = `
     <div style="background:var(--color-surface,#fff);border-radius:16px;padding:24px;width:100%;max-width:440px;
                 box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
-      <h3 style="font-weight:700;font-size:16px;color:var(--color-fg,#1e293b);margin-bottom:4px;">💉 บันทึกวัคซีน</h3>
+      <h3 style="font-weight:700;font-size:16px;color:var(--color-fg,#1e293b);margin-bottom:4px;">บันทึกวัคซีน</h3>
       <p style="font-size:12px;color:var(--color-fg-subtle,#94a3b8);margin-bottom:16px;">${_esc(petName)}</p>
 
       <div style="margin-bottom:12px;">
@@ -898,7 +898,7 @@ function _openVaccineModalWR(petId) {
       </div>
 
       <div style="background:var(--color-brand-faint,#ECF7F5);border:1px solid var(--color-brand-muted,#A7D9D3);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:var(--color-brand-strong,#1B414B);">
-        📅 ระบบจะ <strong>สร้างนัดหมายอัตโนมัติ</strong> สำหรับการฉีดครั้งต่อไปให้อัตโนมัติ (ถ้าระบุวันนัด)
+       ระบบจะ <strong>สร้างนัดหมายอัตโนมัติ</strong> สำหรับการฉีดครั้งต่อไปให้อัตโนมัติ (ถ้าระบุวันนัด)
       </div>
 
       <div style="display:flex;gap:10px;">
@@ -910,7 +910,7 @@ function _openVaccineModalWR(petId) {
         <button id="vx-save"
           style="flex:2;background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;border-radius:8px;
                  padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
-          💾 บันทึกวัคซีน
+         บันทึกวัคซีน
         </button>
       </div>
     </div>`;
@@ -966,7 +966,7 @@ function _openVaccineModalWR(petId) {
     if (!vaxRes?.success) {
       showToast(vaxRes?.error || 'บันทึกวัคซีนไม่สำเร็จ', 'error');
       saveBtn.disabled = false;
-      saveBtn.textContent = '💾 บันทึกวัคซีน';
+      saveBtn.textContent = 'บันทึกวัคซีน';
       return;
     }
 
@@ -986,7 +986,7 @@ function _openVaccineModalWR(petId) {
       }).catch(() => {});
     }
 
-    showToast(`💉 บันทึกวัคซีน ${vaccineName} แล้ว${nextDate ? ' · สร้างนัดหมายครั้งหน้าแล้ว 📅' : ''}`);
+    showToast(`บันทึกวัคซีน ${vaccineName} แล้ว${nextDate ? ' · สร้างนัดหมายครั้งหน้าแล้ว' : ''}`);
     modal.remove();
 
     // รีเฟรช vaccine section
@@ -1000,13 +1000,13 @@ function _renderOPDTab(content) {
   if (!_queueItem) {
     content.innerHTML = `
       <div class="wr-empty-state" style="cursor:default;">
-        <span style="font-size:48px;">🩺</span>
+        <span style="font-size:48px;"><svg class="w-12 h-12 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3.5C9 2.672 8.328 2 7.5 2S6 2.672 6 3.5V9a6 6 0 0010.83 3.582M6 3.5V9m0 0a6 6 0 006 6 6 6 0 006-6V3.5M18 3.5C18 2.672 17.328 2 16.5 2S15 2.672 15 3.5V9m3-5.5V9M16.5 15a4.5 4.5 0 01-4.5 4.5m0 0v3m0-3a4.5 4.5 0 01-4.5-4.5"/></svg></span>
         <span>ค้นหาผู้ป่วยในช่องค้นหาทางซ้าย</span>
         <button type="button" data-focus-target="#wr-patient-search"
           style="margin-top:4px;background:var(--color-brand,#2A6374);color:var(--color-fg-inverse,#fff);border:none;
                  border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;
                  cursor:pointer;font-family:inherit;">
-          🔍 ค้นหาผู้ป่วย
+         ค้นหาผู้ป่วย
         </button>
       </div>`;
     return;
@@ -1017,10 +1017,10 @@ function _renderOPDTab(content) {
 
   content.innerHTML = `
     <div class="wr-vitals-grid">
-      ${_vitalCard('wr-temp',   '🌡', 'อุณหภูมิ', r.temperature_c    || v.temp   || '', 'temp')}
-      ${_vitalCard('wr-weight', '⚖',  'น้ำหนัก',  r.weight_kg        || v.weight || '', 'weight')}
-      ${_vitalCard('wr-hr',     '❤',  'ชีพจร',     r.heart_rate       || v.hr     || '', 'hr')}
-      ${_vitalCard('wr-rr',     '🫁', 'หายใจ',     r.respiratory_rate || v.rr     || '', 'rr')}
+      ${_vitalCard('wr-temp',   '', 'อุณหภูมิ', r.temperature_c    || v.temp   || '', 'temp')}
+      ${_vitalCard('wr-weight', '',  'น้ำหนัก',  r.weight_kg        || v.weight || '', 'weight')}
+      ${_vitalCard('wr-hr',     '',  'ชีพจร',     r.heart_rate       || v.hr     || '', 'hr')}
+      ${_vitalCard('wr-rr',     '', 'หายใจ',     r.respiratory_rate || v.rr     || '', 'rr')}
     </div>
 
     <div class="wr-note-grid">
@@ -1032,7 +1032,7 @@ function _renderOPDTab(content) {
 
     <div class="wr-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <span style="font-weight:600;color:var(--color-fg,#1e293b);">💊 รายการยา</span>
+        <span style="font-weight:600;color:var(--color-fg,#1e293b);">รายการยา</span>
         <button id="wr-add-rx" style="background:transparent;border:1px solid var(--color-brand,#2A6374);color:var(--color-brand,#2A6374);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ เพิ่มยา</button>
       </div>
       <div id="wr-rx-list"></div>
@@ -1151,7 +1151,7 @@ async function _renderHistoryTab(content) {
   const storeId = storage.get(STORAGE_KEYS.STORE_ID);
   const petId   = _petData?.id || _queueItem?.pet_id;
   if (!petId) {
-    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;">📂</span><span>ไม่พบ ID สัตว์เลี้ยง</span></div>`;
+    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;"><svg class="w-10 h-10 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/></svg></span><span>ไม่พบ ID สัตว์เลี้ยง</span></div>`;
     return;
   }
   const res = await apiFetch(
@@ -1160,7 +1160,7 @@ async function _renderHistoryTab(content) {
   const records = res?.data || [];
 
   if (!records.length) {
-    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;">📂</span><span>ยังไม่มีประวัติการรักษา</span></div>`;
+    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;"><svg class="w-10 h-10 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/></svg></span><span>ยังไม่มีประวัติการรักษา</span></div>`;
     return;
   }
 
@@ -1192,7 +1192,7 @@ async function _renderHistoryTab(content) {
           ${r.objective   ? `<p style="margin-bottom:6px;"><strong>PE:</strong> ${_esc(r.objective)}</p>`   : ''}
           ${r.assessment  ? `<p style="margin-bottom:6px;"><strong>Dx:</strong> ${_esc(r.assessment)}</p>`  : ''}
           ${r.plan        ? `<p style="margin-bottom:6px;"><strong>Tx:</strong> ${_esc(r.plan)}</p>`        : ''}
-          ${rxArr.length  ? `<p style="font-size:12px;color:var(--color-fg-muted,#64748b);margin-top:6px;">💊 ${rxArr.map(rx => _esc(rx.drug || rx.name || '')).join(', ')}</p>` : ''}
+          ${rxArr.length  ? `<p style="font-size:12px;color:var(--color-fg-muted,#64748b);margin-top:6px;">${rxArr.map(rx => _esc(rx.drug || rx.name || '')).join(', ')}</p>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -1237,13 +1237,13 @@ async function _renderInvoiceTab(content) {
       ${isDone ? '' : `
       <div style="display:flex;align-items:center;gap:8px;background:var(--color-warning-faint,#fffbeb);border:1px solid #fde68a;
                   border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--color-warning-strong,#92400e);">
-        ⚠️ <span>กรุณากด <strong>เสร็จสิ้น</strong> ที่มุมขวาบนก่อน เพื่อบันทึก OPD ให้เรียบร้อย</span>
+       <span>กรุณากด <strong>เสร็จสิ้น</strong> ที่มุมขวาบนก่อน เพื่อบันทึก OPD ให้เรียบร้อย</span>
       </div>`}
 
       <div class="wr-card" style="margin-bottom:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <span style="font-weight:700;font-size:14px;color:var(--color-fg,#1e293b);">ใบสั่งยา / Invoice</span>
-          ${isDone ? `<span style="background:var(--color-success-subtle,#dcfce7);color:var(--color-success-strong,#166534);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">✅ บันทึกแล้ว</span>` : ''}
+          ${isDone ? `<span style="background:var(--color-success-subtle,#dcfce7);color:var(--color-success-strong,#166534);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">บันทึกแล้ว</span>` : ''}
         </div>
 
         ${rxItems.length ? rxItems.map(rx => `
@@ -1274,14 +1274,14 @@ async function _renderInvoiceTab(content) {
         <button id="wr-print-rx"
           style="flex:1;background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
                  padding:10px;font-size:13px;font-weight:600;color:var(--color-fg-muted,#64748b);cursor:pointer;">
-          🖨 พิมพ์ใบสั่งยา
+         พิมพ์ใบสั่งยา
         </button>
         <button id="wr-send-pay"
           style="flex:2;background:${isDone ? '#0369a1' : '#94a3b8'};color:var(--color-fg-inverse,#fff);border:none;
                  border-radius:8px;padding:10px;font-size:13px;font-weight:600;
                  cursor:${isDone ? 'pointer' : 'not-allowed'};opacity:${isDone ? '1' : '.6'};"
           ${isDone ? '' : 'disabled title="กด เสร็จสิ้น ก่อน"'}>
-          📤 ส่งไปชำระที่เคาน์เตอร์
+         ส่งไปชำระที่เคาน์เตอร์
         </button>
       </div>
 
@@ -1298,7 +1298,7 @@ async function _renderInvoiceTab(content) {
 
 async function _renderApptTab(content) {
   if (!_queueItem) {
-    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;">📅</span><span>กรุณาค้นหาผู้ป่วยก่อน</span></div>`;
+    content.innerHTML = `<div class="wr-empty-state"><span style="font-size:36px;"><svg class="w-10 h-10 text-slate-300 mx-auto flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5m-9-6h.008v.008H12V10.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM12 13.5h.008v.008H12V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM12 16.5h.008v.008H12V16.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></span><span>กรุณาค้นหาผู้ป่วยก่อน</span></div>`;
     return;
   }
 
@@ -1367,11 +1367,11 @@ async function _renderApptTab(content) {
       <hr class="wr-divider">
 
       <!-- Create new appointment -->
-      <div style="font-weight:700;font-size:13px;color:var(--color-fg,#1e293b);margin-bottom:14px;">📅 นัดหมายใหม่</div>
+      <div style="font-weight:700;font-size:13px;color:var(--color-fg,#1e293b);margin-bottom:14px;">นัดหมายใหม่</div>
 
       ${!petId ? `
         <div style="background:var(--color-warning-faint,#fffbeb);border:1px solid #fde68a;border-radius:10px;padding:12px;font-size:13px;color:var(--color-warning-strong,#92400e);margin-bottom:14px;">
-          ⚠️ ยังไม่พบโปรไฟล์สัตว์เลี้ยงในระบบ — นัดหมายจะไม่ผูกกับสัตว์เลี้ยงโดยอัตโนมัติ
+         ยังไม่พบโปรไฟล์สัตว์เลี้ยงในระบบ — นัดหมายจะไม่ผูกกับสัตว์เลี้ยงโดยอัตโนมัติ
         </div>` : ''}
 
       <div class="wr-form-grid2">
@@ -1397,7 +1397,7 @@ async function _renderApptTab(content) {
         <textarea id="ap-notes" class="wr-form-input" rows="3" style="resize:vertical;" placeholder="เช่น ติดตามผลหลังผ่าตัด, ฉีดวัคซีนประจำปี..."></textarea>
       </div>
 
-      <button class="wr-submit-btn" id="ap-save-btn">💾 บันทึกนัดหมาย</button>
+      <button class="wr-submit-btn" id="ap-save-btn">บันทึกนัดหมาย</button>
     </div>`;
 
   // Cancel appointment
@@ -1459,7 +1459,7 @@ async function _renderApptTab(content) {
       _renderApptTab(content);
     } else {
       showToast(res?.error || 'บันทึกนัดหมายไม่สำเร็จ', 'error');
-      btn.disabled = false; btn.textContent = '💾 บันทึกนัดหมาย';
+      btn.disabled = false; btn.textContent = 'บันทึกนัดหมาย';
     }
   });
 }
@@ -1513,7 +1513,7 @@ async function _saveRecord(status = 'in_progress') {
     _currentRecord.id = res.data?.id || _currentRecord.id;
     _setAutosave(`✓ บันทึกแล้ว ${_timeStr()}`);
   } else {
-    _setAutosave('⚠ บันทึกไม่สำเร็จ');
+    _setAutosave('บันทึกไม่สำเร็จ');
     if (status === 'completed') showToast('บันทึกไม่สำเร็จ', 'error');
   }
 }
@@ -1621,10 +1621,10 @@ async function _openRxModal() {
       const stock = parseInt(opt.dataset.stock || '0');
       const warn  = modal.querySelector('#rx-warn');
       if (stock <= 0) {
-        warn.textContent = '⚠️ สต็อกหมด ไม่สามารถตัดสต็อกได้';
+        warn.textContent = 'สต็อกหมด ไม่สามารถตัดสต็อกได้';
         warn.style.display = 'block';
       } else if (stock <= 5) {
-        warn.textContent = `⚠️ สต็อกเหลือน้อย: ${stock} ${opt.dataset.unit}`;
+        warn.textContent = `สต็อกเหลือน้อย: ${stock} ${opt.dataset.unit}`;
         warn.style.display = 'block';
       } else {
         warn.style.display = 'none';

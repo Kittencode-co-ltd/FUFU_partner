@@ -216,7 +216,7 @@ async function bootRegister() {
       return;
     }
 
-    // ✅ Success — save token + select store immediately (no login redirect)
+    //Success — save token + select store immediately (no login redirect)
     storage.set(STORAGE_KEYS.TOKEN,         result.token);
     storage.set(STORAGE_KEYS.REFRESH_TOKEN, result.refresh_token || '');
     storage.set(STORAGE_KEYS.USER,          JSON.stringify(result.user));
@@ -224,7 +224,7 @@ async function bootRegister() {
     if (result.warning) showToast(result.warning, 'error');
 
     if (result.stores?.length) {
-      showToast(`สร้างบัญชีและร้าน "${result.stores[0].name}" สำเร็จ! 🎉`);
+      showToast(`สร้างบัญชีและร้าน "${result.stores[0].name}" สำเร็จ!`);
       setTimeout(() => selectStore(result.stores[0]), 800);
     } else {
       // needs_onboarding — redirect to login which will show create-store form
@@ -237,10 +237,10 @@ async function bootRegister() {
 function renderCreateStore(container, token, showToast, selectStore) {
   const { CATEGORY_MAP } = window.__fufu_config__ || {
     CATEGORY_MAP: {
-      vet_clinic:   { label: 'คลินิกสัตว์แพทย์', icon: '🏥' },
-      pet_shop:     { label: 'ร้านค้าสัตว์เลี้ยง', icon: '🛍' },
-      pet_hotel:    { label: 'โรงแรมสัตว์เลี้ยง', icon: '🏨' },
-      pet_grooming: { label: 'บริการอาบน้ำตัดขน', icon: '✂️' },
+      vet_clinic:   { label: 'คลินิกสัตว์แพทย์', icon: '' },
+      pet_shop:     { label: 'ร้านค้าสัตว์เลี้ยง', icon: '' },
+      pet_hotel:    { label: 'โรงแรมสัตว์เลี้ยง', icon: '' },
+      pet_grooming: { label: 'บริการอาบน้ำตัดขน', icon: '' },
     },
   };
 
@@ -253,10 +253,10 @@ function renderCreateStore(container, token, showToast, selectStore) {
       <div>
         <label class="input-label">${tr('category', 'ประเภทธุรกิจ')}</label>
         <select id="cs-category" class="input-field">
-          <option value="vet_clinic">🏥 ${tr('catVet', 'คลินิกสัตวแพทย์')}</option>
-          <option value="pet_shop">🛍 ${tr('catShop', 'ร้านค้าสัตว์เลี้ยง')}</option>
-          <option value="pet_hotel">🏨 ${tr('catHotel', 'โรงแรมสัตว์เลี้ยง')}</option>
-          <option value="pet_grooming">✂️ ${tr('catGroom', 'อาบน้ำตัดขน')}</option>
+          <option value="vet_clinic">${tr('catVet', 'คลินิกสัตวแพทย์')}</option>
+          <option value="pet_shop">${tr('catShop', 'ร้านค้าสัตว์เลี้ยง')}</option>
+          <option value="pet_hotel">${tr('catHotel', 'โรงแรมสัตว์เลี้ยง')}</option>
+          <option value="pet_grooming">${tr('catGroom', 'อาบน้ำตัดขน')}</option>
         </select>
       </div>
       <button id="cs-submit" class="btn-primary w-full">${tr('createStore', 'สร้างร้านค้า →')}</button>
@@ -282,7 +282,7 @@ function renderCreateStore(container, token, showToast, selectStore) {
       storage.clearSession();
       container.innerHTML = `
         <div class="rounded-2xl bg-white p-6 text-center space-y-3">
-          <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-2xl">⏳</div>
+          <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-2xl"><svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
           <h3 class="font-semibold text-slate-800">${tr('pendingTitle', 'รอการอนุมัติ')}</h3>
           <p class="text-sm leading-6 text-slate-500">${tr('pendingApproval', 'สร้างร้านแล้ว บัญชีกำลังรอ FUFU อนุมัติก่อนเข้าใช้งาน')}</p>
           <a class="btn-primary inline-flex justify-center px-5" href="/">${tr('back', 'กลับหน้าหลัก')}</a>
@@ -332,7 +332,7 @@ async function bootDashboard() {
     document.body.innerHTML = `
       <main class="min-h-screen grid place-items-center bg-[#faf7f2] p-5">
         <section class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
-          <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full ${access.status === 'rejected' ? 'bg-red-50' : 'bg-amber-50'} text-2xl">${access.status === 'rejected' ? '✕' : '⏳'}</div>
+          <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full ${access.status === 'rejected' ? 'bg-red-50' : 'bg-amber-50'} text-2xl">${access.status === 'rejected' ? '✕' : ''}</div>
           <h1 class="text-xl font-bold text-slate-800">${access.status === 'rejected' ? 'ไม่อนุมัติคำขอพาร์ทเนอร์' : tr('pendingTitle', 'รอการอนุมัติ')}</h1>
           <p class="mt-3 text-sm leading-6 text-slate-500">${access.status === 'rejected' ? 'คำขอสมัครร้านของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ' : tr('pendingApproval', 'บัญชีพาร์ทเนอร์ของคุณยังรอ FUFU อนุมัติ เมื่ออนุมัติแล้วจึงจะเข้าใช้งานได้')}</p>
           <button id="pending-logout" class="btn-primary mt-6 w-full">${tr('logout', 'ออกจากระบบ')}</button>
