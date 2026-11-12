@@ -22,6 +22,38 @@ test('MVP navigation contains the production clinic workflow destinations', asyn
   assert.match(dashboard, /MVP_ROLE_PAGES/);
 });
 
+test('MVP navigation and dashboard are selected by the active store category', async () => {
+  const dashboard = await read('../public/js/partner/dashboard.js');
+  const home = await read('../public/js/partner/home.js');
+  for (const role of ['vet', 'shop', 'hotel', 'grooming']) {
+    assert.match(dashboard, new RegExp(`${role}: \\[`));
+  }
+  for (const page of ['inventory', 'pos', 'orders', 'delivery', 'hotel', 'grooming', 'opd', 'ipd']) {
+    assert.match(dashboard, new RegExp(`id: '${page}'`));
+  }
+  assert.match(home, /const role = storage\.get\(STORAGE_KEYS\.ROLE\)/);
+  assert.match(home, /_renderBusinessHome\(container, storeId, role\)/);
+});
+
+test('store onboarding tolerates schemas without the optional branch_name column', async () => {
+  const stores = await read('../server/routes/stores.js');
+  const app = await read('../public/js/app.js');
+  assert.match(stores, /function isMissingBranchName/);
+  assert.match(stores, /if \(isMissingBranchName\(error\) && Object\.hasOwn\(store, 'branch_name'\)\)/);
+  assert.match(stores, /BASE_STORE_FIELDS = 'id, name, category'/);
+  assert.match(app, /tr\('catShop'/);
+  assert.doesNotMatch(app, /ยังไม่มีร้านค้า — สร้างร้านแรกของคุณได้เลย/);
+});
+
+test('online order screens explain the current FUFU App store-link limitation', async () => {
+  const dashboard = await read('../public/js/partner/dashboard.js');
+  const operations = await read('../public/js/partner/shop-operations.js');
+  assert.match(dashboard, /renderShopOperations/);
+  assert.match(operations, /รหัสร้านกำกับ/);
+  assert.match(operations, /ไปที่คลังสินค้า/);
+  assert.match(operations, /ขายหน้าร้าน · POS/);
+});
+
 test('MVP overview uses appointment data and excludes finance execution', async () => {
   const home = await read('../public/js/partner/home.js');
   const mvpBlock = home.slice(home.indexOf('async function _renderMvpHome'), home.indexOf('function _mvpMetric'));

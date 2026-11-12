@@ -6,22 +6,32 @@ const router = Router();
 router.use(requireAuth);
 
 const STORE_FIELDS = 'id, name, category, branch_name, phone, address, tax_id, website, receipt_header_note, business_hours, default_service_rates';
+const BASE_STORE_FIELDS = 'id, name, category';
+
+function isMissingBranchName(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('branch_name') && (message.includes('schema cache') || error?.code === 'PGRST204' || error?.code === '42703');
+}
+
+async function listStores(makeQuery) {
+  const result = await makeQuery(STORE_FIELDS);
+  if (!isMissingBranchName(result.error)) return result;
+  return makeQuery(BASE_STORE_FIELDS);
+}
 
 // GET /api/stores — list stores for current user
 router.get('/', async (req, res) => {
-  let { data: stores } = await req.supabase
-    .from('stores')
-    .select(STORE_FIELDS)
-    .eq('owner_id', req.user.id);
+  let { data: stores, error } = await listStores((fields) => req.supabase
+    .from('stores').select(fields).eq('owner_id', req.user.id));
 
   if (!stores?.length) {
-    const { data: byEmail } = await req.supabase
-      .from('stores')
-      .select(STORE_FIELDS)
-      .eq('owner_email', req.user.email);
-    stores = byEmail;
+    const byEmailResult = await listStores((fields) => req.supabase
+      .from('stores').select(fields).eq('owner_email', req.user.email));
+    stores = byEmailResult.data;
+    error = byEmailResult.error;
   }
 
+  if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data: stores || [] });
 });
 
@@ -32,17 +42,25 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'name and category required' });
   }
 
-  const { data, error } = await req.supabase
+  const store = { name, category, owner_id: req.user.id, owner_email: req.user.email };
+  if (branch_name) store.branch_name = branch_name;
+
+  let { data, error } = await req.supabase
     .from('stores')
-    .insert([{
-      name,
-      category,
-      branch_name: branch_name || '',
-      owner_id:    req.user.id,
-      owner_email: req.user.email,
-    }])
-    .select()
+    .insert([store])
+    .select(BASE_STORE_FIELDS)
     .single();
+
+  // Older production schemas do not have branch_name. Retry without that
+  // optional field so store onboarding remains available during migrations.
+  if (isMissingBranchName(error) && Object.hasOwn(store, 'branch_name')) {
+    delete store.branch_name;
+    ({ data, error } = await req.supabase
+      .from('stores')
+      .insert([store])
+      .select(BASE_STORE_FIELDS)
+      .single());
+  }
 
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });

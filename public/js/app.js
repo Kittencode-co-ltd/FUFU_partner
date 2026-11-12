@@ -239,21 +239,20 @@ function renderCreateStore(container, token, showToast, selectStore) {
 
   container.innerHTML = `
     <div class="space-y-4">
-      <p class="text-slate-500 text-sm font-body">ยังไม่มีร้านค้า — สร้างร้านแรกของคุณได้เลย</p>
       <div>
-        <label class="input-label">ชื่อร้าน / คลินิก</label>
+        <label class="input-label">${tr('storeName', 'ชื่อร้าน / คลินิก')}</label>
         <input id="cs-name" class="input-field" placeholder="Happy Paws Clinic">
       </div>
       <div>
-        <label class="input-label">ประเภทธุรกิจ</label>
+        <label class="input-label">${tr('category', 'ประเภทธุรกิจ')}</label>
         <select id="cs-category" class="input-field">
-          <option value="vet_clinic">🏥 คลินิกสัตว์แพทย์</option>
-          <option value="pet_shop">🛍 ร้านค้าสัตว์เลี้ยง</option>
-          <option value="pet_hotel">🏨 โรงแรมสัตว์เลี้ยง</option>
-          <option value="pet_grooming">✂️ บริการอาบน้ำตัดขน</option>
+          <option value="vet_clinic">🏥 ${tr('catVet', 'คลินิกสัตวแพทย์')}</option>
+          <option value="pet_shop">🛍 ${tr('catShop', 'ร้านค้าสัตว์เลี้ยง')}</option>
+          <option value="pet_hotel">🏨 ${tr('catHotel', 'โรงแรมสัตว์เลี้ยง')}</option>
+          <option value="pet_grooming">✂️ ${tr('catGroom', 'อาบน้ำตัดขน')}</option>
         </select>
       </div>
-      <button id="cs-submit" class="btn-primary w-full">สร้างร้านค้า →</button>
+      <button id="cs-submit" class="btn-primary w-full">${tr('createStore', 'สร้างร้านค้า →')}</button>
     </div>`;
 
   container.querySelector('#cs-submit').addEventListener('click', async () => {

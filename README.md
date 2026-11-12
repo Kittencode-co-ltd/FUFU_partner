@@ -5,9 +5,12 @@
 โมดูลเดิมสำหรับ POS, inventory, finance, grooming และ hotel ยังอยู่ใน source แต่ถูกซ่อน
 จาก navigation เมื่อ `FEATURE_FLAGS.MVP_MODE` เป็น `true`.
 
-Production-safe default คือ `PARTNER_MVP_MODE=true` และ sidebar จะแสดงเฉพาะ
-เคสคัดกรอง AI, ภาพรวม, นัดหมาย, ปฏิทิน, สัตว์ที่เข้ารับบริการ, สรุปการเข้ารับบริการ,
-ข้อมูลคลินิก, ผู้ใช้งาน และออกจากระบบ โมดูลเดิมจะไม่ถูก lazy-load ใน MVP path.
+Production-safe default คือ `PARTNER_MVP_MODE=true` และ workspace จะเลือกเมนู
+ตามประเภทร้านที่กำลังใช้งาน: คลินิก, ร้านค้า, โรงแรมสัตว์เลี้ยง หรือ Grooming.
+คลินิกจะเห็นคิว, นัดหมาย, OPD/IPD, ประวัติการรักษา, สัตว์เลี้ยง, คลังยา,
+สรุปการเข้ารับบริการ และผู้ใช้งาน; ร้านค้าจะเห็นคลังสินค้า, POS และหน้าเตรียม
+เชื่อมคำสั่งซื้อออนไลน์/จัดส่ง; โรงแรมจะเห็นห้องพักและการจอง; Grooming จะเห็นคิวและนัดหมาย.
+โมดูลจะ lazy-load เมื่อผู้ใช้เปิดหน้าที่อยู่ใน workspace ของร้านนั้น.
 การปิด MVP mode ทำได้เฉพาะ development runtime โดย inject
 `window.__FUFU_FEATURES__ = { PARTNER_MVP_MODE: false }` ก่อนโหลด `config.js`.
 

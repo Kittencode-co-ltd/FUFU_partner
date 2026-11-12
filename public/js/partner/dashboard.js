@@ -79,6 +79,9 @@ const NAV = {
     { id: 'home',      icon: 'chart-bar',      label: 'ภาพรวม' },
     { id: 'queue',     icon: 'clipboard-list', label: 'คิว' },
     { id: 'inventory', icon: 'box',            label: 'สต็อก' },
+    { id: 'pos',       icon: 'credit-card',    label: 'ขายหน้าร้าน · POS' },
+    { id: 'orders',    icon: 'receipt',        label: 'คำสั่งซื้อออนไลน์' },
+    { id: 'delivery',  icon: 'exchange-alt',   label: 'จัดส่ง' },
     { id: 'income',    icon: 'coins',          label: 'รายได้' },
     { id: 'settings',  icon: 'cog',            label: 'ตั้งค่า' },
   ],
@@ -114,13 +117,92 @@ const MVP_NAV = [
   { id: 'users',        icon: 'users',          label: 'ผู้ใช้งาน' },
 ];
 
-// Checked before rendering so an out-of-scope module is never lazy-loaded.
-const MVP_NAV_PAGES = new Set([...MVP_NAV.map(item => item.id), 'pet-profile']);
+// MVP workspaces stay focused on each store's real day-to-day tasks. The
+// category comes from the selected store, not from an account-wide default.
+const BUSINESS_NAV = {
+  vet: [
+    MVP_NAV[0], MVP_NAV[1],
+    { id: 'queue', icon: 'clipboard-list', label: 'คิวตรวจ' },
+    MVP_NAV[2], MVP_NAV[3], MVP_NAV[4],
+    { id: 'opd', icon: 'stethoscope', label: 'OPD · ห้องตรวจ' },
+    { id: 'ipd', icon: 'hospital', label: 'IPD · ผู้ป่วยใน' },
+    { id: 'medical', icon: 'folder-open', label: 'ประวัติการรักษา' },
+    { id: 'inventory', icon: 'box', label: 'คลังยาและเวชภัณฑ์' },
+    MVP_NAV[5], MVP_NAV[6], MVP_NAV[7],
+  ],
+  shop: [
+    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมร้านค้า' },
+    { id: 'inventory', icon: 'box', label: 'คลังสินค้า' },
+    { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS' },
+    { id: 'orders', icon: 'receipt', label: 'คำสั่งซื้อออนไลน์' },
+    { id: 'delivery', icon: 'exchange-alt', label: 'จัดส่ง' },
+    { id: 'income', icon: 'coins', label: 'ยอดขายและรายได้' },
+    { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
+    { id: 'settings', icon: 'cog', label: 'ตั้งค่าร้าน' },
+  ],
+  hotel: [
+    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมโรงแรม' },
+    { id: 'hotel', icon: 'bed', label: 'ห้องพักและการจอง' },
+    { id: 'queue', icon: 'clipboard-list', label: 'คิวเช็กอิน / เช็กเอาต์' },
+    { id: 'appointments', icon: 'calendar-alt', label: 'การจอง' },
+    { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน' },
+    { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ' },
+    { id: 'income', icon: 'coins', label: 'รายได้' },
+    { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
+    { id: 'settings', icon: 'cog', label: 'ตั้งค่าโรงแรม' },
+  ],
+  grooming: [
+    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมร้าน' },
+    { id: 'queue', icon: 'clipboard-list', label: 'คิวบริการ' },
+    { id: 'appointments', icon: 'calendar-alt', label: 'นัดหมาย' },
+    { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน' },
+    { id: 'grooming', icon: 'cut', label: 'บริการและคิวอาบน้ำตัดขน' },
+    { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ' },
+    { id: 'income', icon: 'coins', label: 'รายได้' },
+    { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
+    { id: 'settings', icon: 'cog', label: 'ตั้งค่าร้าน' },
+  ],
+};
+
+// Checked before rendering so a store cannot restore another category's page.
+const MVP_NAV_PAGES = new Set([
+  ...MVP_NAV.map(item => item.id),
+  ...Object.values(BUSINESS_NAV).flat().map(item => item.id),
+  'pet-profile',
+]);
 const MVP_ROLE_PAGES = {
-  owner: new Set(MVP_NAV.map(item => item.id)),
+  owner: new Set([...MVP_NAV_PAGES]),
   reception: new Set(['screenings', 'home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
   vet: new Set(['screenings', 'home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
 };
+const BUSINESS_ROLE_PAGES = {
+  shop: {
+    reception: new Set(['home', 'inventory', 'pos', 'orders', 'delivery']),
+    vet: new Set(['home', 'inventory', 'pos', 'orders', 'delivery']),
+  },
+  hotel: {
+    reception: new Set(['home', 'hotel', 'queue', 'appointments', 'calendar', 'pets']),
+    vet: new Set(['home', 'hotel', 'queue', 'appointments', 'calendar', 'pets']),
+  },
+  grooming: {
+    reception: new Set(['home', 'queue', 'appointments', 'calendar', 'grooming', 'pets']),
+    vet: new Set(['home', 'queue', 'appointments', 'calendar', 'grooming', 'pets']),
+  },
+};
+
+function _navItemsForRole(role) {
+  const items = FEATURE_FLAGS.MVP_MODE
+    ? (BUSINESS_NAV[role] || BUSINESS_NAV.vet)
+    : (NAV[role] || NAV.vet);
+  if (!FEATURE_FLAGS.MVP_MODE) return items;
+
+  const staffRole = storage.get(STORAGE_KEYS.STAFF_ROLE) || 'owner';
+  if (staffRole === 'owner') return items;
+  const allowed = role === 'vet'
+    ? MVP_ROLE_PAGES[staffRole]
+    : BUSINESS_ROLE_PAGES[role]?.[staffRole];
+  return allowed ? items.filter(item => allowed.has(item.id)) : [];
+}
 
 const PAGE_TITLES = {
   home:         'ภาพรวม',
@@ -131,6 +213,8 @@ const PAGE_TITLES = {
   summaries:    'สรุปการเข้ารับบริการ',
   clinic:       'ข้อมูลคลินิก',
   users:        'ผู้ใช้งาน',
+  orders:       'คำสั่งซื้อออนไลน์',
+  delivery:     'จัดส่ง',
   queue:        'คิวตรวจ',
   pets:         'สัตว์เลี้ยง & นัดหมาย',
   'pet-profile':'โปรไฟล์สัตว์เลี้ยง',
@@ -154,13 +238,15 @@ const PAGE_TITLES = {
 const _RESTORABLE_PAGES = new Set([
   'home','queue','medical','pets','hotel','grooming',
   'inventory','finance','ipd','documents','kanban','settings','users','staff','opd',
-  'appointments','calendar','patients','summaries','clinic',
+  'appointments','calendar','patients','summaries','clinic','orders','delivery',
 ]);
 const _PAGE_KEY = 'fufu_current_page';
 let _pageEnterTimer = null;
 
 export function navigate(pageId, detail = null) {
-  if (FEATURE_FLAGS.MVP_MODE && !MVP_NAV_PAGES.has(pageId)) pageId = 'home';
+  const visiblePage = _navItemsForRole(getCurrentRole()).some(item => item.id === pageId);
+  const canOpenPetProfile = pageId === 'pet-profile' && _navItemsForRole(getCurrentRole()).some(item => ['pets', 'patients'].includes(item.id));
+  if ((FEATURE_FLAGS.MVP_MODE && !MVP_NAV_PAGES.has(pageId)) || (!visiblePage && !canOpenPetProfile)) pageId = 'home';
   document.dispatchEvent(new CustomEvent('fufu:navigate', { detail: pageId }));
   document.querySelectorAll('main section').forEach(s => s.classList.add('hidden'));
   const target = document.getElementById(`page-${pageId}`);
@@ -352,7 +438,7 @@ export async function initDashboard() {
     ? 'home'
     : canHomeInit ? 'home' : (MODES[_currentMode]?.defaultPage || 'queue');
   const canRestore = lastPage && _RESTORABLE_PAGES.has(lastPage) &&
-    (!FEATURE_FLAGS.MVP_MODE || MVP_NAV_PAGES.has(lastPage)) &&
+    (!FEATURE_FLAGS.MVP_MODE || (MVP_NAV_PAGES.has(lastPage) && (_navItemsForRole(role).some(item => item.id === lastPage) || (lastPage === 'pet-profile' && _navItemsForRole(role).some(item => ['pets', 'patients'].includes(item.id)))))) &&
     (lastPage !== 'home' || canHomeInit);
   navigate(canRestore ? lastPage : defaultPage);
 
@@ -444,7 +530,7 @@ function _initSidebarToggle() {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function _buildNav(role) {
-  const allItems = FEATURE_FLAGS.MVP_MODE ? MVP_NAV : (NAV[role] || NAV.vet);
+  const allItems = FEATURE_FLAGS.MVP_MODE ? (BUSINESS_NAV[role] || BUSINESS_NAV.vet) : (NAV[role] || NAV.vet);
   const modeCfg = FEATURE_FLAGS.MVP_MODE ? null : MODES[_currentMode];
   const staffRoles  = storage.getJSON('fufu_staff_roles'); // null = owner
   const canHome     = !staffRoles || staffRoles.includes('home') || staffRoles.includes('all');
@@ -454,9 +540,8 @@ function _buildNav(role) {
     : allItems;
 
   if (FEATURE_FLAGS.MVP_MODE) {
-    const mvpRole = storage.get(STORAGE_KEYS.STAFF_ROLE) || 'owner';
-    const allowedPages = MVP_ROLE_PAGES[mvpRole] || new Set();
-    items = items.filter(item => allowedPages.has(item.id));
+    const visibleIds = new Set(_navItemsForRole(role).map(item => item.id));
+    items = items.filter(item => visibleIds.has(item.id));
   }
 
   // Gate home/overview: only owner or staff explicitly granted 'home' view permission
@@ -595,6 +680,11 @@ async function _renderPage(pageId, detail = null) {
   if (pageId === 'users') {
     const { renderStaff } = await import('./staff.js');
     await renderStaff(document.getElementById('page-users'));
+    return;
+  }
+  if (pageId === 'orders' || pageId === 'delivery') {
+    const { renderShopOperations } = await import('./shop-operations.js');
+    await renderShopOperations(document.getElementById(`page-${pageId}`), pageId);
     return;
   }
   if (pageId === 'queue') {

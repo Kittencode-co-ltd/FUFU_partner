@@ -41,6 +41,12 @@ export async function renderHome(container) {
     return;
   }
 
+  const role = storage.get(STORAGE_KEYS.ROLE) || 'vet';
+  if (FEATURE_FLAGS.MVP_MODE && role !== 'vet') {
+    await _renderBusinessHome(container, storeId, role);
+    return;
+  }
+
   if (FEATURE_FLAGS.MVP_MODE) {
     await _renderMvpHome(container, storeId);
     return;
@@ -71,6 +77,177 @@ export async function renderHome(container) {
       if (customFrom && customTo) await doRender();
     }
   });
+}
+
+const BUSINESS_HOME = {
+  shop: {
+    eyebrow: 'SHOP WORKSPACE', title: 'ภาพรวมร้านค้า',
+    description: 'จัดการสินค้า เช็กสต็อก และเริ่มขายจากหน้าเดียว',
+    actions: [
+      { id: 'inventory', label: 'เปิดคลังสินค้า', icon: 'box' },
+      { id: 'pos', label: 'เริ่มขาย · POS', icon: 'credit-card', primary: true },
+      { id: 'orders', label: 'คำสั่งซื้อออนไลน์', icon: 'receipt' },
+    ],
+  },
+  hotel: {
+    eyebrow: 'PET HOTEL WORKSPACE', title: 'ภาพรวมโรงแรมสัตว์เลี้ยง',
+    description: 'ดูห้องพัก การจอง และงานเช็กอินที่ต้องทำวันนี้',
+    actions: [
+      { id: 'hotel', label: 'ดูห้องพัก', icon: 'bed', primary: true },
+      { id: 'appointments', label: 'เปิดรายการจอง', icon: 'calendar-alt' },
+      { id: 'queue', label: 'ไปที่คิว', icon: 'clipboard-list' },
+    ],
+  },
+  grooming: {
+    eyebrow: 'GROOMING WORKSPACE', title: 'ภาพรวมร้านอาบน้ำตัดขน',
+    description: 'ติดตามนัดหมาย คิวบริการ และสัตว์เลี้ยงที่รอรับบริการ',
+    actions: [
+      { id: 'appointments', label: 'ดูนัดหมาย', icon: 'calendar-alt', primary: true },
+      { id: 'queue', label: 'เปิดคิวบริการ', icon: 'clipboard-list' },
+      { id: 'grooming', label: 'จัดการบริการ', icon: 'cut' },
+    ],
+  },
+};
+
+async function _renderBusinessHome(container, storeId, role) {
+  const config = BUSINESS_HOME[role] || BUSINESS_HOME.shop;
+  const today = _localDateKey(new Date());
+  const appointmentUrl = `/api/appointments?store_id=${encodeURIComponent(storeId)}`;
+  const requests = role === 'shop'
+    ? [
+        apiFetch(`/api/inventory?store_id=${encodeURIComponent(storeId)}`),
+        apiFetch(`/api/pos/invoices?store_id=${encodeURIComponent(storeId)}&limit=100`),
+      ]
+    : role === 'hotel'
+      ? [
+          apiFetch(`/api/hotel/rooms?store_id=${encodeURIComponent(storeId)}`),
+          apiFetch(`${appointmentUrl}&bucket=requested&limit=100`),
+          apiFetch(`${appointmentUrl}&bucket=upcoming&limit=100`),
+        ]
+      : [
+          apiFetch(`${appointmentUrl}&bucket=requested&limit=100`),
+          apiFetch(`${appointmentUrl}&bucket=upcoming&limit=100`),
+          apiFetch(`/api/queue?store_id=${encodeURIComponent(storeId)}&date=${today}`),
+        ];
+
+  container.innerHTML = `
+    <div class="space-y-5">
+      <div class="rounded-2xl bg-navy text-white p-6 sm:p-8 shadow-card">
+        <div class="text-[11px] font-bold tracking-[0.16em] text-white/65">${config.eyebrow}</div>
+        <div class="mt-2 flex flex-wrap items-end justify-between gap-4">
+          <div><h1 class="text-2xl sm:text-3xl font-bold">${config.title}</h1>
+            <p class="mt-2 text-sm text-white/75">${config.description}</p></div>
+          <button type="button" data-home-refresh class="min-h-11 rounded-xl border border-white/25 px-4 text-sm font-semibold hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">รีเฟรชข้อมูล</button>
+        </div>
+        <div class="mt-6 flex flex-wrap gap-2">
+          ${config.actions.map(action => `<button type="button" data-home-nav="${action.id}" class="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors ${action.primary ? 'bg-accent text-white hover:bg-accent-dark' : 'bg-white/10 text-white hover:bg-white/20'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">${icon(action.icon, 'w-4 h-4')}<span>${action.label}</span></button>`).join('')}
+        </div>
+      </div>
+      <div id="business-home-data" class="space-y-5">
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          ${[1, 2, 3, 4].map(() => '<div class="card h-28 animate-pulse bg-slate-50" aria-hidden="true"></div>').join('')}
+        </div>
+      </div>
+    </div>`;
+
+  const responses = await Promise.allSettled(requests);
+  const data = responses.map(item => item.status === 'fulfilled' && item.value?.success ? item.value : null);
+  const hasErrors = data.some(item => !item);
+  const rows = value => Array.isArray(value?.data) ? value.data : [];
+  let metrics = [];
+  let recentTitle = '';
+  let recentRows = [];
+  let emptyMessage = '';
+
+  if (role === 'shop') {
+    const products = rows(data[0]);
+    const invoices = rows(data[1]);
+    const lowStock = products.filter(product => Number(product.stock || 0) <= Number(product.reorder_point || 0));
+    const todaysInvoices = invoices.filter(invoice => String(invoice.created_at || '').slice(0, 10) === today);
+    const sales = todaysInvoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+    metrics = [
+      ['สินค้าในคลัง', data[0] ? products.length : '—', 'รายการที่เปิดขาย', 'box', 'text-primary'],
+      ['สินค้าใกล้หมด', data[0] ? lowStock.length : '—', 'ควรตรวจและเติมสต็อก', 'exclamation-triangle', lowStock.length ? 'text-orange-600' : 'text-primary'],
+      ['ยอดขายวันนี้', data[1] ? `฿${_formatBaht(sales)}` : '—', `${todaysInvoices.length} ใบเสร็จ`, 'coins', 'text-primary'],
+      ['ออเดอร์ออนไลน์', '—', 'รอเชื่อมคำสั่งซื้อจาก FUFU App', 'receipt', 'text-slate-500'],
+    ];
+    recentTitle = 'ขายหน้าร้านล่าสุด';
+    recentRows = todaysInvoices.slice(0, 5).map(invoice => ({
+      primary: invoice.invoice_number || 'ใบเสร็จ',
+      secondary: new Date(invoice.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+      trailing: `฿${_formatBaht(invoice.total)}`,
+    }));
+    emptyMessage = 'วันนี้ยังไม่มีรายการขาย';
+  } else if (role === 'hotel') {
+    const rooms = rows(data[0]);
+    const requested = rows(data[1]);
+    const upcoming = rows(data[2]);
+    const todayBookings = [...requested, ...upcoming].filter(item => (item.appt_date || item.starts_at?.slice(0, 10)) === today);
+    const occupied = rooms.filter(room => room.status === 'occupied').length;
+    metrics = [
+      ['ห้องทั้งหมด', data[0] ? rooms.length : '—', 'ห้องในระบบ', 'bed', 'text-primary'],
+      ['กำลังเข้าพัก', data[0] ? occupied : '—', 'ห้องที่มีสัตว์พักอยู่', 'paw', 'text-blue-600'],
+      ['การจองวันนี้', data[1] && data[2] ? todayBookings.length : '—', 'เช็กอินและเช็กเอาต์', 'calendar-alt', 'text-primary'],
+      ['รอยืนยัน', data[1] ? requested.length : '—', 'คำขอจองใหม่', 'clipboard-list', requested.length ? 'text-orange-600' : 'text-primary'],
+    ];
+    recentTitle = 'งานที่ต้องดูวันนี้';
+    recentRows = todayBookings.slice(0, 5).map(item => ({
+      primary: item.pet_name || item.notes || 'สัตว์เลี้ยง',
+      secondary: `${item.appt_time_slot || item.starts_at?.slice(11, 16) || 'ไม่ระบุเวลา'} · ${item.owner_name || item.customer_name || 'เจ้าของสัตว์'}`,
+      trailing: _appointmentStatus(item.status),
+    }));
+    emptyMessage = 'วันนี้ยังไม่มีการจองหรือเช็กอิน';
+  } else {
+    const requested = rows(data[0]);
+    const upcoming = rows(data[1]);
+    const queue = rows(data[2]);
+    const appointments = [...requested, ...upcoming];
+    const todayAppointments = appointments.filter(item => (item.appt_date || item.starts_at?.slice(0, 10)) === today);
+    metrics = [
+      ['นัดหมายวันนี้', data[0] && data[1] ? todayAppointments.length : '—', 'บริการที่กำหนดไว้วันนี้', 'calendar-alt', 'text-primary'],
+      ['รอยืนยัน', data[0] ? requested.length : '—', 'คำขอใหม่จากเจ้าของสัตว์', 'clipboard-list', requested.length ? 'text-orange-600' : 'text-primary'],
+      ['คิววันนี้', data[2] ? queue.length : '—', 'สัตว์ที่รอรับบริการ', 'paw', 'text-blue-600'],
+      ['บริการที่เปิด', '—', 'ดูแลรายการบริการในหน้า Grooming', 'cut', 'text-primary'],
+    ];
+    recentTitle = 'นัดหมายที่ต้องดำเนินการ';
+    recentRows = [...requested, ...todayAppointments].slice(0, 5).map(item => ({
+      primary: item.pet_name || item.notes || 'สัตว์เลี้ยง',
+      secondary: `${item.appt_time_slot || item.starts_at?.slice(11, 16) || 'ไม่ระบุเวลา'} · ${item.owner_name || item.customer_name || 'เจ้าของสัตว์'}`,
+      trailing: _appointmentStatus(item.status),
+    }));
+    emptyMessage = 'ยังไม่มีนัดหมายที่ต้องดำเนินการ';
+  }
+
+  const dataContainer = container.querySelector('#business-home-data');
+  if (!dataContainer) return;
+  dataContainer.innerHTML = `
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      ${metrics.map(([label, value, detail, glyph, color]) => `<article class="card p-4 sm:p-5 min-h-32"><div class="flex items-start justify-between gap-2"><div class="text-sm text-slate-500">${label}</div><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-subtle ${color}">${icon(glyph, 'w-4 h-4')}</span></div><div class="mt-3 text-2xl sm:text-3xl font-bold text-navy tabular-nums">${value}</div><div class="mt-1 text-xs text-slate-400">${detail}</div></article>`).join('')}
+    </div>
+    <section class="card overflow-hidden">
+      <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4"><div><h2 class="font-semibold text-navy">${recentTitle}</h2><p class="mt-1 text-xs text-slate-400">ข้อมูลจริงจากระบบของร้าน</p></div><span class="text-xs font-medium text-slate-400">${new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span></div>
+      ${recentRows.length ? `<div class="divide-y divide-slate-100">${recentRows.map(row => `<div class="flex items-center justify-between gap-3 px-5 py-3"><div class="min-w-0"><div class="truncate text-sm font-semibold text-navy">${escapeText(row.primary)}</div><div class="mt-0.5 truncate text-xs text-slate-500">${escapeText(row.secondary)}</div></div><span class="flex-shrink-0 text-sm font-semibold text-primary">${escapeText(row.trailing)}</span></div>`).join('')}</div>` : `<div class="px-5 py-9 text-center"><p class="text-sm font-semibold text-slate-600">${emptyMessage}</p><p class="mt-1 text-xs text-slate-400">เมื่อมีรายการใหม่ ระบบจะแสดงไว้ตรงนี้</p></div>`}
+      ${hasErrors ? '<div class="border-t border-amber-100 bg-amber-50 px-5 py-3 text-xs text-amber-800" role="status">ข้อมูลบางส่วนโหลดไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วรีเฟรช</div>' : ''}
+    </section>`;
+
+  container.onclick = event => {
+    if (event.target.closest('[data-home-refresh]')) return _renderBusinessHome(container, storeId, role);
+    const button = event.target.closest('[data-home-nav]');
+    if (button) import('./dashboard.js').then(({ navigate }) => navigate(button.dataset.homeNav));
+  };
+}
+
+function _localDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function _formatBaht(value) {
+  return Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 0 });
+}
+
+function _appointmentStatus(status) {
+  const normalized = String(status || '').toLowerCase();
+  return normalized === 'confirmed' ? 'ยืนยันแล้ว' : normalized === 'checked_in' ? 'เช็กอินแล้ว' : 'รอยืนยัน';
 }
 
 async function _renderMvpHome(container, storeId) {
