@@ -70,6 +70,7 @@ export function selectStore(store) {
   storage.set(STORAGE_KEYS.STORE_NAME,     store.name);
   storage.set(STORAGE_KEYS.STORE_CATEGORY, store.category);
   storage.set(STORAGE_KEYS.ROLE,           catInfo.role || 'vet');
+  storage.set(STORAGE_KEYS.STORE_ACTIVE, store.is_active !== false ? 'true' : 'false');
 
   // Clear per-store staff role — initDashboard will re-fetch from /api/staff/me
   storage.remove(STORAGE_KEYS.STAFF_ROLE);
@@ -102,6 +103,7 @@ export function renderStoreList(container, stores) {
         data-store-id="${store.id}"
         data-store-name="${encodeURIComponent(store.name)}"
         data-store-category="${store.category}"
+        data-store-active="${store.is_active !== false}"
       >
         <span class="text-2xl w-12 h-12 flex items-center justify-center bg-slate-50
                      rounded-xl group-hover:bg-white transition-colors">${cat.emoji}</span>
@@ -125,6 +127,7 @@ export function renderStoreList(container, stores) {
       id:       btn.dataset.storeId,
       name:     decodeURIComponent(btn.dataset.storeName),
       category: btn.dataset.storeCategory,
+      is_active: btn.dataset.storeActive !== 'false',
     });
   });
 }

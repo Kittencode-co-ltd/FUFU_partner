@@ -313,6 +313,15 @@ async function bootDashboard() {
   const { apiFetch } = await import('./utils/api-client.js');
   const access = await apiFetch('/api/auth/partner-access');
   if (!access?.success) return;
+  if (Array.isArray(access.stores)) {
+    const [{ storage }, { STORAGE_KEYS }] = await Promise.all([
+      import('./utils/storage.js'),
+      import('./utils/config.js'),
+    ]);
+    const selectedId = storage.get(STORAGE_KEYS.STORE_ID);
+    const selected = access.stores.find(store => store.id === selectedId);
+    if (selected) storage.set(STORAGE_KEYS.STORE_ACTIVE, selected.is_active === false ? 'false' : 'true');
+  }
   if (access.status !== 'approved') {
     const { storage } = await import('./utils/storage.js');
     if (access.status === 'onboarding') {
@@ -323,9 +332,9 @@ async function bootDashboard() {
     document.body.innerHTML = `
       <main class="min-h-screen grid place-items-center bg-[#faf7f2] p-5">
         <section class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
-          <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-amber-50 text-2xl">⏳</div>
-          <h1 class="text-xl font-bold text-slate-800">${tr('pendingTitle', 'รอการอนุมัติ')}</h1>
-          <p class="mt-3 text-sm leading-6 text-slate-500">${tr('pendingApproval', 'บัญชีพาร์ทเนอร์ของคุณยังรอ FUFU อนุมัติ เมื่ออนุมัติแล้วจึงจะเข้าใช้งานได้')}</p>
+          <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full ${access.status === 'rejected' ? 'bg-red-50' : 'bg-amber-50'} text-2xl">${access.status === 'rejected' ? '✕' : '⏳'}</div>
+          <h1 class="text-xl font-bold text-slate-800">${access.status === 'rejected' ? 'ไม่อนุมัติคำขอพาร์ทเนอร์' : tr('pendingTitle', 'รอการอนุมัติ')}</h1>
+          <p class="mt-3 text-sm leading-6 text-slate-500">${access.status === 'rejected' ? 'คำขอสมัครร้านของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ' : tr('pendingApproval', 'บัญชีพาร์ทเนอร์ของคุณยังรอ FUFU อนุมัติ เมื่ออนุมัติแล้วจึงจะเข้าใช้งานได้')}</p>
           <button id="pending-logout" class="btn-primary mt-6 w-full">${tr('logout', 'ออกจากระบบ')}</button>
         </section>
       </main>`;

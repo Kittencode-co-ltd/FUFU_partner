@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   STORE_ID:       'fufu_store_id',
   STORE_NAME:     'fufu_store_name',
   STORE_CATEGORY: 'fufu_store_category',
+  STORE_ACTIVE:   'fufu_store_active',
   MASKING_LEVEL:  'fufu_masking_level',
   FONT_SCALE:     'fufu_font_scale',
   STAFF_ID:       'fufu_staff_id',

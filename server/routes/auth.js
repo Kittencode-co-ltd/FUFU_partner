@@ -13,6 +13,15 @@ const supabase = createClient(
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const validEmail = value => typeof value === 'string' && value.length <= 254 && EMAIL.test(value);
 const validPassword = value => typeof value === 'string' && value.length >= 8 && value.length <= 128;
+const STORE_FIELDS = 'id, name, category, verification_status, is_verified, is_active';
+const LEGACY_STORE_FIELDS = 'id, name, category, is_verified, is_active';
+const missingVerificationStatus = error => String(error?.message || '').includes('verification_status');
+
+async function queryStores(makeQuery) {
+  let result = await makeQuery(STORE_FIELDS);
+  if (missingVerificationStatus(result.error)) result = await makeQuery(LEGACY_STORE_FIELDS);
+  return result;
+}
 
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
@@ -67,20 +76,22 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
   );
 
   // 1. Look up owned stores (by owner_id, then by owner_email fallback)
-  let { data: stores } = await userSb
-    .from('stores')
-    .select('id, name, category, is_verified')
-    .eq('owner_id', data.user.id);
+  let { data: stores, error: storesError } = await queryStores(fields => userSb
+    .from('stores').select(fields).eq('owner_id', data.user.id));
 
   if (!stores?.length) {
-    const { data: byEmail } = await userSb
-      .from('stores')
-      .select('id, name, category, is_verified')
-      .eq('owner_email', data.user.email);
+    const { data: byEmail, error: emailError } = await queryStores(fields => userSb
+      .from('stores').select(fields).eq('owner_email', data.user.email));
     stores = byEmail;
+    storesError = emailError;
   }
+  if (storesError) {
+    console.error('[Partner login] Store lookup failed:', storesError.code || storesError.message);
+    return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+  }
+  const ownedForReview = stores || [];
   let hasPartnerStore = Boolean(stores?.length);
-  stores = (stores || []).filter(store => store.is_verified === true);
+  stores = (stores || []).filter(store => (store.verification_status || (store.is_verified ? 'accept' : 'pending')) === 'accept');
 
   // 2. If not owner → check staff membership
   let isStaffMember = false;
@@ -94,12 +105,14 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
     if (staffRows?.length) {
       isStaffMember = true;
       const storeIds = [...new Set(staffRows.map(s => s.store_id))];
-      const { data: staffStores } = await userSb
-        .from('stores')
-        .select('id, name, category, is_verified')
-        .in('id', storeIds);
+      const { data: staffStores, error: staffStoresError } = await queryStores(fields => userSb
+        .from('stores').select(fields).in('id', storeIds));
+      if (staffStoresError) {
+        console.error('[Partner login] Staff store lookup failed:', staffStoresError.code || staffStoresError.message);
+        return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+      }
       hasPartnerStore = hasPartnerStore || Boolean(staffStores?.length);
-      stores = (staffStores || []).filter(store => store.is_verified === true).map(store => {
+      stores = (staffStores || []).filter(store => (store.verification_status || (store.is_verified ? 'accept' : 'pending')) === 'accept').map(store => {
         const staffRow = staffRows.find(s => s.store_id === store.id);
         // normalize role → roles[] for frontend compatibility
         const roleArr = staffRow?.role ? [staffRow.role] : ['staff'];
@@ -109,10 +122,13 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
   }
 
   if (hasPartnerStore && !stores?.length) {
+    const allOwned = ownedForReview;
     return res.status(403).json({
       success: false,
-      code: 'PARTNER_PENDING_APPROVAL',
-      error: 'บัญชีพาร์ทเนอร์กำลังรอ FUFU อนุมัติ กรุณารอการตรวจสอบก่อนเข้าใช้งาน',
+      code: allOwned.some(store => store.verification_status === 'reject') ? 'PARTNER_REJECTED' : 'PARTNER_PENDING_APPROVAL',
+      error: allOwned.some(store => store.verification_status === 'reject')
+        ? 'คำขอสมัครพาร์ทเนอร์ไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ'
+        : 'บัญชีพาร์ทเนอร์กำลังรอ FUFU อนุมัติ กรุณารอการตรวจสอบก่อนเข้าใช้งาน',
     });
   }
 
@@ -246,30 +262,33 @@ router.post('/register', authRateLimit, async (req, res) => {
 // Confirm access on every dashboard load, including sessions issued before
 // approval checks were enabled.
 router.get('/partner-access', requireAuth, async (req, res) => {
-  let { data: owned } = await req.supabase
-    .from('stores')
-    .select('id, is_verified')
-    .eq('owner_id', req.user.id);
+  let { data: owned, error: ownedError } = await queryStores(fields => req.supabase
+    .from('stores').select(fields).eq('owner_id', req.user.id));
   if (!owned?.length) {
-    const { data: byEmail } = await req.supabase
-      .from('stores').select('id, is_verified').eq('owner_email', req.user.email);
+    const { data: byEmail, error: emailError } = await queryStores(fields => req.supabase
+      .from('stores').select(fields).eq('owner_email', req.user.email));
     owned = byEmail;
+    ownedError = emailError;
   }
+  if (ownedError) return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
   const ownedStores = owned || [];
-  const verifiedOwned = ownedStores.some(store => store.is_verified === true);
-  if (verifiedOwned) return res.json({ success: true, status: 'approved' });
+  const acceptedOwned = ownedStores.filter(store => (store.verification_status || (store.is_verified ? 'accept' : 'pending')) === 'accept');
+  if (acceptedOwned.length) return res.json({ success: true, status: 'approved', stores: acceptedOwned });
 
   const { data: staffRows } = await req.supabase
     .from('staff').select('store_id').eq('email', req.user.email).eq('is_active', true);
   if (staffRows?.length) {
-    const { data: staffStores } = await req.supabase
-      .from('stores').select('is_verified').in('id', staffRows.map(row => row.store_id));
-    if (staffStores?.some(store => store.is_verified === true)) {
-      return res.json({ success: true, status: 'approved' });
+    const { data: staffStores, error: staffStoresError } = await queryStores(fields => req.supabase
+      .from('stores').select(fields).in('id', staffRows.map(row => row.store_id)));
+    if (staffStoresError) return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+    const acceptedStaffStores = (staffStores || []).filter(store => (store.verification_status || (store.is_verified ? 'accept' : 'pending')) === 'accept');
+    if (acceptedStaffStores.length) {
+      return res.json({ success: true, status: 'approved', stores: acceptedStaffStores });
     }
   }
 
-  return res.json({ success: true, status: ownedStores.length || staffRows?.length ? 'pending' : 'onboarding' });
+  const rejected = ownedStores.some(store => store.verification_status === 'reject');
+  return res.json({ success: true, status: rejected ? 'rejected' : ownedStores.length || staffRows?.length ? 'pending' : 'onboarding' });
 });
 
 // ─── POST /api/auth/change-password ──────────────────────────────────────────

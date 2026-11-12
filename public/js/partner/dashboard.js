@@ -371,6 +371,7 @@ export async function initDashboard() {
   const user    = getCurrentUser();
   const store   = getCurrentStore();
   const catInfo = CATEGORY_MAP[store.category] || { label: store.category || '', icon: 'store' };
+  const isStoreActive = storage.get(STORAGE_KEYS.STORE_ACTIVE) !== 'false';
 
   const q = (id) => document.getElementById(id);
   if (q('sb-store-name')) q('sb-store-name').textContent = store.name || 'ร้านของคุณ';
@@ -420,6 +421,31 @@ export async function initDashboard() {
 
   q('logout-btn')?.addEventListener('click', logout);
 
+  if (!isStoreActive) {
+    const main = q('app-main');
+    if (main) {
+      const banner = document.createElement('section');
+      banner.className = 'mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-sm';
+      banner.setAttribute('role', 'status');
+      banner.innerHTML = '<div class="flex items-start gap-3"><span class="text-xl" aria-hidden="true">⚠️</span><div><strong class="block">ร้านถูกปิดใช้งานชั่วคราว</strong><p class="mt-1 text-sm">ขณะนี้คุณดูข้อมูลใน Partner ได้ แต่ยังทำรายการหรือแก้ไขข้อมูลไม่ได้ กรุณาติดต่อผู้ดูแลระบบ FUFU เพื่อเปิดใช้งาน</p></div></div>';
+      main.prepend(banner);
+      main.classList.add('partner-store-readonly');
+      main.addEventListener('click', event => {
+        if (event.target.closest('button, input, select, textarea, form, [role="button"]')) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      }, true);
+      main.addEventListener('submit', event => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }, true);
+      main.querySelectorAll('button, input, select, textarea').forEach(control => {
+        control.setAttribute('aria-disabled', 'true');
+      });
+    }
+  }
+
   _initSidebarToggle();
   initResponsiveEnhancements();
 
@@ -443,7 +469,7 @@ export async function initDashboard() {
   navigate(canRestore ? lastPage : defaultPage);
 
   _initOfflineBadge();
-  startSyncEngine();
+  if (isStoreActive) startSyncEngine();
 }
 
 // ─── Offline badge ────────────────────────────────────────────────────────────

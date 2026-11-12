@@ -25,15 +25,19 @@ export async function attachStoreRole(req, res, next) {
     // User-scoped queries keep authorization fail-closed under RLS.
     const { data: store } = await req.supabase
       .from('stores')
-      .select('owner_id, owner_email, is_verified')
+      .select('owner_id, owner_email, verification_status, is_verified, is_active')
       .eq('id', storeId)
       .single();
 
-    if (store && store.is_verified !== true) {
+    const verificationStatus = store?.verification_status || (store?.is_verified ? 'accept' : 'pending');
+    req.storeIsActive = store?.is_active !== false;
+    if (store && verificationStatus !== 'accept') {
       return res.status(403).json({
         success: false,
-        code: 'PARTNER_PENDING_APPROVAL',
-        error: 'ร้านค้ายังรอ FUFU อนุมัติ จึงยังเข้าใช้งานระบบ Partner ไม่ได้',
+        code: verificationStatus === 'reject' ? 'PARTNER_REJECTED' : 'PARTNER_PENDING_APPROVAL',
+        error: verificationStatus === 'reject'
+          ? 'ร้านค้านี้ไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ'
+          : 'ร้านค้ายังรอ FUFU อนุมัติ จึงยังเข้าใช้งานระบบ Partner ไม่ได้',
       });
     }
 
@@ -66,6 +70,36 @@ export async function attachStoreRole(req, res, next) {
   }
 }
 
+/** Prevent write requests for a deactivated store while preserving read access. */
+export async function guardInactiveStoreMutations(req, res, next) {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+  if (!req.headers.authorization?.startsWith('Bearer ')) return next();
+
+  const storeId = req.query.store_id || req.body?.store_id;
+  if (!storeId) return next();
+
+  try {
+    const { requireAuth } = await import('./auth.js');
+    return requireAuth(req, res, async () => {
+      const { data: store } = await req.supabase
+        .from('stores')
+        .select('is_active')
+        .eq('id', storeId)
+        .maybeSingle();
+      if (store && store.is_active === false) {
+        return res.status(403).json({
+          success: false,
+          code: 'PARTNER_STORE_DEACTIVATED',
+          error: 'ร้านค้านี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+        });
+      }
+      next();
+    });
+  } catch {
+    return res.status(503).json({ success: false, error: 'ตรวจสอบสถานะร้านไม่สำเร็จ กรุณาลองใหม่' });
+  }
+}
+
 /**
  * Middleware factory — only passes requests where req.staffRole is one of `allowed`.
  * Automatically calls attachStoreRole first.
@@ -78,6 +112,13 @@ export function requireRole(...allowed) {
   return [
     attachStoreRole,
     (req, res, next) => {
+      if (req.storeIsActive === false && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+        return res.status(403).json({
+          success: false,
+          code: 'PARTNER_STORE_DEACTIVATED',
+          error: 'ร้านค้านี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+        });
+      }
       if (!req.staffRole) {
         return res.status(403).json({ error: 'ไม่มีสิทธิ์เข้าถึง store นี้' });
       }

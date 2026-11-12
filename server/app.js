@@ -34,6 +34,7 @@ import screeningsRoutes     from './routes/screenings.js';
 import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
 import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
 import { validateEnvironment } from './config/env.js';
+import { guardInactiveStoreMutations } from './middleware/rbac.js';
 
 export function createApiApp({ withFallback = true } = {}) {
   validateEnvironment();
@@ -51,6 +52,7 @@ export function createApiApp({ withFallback = true } = {}) {
 
   app.use('/api/auth',            authRoutes);
   app.use('/api/public/clinics',  publicClinicRoutes);
+  app.use('/api', guardInactiveStoreMutations);
   app.use('/api/clinic',          clinicRoutes);
   app.use('/api/queue',           queueRoutes);
   app.use('/api/medical-records', medicalRoutes);
