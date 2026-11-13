@@ -5,6 +5,7 @@ import { STORAGE_KEYS } from '../utils/config.js';
 import { escapeHtml } from '../utils/formatters.js';
 import { icon } from '../utils/icons.js';
 import { can } from '../utils/permissions.js';
+import { openSendToCashier } from './send-to-cashier.js';
 
 const SERVICE_TYPES = ['ตรวจทั่วไป', 'วัคซีน', 'ผ่าตัด', 'ทำฟัน', 'ตรวจเลือด', 'อาบน้ำ-ตัดขน', 'อื่นๆ'];
 
@@ -29,6 +30,8 @@ const STATUS_CFG = {
   waiting:     { label: 'รอ',          badge: 'badge-gold',                 border: 'border-l-amber-400' },
   called:      { label: 'เรียกแล้ว',  badge: 'badge-teal',                 border: 'border-l-primary'   },
   in_progress: { label: 'กำลังรักษา', badge: 'bg-blue-50 text-blue-600',   border: 'border-l-blue-500'  },
+  cashier_waiting: { label: 'รอชำระ', badge: 'bg-orange-50 text-orange-700', border: 'border-l-orange-400' },
+  cancelled:   { label: 'ยกเลิก',      badge: 'bg-slate-100 text-slate-400', border: 'border-l-slate-200' },
   completed:   { label: 'เสร็จ',       badge: 'badge-navy',                 border: 'border-l-slate-200' },
   no_show:     { label: 'ไม่มา',       badge: 'bg-slate-100 text-slate-400', border: 'border-l-slate-200' },
 };
@@ -37,7 +40,8 @@ const KANBAN_COLS = [
   { key: 'waiting',     label: 'รอคิว',    icon: IC.clock,     statuses: ['waiting'],              hdrCls: 'text-amber-600', countCls: 'bg-amber-100 text-amber-700' },
   { key: 'called',      label: 'เรียกอยู่', icon: IC.megaphone, statuses: ['called'],               hdrCls: 'text-brand',  countCls: 'bg-brand-subtle text-brand'   },
   { key: 'in_progress', label: 'ตรวจอยู่',  icon: IC.pulse,     statuses: ['in_progress'],          hdrCls: 'text-blue-600',  countCls: 'bg-blue-100 text-blue-700'   },
-  { key: 'done',        label: 'เสร็จสิ้น', icon: IC.check,     statuses: ['completed', 'no_show'], hdrCls: 'text-slate-500', countCls: 'bg-slate-100 text-slate-600'  },
+  { key: 'cashier',     label: 'รอชำระ',   icon: IC.card,      statuses: ['cashier_waiting'],      hdrCls: 'text-orange-600', countCls: 'bg-orange-100 text-orange-700' },
+  { key: 'done',        label: 'เสร็จสิ้น', icon: IC.check,     statuses: ['completed', 'no_show', 'cancelled'], hdrCls: 'text-slate-500', countCls: 'bg-slate-100 text-slate-600'  },
 ];
 
 let _storeId = '';
@@ -336,7 +340,7 @@ function _kanbanCard(q) {
   const cfg = STATUS_CFG[q.status] || STATUS_CFG.waiting;
   const num = String(q.queue_number).padStart(3, '0');
   const isEmergency = q.priority === 'emergency';
-  const isDone = q.status === 'completed' || q.status === 'no_show';
+  const isDone = ['completed', 'no_show', 'cancelled'].includes(q.status);
 
   const [petName, ownerName] = (q.notes || '').includes(' - ')
     ? (q.notes || '').split(' - ').map(s => s.trim())
@@ -352,7 +356,7 @@ function _kanbanCard(q) {
           <span class="font-mono font-bold text-primary text-sm">A${num}</span>
           ${isEmergency ? `<span class="text-red-500 font-bold" title="ด่วน">${IC.alert}</span>` : ''}
         </div>
-        ${q.status === 'called' ? _moreMenu(q) : ''}
+        ${['waiting', 'called', 'in_progress'].includes(q.status) ? _moreMenu(q) : ''}
       </div>
       <div class="font-semibold text-navy text-sm truncate">${escapeHtml(petName) || '—'}</div>
       ${ownerName ? `<div class="text-xs text-slate-400 font-body truncate">${escapeHtml(ownerName)}</div>` : ''}
@@ -362,26 +366,36 @@ function _kanbanCard(q) {
 
 function _primaryAction(q) {
   const btn = (action, label, cls) =>
-    `<button data-action="${action}" data-id="${q.id}" data-queue='${JSON.stringify(q)}'
+    `<button data-action="${action}" data-id="${q.id}" data-queue="${escapeHtml(JSON.stringify(q))}"
              class="${cls} w-full text-xs py-1.5 rounded-lg transition-all font-semibold text-center">${label}</button>`;
 
   if (q.status === 'waiting')     return btn('call',     `<span class="flex items-center justify-center gap-1">${IC.megaphone} เรียก</span>`,     'bg-primary text-white hover:bg-primary-dark');
   if (q.status === 'called')      return btn('start',    `<span class="flex items-center justify-center gap-1">${IC.play} เริ่มรักษา</span>`,  'bg-blue-500 text-white hover:bg-blue-600');
-  if (q.status === 'in_progress') return btn('complete', `<span class="flex items-center justify-center gap-1">${IC.check} เสร็จ</span>`,       'bg-primary text-white hover:bg-primary-dark');
+  if (q.status === 'in_progress') return btn('send-cashier', `<span class="flex items-center justify-center gap-1">${IC.card} ส่งชำระเงิน</span>`, 'bg-primary text-white hover:bg-primary-dark');
+  if (q.status === 'cashier_waiting') return btn('go-cashier', `<span class="flex items-center justify-center gap-1">${IC.receipt} ไปแคชเชียร์</span>`, 'border border-orange-300 text-orange-700 hover:bg-orange-50');
   return '';
 }
 
 function _moreMenu(q) {
   const menuBtn = (action, label, cls) =>
-    `<button data-action="${action}" data-id="${q.id}" data-queue='${JSON.stringify(q)}'
+    `<button data-action="${action}" data-id="${q.id}" data-queue="${escapeHtml(JSON.stringify(q))}"
              class="${cls} w-full text-left text-xs px-3 py-1.5 rounded-lg font-body">${label}</button>`;
+  const items = [];
+  if (q.status === 'called') {
+    items.push(menuBtn('recall', `<span class="flex items-center gap-1.5">${IC.refresh} เรียกซ้ำ</span>`, 'hover:bg-slate-50 text-slate-600'));
+    items.push(menuBtn('noshow', `<span class="flex items-center gap-1.5">${IC.xmark} ไม่มา</span>`, 'hover:bg-slate-50 text-slate-600'));
+  }
+  if (q.status === 'in_progress') {
+    items.push(menuBtn('pause', `<span class="flex items-center gap-1.5">${IC.clock} พักคิว (กลับไปรอ)</span>`, 'hover:bg-slate-50 text-slate-600'));
+    items.push(menuBtn('complete', `<span class="flex items-center gap-1.5">${IC.check} ปิดคิว ไม่มีค่าใช้จ่าย</span>`, 'hover:bg-slate-50 text-slate-600'));
+  }
+  items.push(menuBtn('cancel', `<span class="flex items-center gap-1.5">${IC.xmark} ยกเลิกคิว</span>`, 'hover:bg-red-50 text-red-500'));
   return `
     <details class="relative">
       <summary class="list-none w-7 h-7 flex items-center justify-center rounded-lg
-                      text-slate-400 hover:bg-slate-200 cursor-pointer select-none text-base leading-none">⋯</summary>
-      <div class="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 space-y-0.5 min-w-32">
-        ${menuBtn('recall', `<span class="flex items-center gap-1.5">${IC.refresh} เรียกซ้ำ</span>`, 'hover:bg-slate-50 text-slate-600')}
-        ${menuBtn('noshow', `<span class="flex items-center gap-1.5">${IC.xmark} ไม่มา</span>`,    'hover:bg-red-50 text-red-500')}
+                      text-slate-400 hover:bg-slate-100 cursor-pointer select-none text-base leading-none" aria-label="ตัวเลือกเพิ่มเติม">⋯</summary>
+      <div class="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 space-y-0.5 min-w-40">
+        ${items.join('')}
       </div>
     </details>`;
 }
@@ -390,7 +404,7 @@ function _queueCard(q) {
   const cfg = STATUS_CFG[q.status] || STATUS_CFG.waiting;
   const num = String(q.queue_number).padStart(3, '0');
   const isEmergency = q.priority === 'emergency';
-  const isDone = q.status === 'completed' || q.status === 'no_show';
+  const isDone = ['completed', 'no_show', 'cancelled'].includes(q.status);
 
   const notes = q.notes || '';
   const [petName, ownerName] = notes.includes(' - ')
@@ -436,7 +450,7 @@ function _queueCard(q) {
 
 function _cardActions(q) {
   const btn = (action, label, cls = 'btn-outline text-xs px-3 py-1.5') =>
-    `<button data-action="${action}" data-id="${q.id}" data-queue='${JSON.stringify(q)}'
+    `<button data-action="${action}" data-id="${q.id}" data-queue="${escapeHtml(JSON.stringify(q))}"
              class="${cls} rounded-lg transition-all">${label}</button>`;
 
   const icoBtn = (icon, label) => `<span class="inline-flex items-center gap-1">${icon} ${label}</span>`;
@@ -450,13 +464,16 @@ function _cardActions(q) {
     ${btn('opd',    icoBtn(IC.clipboard, 'OPD'),    'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}`;
 
   if (q.status === 'in_progress') return `
-    ${btn('complete', icoBtn(IC.check,     'เสร็จ'),  'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
+    ${btn('send-cashier', icoBtn(IC.card, 'ส่งชำระเงิน'), 'bg-primary text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors')}
     ${btn('opd',      icoBtn(IC.clipboard, 'OPD'),    'border border-primary text-primary text-xs px-3 py-1.5 rounded-lg hover:bg-primary-subtle transition-colors')}
-    ${btn('pos',      icoBtn(IC.card,      'ชำระ'),   'border border-amber-400 text-amber-600 text-xs px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-colors')}`;
+    ${_moreMenu(q)}`;
+
+  if (q.status === 'cashier_waiting') return `
+    ${btn('go-cashier', icoBtn(IC.receipt, 'ไปแคชเชียร์'), 'border border-orange-300 text-orange-700 text-xs px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-colors')}`;
 
   if (q.status === 'completed') return `
     ${btn('opd', icoBtn(IC.clipboard, 'ดู OPD'),   'border border-slate-200 text-slate-400 text-xs px-3 py-1.5 rounded-lg')}
-    ${btn('pos', icoBtn(IC.receipt,   'ใบเสร็จ'),  'border border-slate-200 text-slate-400 text-xs px-3 py-1.5 rounded-lg')}`;
+`;
 
   return '';
 }
@@ -473,13 +490,32 @@ async function _handleCardAction(e) {
   const { action, id } = btn.dataset;
 
   // Gate write actions to users with queue edit permission
-  const writeActions = ['call','recall','start','complete','noshow'];
+  const writeActions = ['call','recall','start','complete','noshow','pause','cancel','send-cashier'];
   if (writeActions.includes(action) && !can('queue','edit')) {
     showToast('คุณไม่มีสิทธิ์แก้ไขคิว', 'error');
     return;
   }
 
-  const STATUS_MAP = { call: 'called', recall: 'called', start: 'in_progress', complete: 'completed', noshow: 'no_show' };
+  const queueItem = () => { try { return JSON.parse(btn.dataset.queue || 'null'); } catch { return null; } };
+  if (action === 'opd') {
+    // Open the exam room with this patient already loaded
+    import('./dashboard.js').then(({ navigate }) => navigate('opd', queueItem() || { id }));
+    return;
+  }
+  if (action === 'go-cashier') {
+    import('./dashboard.js').then(({ navigate }) => navigate('cashier'));
+    return;
+  }
+  if (action === 'send-cashier') {
+    let item = null;
+    try { item = JSON.parse(btn.dataset.queue || 'null'); } catch { item = { id }; }
+    openSendToCashier({ queueItem: item || { id }, onDone: () => _loadQueue() });
+    return;
+  }
+  if (action === 'cancel' && !confirm('ยกเลิกคิวนี้? ทำได้ก่อนรับชำระเงินเท่านั้น')) return;
+  if (action === 'complete' && !confirm('ปิดคิวนี้โดยไม่มีค่าใช้จ่าย?')) return;
+
+  const STATUS_MAP = { call: 'called', recall: 'called', start: 'in_progress', complete: 'completed', noshow: 'no_show', pause: 'waiting', cancel: 'cancelled' };
   const newStatus = STATUS_MAP[action];
   if (!newStatus) return;
 
@@ -492,10 +528,16 @@ async function _handleCardAction(e) {
   });
 
   if (res?.success) {
+    // Clinic: starting treatment goes straight to the exam room with this patient (next step of the visit)
+    if (action === 'start' && storage.get(STORAGE_KEYS.ROLE) === 'vet') {
+      showToast('เริ่มรักษาแล้ว · เปิดห้องตรวจ');
+      import('./dashboard.js').then(({ navigate }) => navigate('opd', { ...(queueItem() || {}), ...res.data }));
+      return;
+    }
     await _loadQueue();
     showToast(action === 'recall' ? 'เรียกซ้ำแล้ว' : _statusMsg(newStatus));
   } else {
-    showToast('เกิดข้อผิดพลาด', 'error');
+    showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
     btn.disabled = false;
     await _loadQueue();
   }
@@ -812,6 +854,8 @@ function _statusMsg(status) {
     in_progress: 'เริ่มรักษาแล้ว',
     completed: 'บันทึกเสร็จสิ้น',
     no_show: 'บันทึก: ไม่มา',
+    waiting: 'พักคิวแล้ว · กลับไปรอเรียก',
+    cancelled: 'ยกเลิกคิวแล้ว',
   };
   return MAP[status] || 'อัพเดทแล้ว';
 }

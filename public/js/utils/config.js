@@ -12,7 +12,8 @@ export const STORAGE_KEYS = {
   STORE_CATEGORY: 'fufu_store_category',
   STORE_ACTIVE:   'fufu_store_active',
   MASKING_LEVEL:  'fufu_masking_level',
-  FONT_SCALE:     'fufu_font_scale',
+  // Text size + theme are device preferences (fufu_font_scale / fufu_theme), handled by
+  // public/js/theme-init.js and kept out of STORAGE_KEYS so logout does not reset them.
   STAFF_ID:       'fufu_staff_id',
   STAFF_ROLE:     'fufu_staff_role',
   PROMPTPAY_ID:   'fufu_promptpay_id',

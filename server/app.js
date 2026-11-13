@@ -31,6 +31,7 @@ import clinicRoutes         from './routes/clinic.js';
 import publicClinicRoutes   from './routes/public-clinics.js';
 import visitsRoutes         from './routes/visits.js';
 import screeningsRoutes     from './routes/screenings.js';
+import cashierRoutes        from './routes/cashier.js';
 import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
 import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
 import { validateEnvironment } from './config/env.js';
@@ -61,6 +62,7 @@ export function createApiApp({ withFallback = true } = {}) {
   app.use('/api/inventory',       inventoryRoutes);
   app.use('/api/pets',            petsRoutes);
   app.use('/api/pos',             posRoutes);
+  app.use('/api/cashier',         cashierRoutes);
   app.use('/api/hotel',           hotelRoutes);
   app.use('/api/grooming',        groomingRoutes);
   app.use('/api/staff',           staffRoutes);

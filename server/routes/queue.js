@@ -115,15 +115,40 @@ router.post('/', requireRole('owner', 'vet', 'reception', 'staff', 'counter'), a
   res.json({ success: true, data });
 });
 
+// Allowed status changes. cashier_waiting is entered and left only through /api/cashier
+// (fufu_open_invoice / fufu_settle_invoice / fufu_return_to_treatment), so a bill cannot be skipped.
+const QUEUE_TRANSITIONS = {
+  waiting:     ['called', 'in_progress', 'no_show', 'cancelled'],
+  called:      ['called', 'waiting', 'in_progress', 'no_show', 'cancelled'],
+  in_progress: ['waiting', 'completed', 'cancelled'],
+};
+const QUEUE_EDITABLE = ['status', 'priority', 'notes', 'assigned_staff_id', 'estimated_time', 'service_type', 'cancel_reason'];
+
 // PATCH /api/queue/:id
 router.patch('/:id', resolveStoreId('queue_entries'), requireRole('owner', 'vet', 'reception', 'staff', 'counter'), async (req, res) => {
-  const updates = { ...req.body };
-  delete updates.id;
+  const updates = Object.fromEntries(Object.entries(req.body || {}).filter(([key]) => QUEUE_EDITABLE.includes(key)));
+  if (!Object.keys(updates).length) return res.status(400).json({ error: 'nothing to update' });
 
-  if (updates.status === 'called')      updates.called_at    = new Date().toISOString();
-  if (updates.status === 'in_progress') updates.started_at   = new Date().toISOString();
-  if (updates.status === 'completed')   updates.completed_at = new Date().toISOString();
-  if (updates.status === 'no_show')     updates.completed_at = new Date().toISOString();
+  if (updates.status) {
+    const { data: current, error: readErr } = await req.supabase
+      .from('queue_entries').select('status').eq('id', req.params.id).single();
+    if (readErr || !current) return res.status(404).json({ error: 'ไม่พบคิวนี้' });
+    if (!(QUEUE_TRANSITIONS[current.status] || []).includes(updates.status)) {
+      return res.status(409).json({
+        code: 'invalid_transition',
+        error: current.status === 'cashier_waiting'
+          ? 'คิวนี้อยู่ที่แคชเชียร์ · รับชำระหรือส่งกลับไปแก้การรักษาจากหน้าแคชเชียร์'
+          : 'เปลี่ยนสถานะคิวนี้ไม่ได้',
+      });
+    }
+  }
+
+  const now = new Date().toISOString();
+  if (updates.status === 'called')      updates.called_at    = now;
+  if (updates.status === 'in_progress') updates.started_at   = now;
+  if (updates.status === 'completed')   updates.completed_at = now;
+  if (updates.status === 'no_show')     updates.completed_at = now;
+  if (updates.status === 'cancelled')   updates.cancelled_at = now;
 
   const { data, error } = await req.supabase
     .from('queue_entries')

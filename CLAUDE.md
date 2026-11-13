@@ -72,7 +72,7 @@ All keys are defined in `public/js/utils/config.js → STORAGE_KEYS`. Use `stora
 | `STAFF_ID` | `fufu_staff_id` | Staff member UUID (for audit logs) |
 | `STAFF_ROLE` | `fufu_staff_role` | `owner` \| `vet` \| `reception` \| `staff` \| `accountant` |
 | `MASKING_LEVEL` | `fufu_masking_level` | `1` (full) \| `2` (partial) \| `3` (hidden) |
-| `FONT_SCALE` | `fufu_font_scale` | UI font size preference |
+| — | `fufu_font_scale` / `fufu_theme` | Text size and theme (device preference, set from the profile menu; not cleared on logout) |
 | `PROMPTPAY_ID` | `fufu_promptpay_id` | PromptPay ID for payment QR |
 
 `fufu_mode` (mode switcher state, not in `STORAGE_KEYS`) is managed by `dashboard.js` directly.

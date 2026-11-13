@@ -131,22 +131,19 @@ async function _renderBusinessHome(container, storeId, role) {
         ];
 
   container.innerHTML = `
-    <div class="space-y-5">
-      <div class="rounded-2xl bg-navy text-white p-6 sm:p-8 shadow-card">
-        <div class="text-[11px] font-bold tracking-[0.16em] text-white/65">${config.eyebrow}</div>
-        <div class="mt-2 flex flex-wrap items-end justify-between gap-4">
-          <div><h1 class="text-2xl sm:text-3xl font-bold">${config.title}</h1>
-            <p class="mt-2 text-sm text-white/75">${config.description}</p></div>
-          <button type="button" data-home-refresh class="min-h-11 rounded-xl border border-white/25 px-4 text-sm font-semibold hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">รีเฟรชข้อมูล</button>
+    <div class="space-y-4 sm:space-y-5">
+      <div class="ph-head">
+        <div>
+          <h1 class="ph-title">${config.title}</h1>
+          <p class="ph-sub">${config.description}</p>
         </div>
-        <div class="mt-6 flex flex-wrap gap-2">
-          ${config.actions.map(action => `<button type="button" data-home-nav="${action.id}" class="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors ${action.primary ? 'bg-accent text-white hover:bg-accent-dark' : 'bg-white/10 text-white hover:bg-white/20'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">${icon(action.icon, 'w-4 h-4')}<span>${action.label}</span></button>`).join('')}
-        </div>
+        <button type="button" data-home-refresh class="ph-btn">${icon('exchange-alt', 'w-3.5 h-3.5')}รีเฟรช</button>
       </div>
-      <div id="business-home-data" class="space-y-5">
-        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
-          ${[1, 2, 3, 4].map(() => '<div class="card h-28 animate-pulse bg-slate-50" aria-hidden="true"></div>').join('')}
-        </div>
+      <div class="ph-actions">
+        ${config.actions.map(action => `<button type="button" data-home-nav="${action.id}" class="ph-btn ${action.primary ? 'is-primary' : ''}">${icon(action.icon, 'w-4 h-4')}<span>${action.label}</span></button>`).join('')}
+      </div>
+      <div id="business-home-data" class="space-y-4 sm:space-y-5">
+        <div class="skeleton ph-skel" aria-hidden="true"></div>
       </div>
     </div>`;
 
@@ -163,7 +160,7 @@ async function _renderBusinessHome(container, storeId, role) {
     const products = rows(data[0]);
     const invoices = rows(data[1]);
     const lowStock = products.filter(product => Number(product.stock || 0) <= Number(product.reorder_point || 0));
-    const todaysInvoices = invoices.filter(invoice => String(invoice.created_at || '').slice(0, 10) === today);
+    const todaysInvoices = invoices.filter(invoice => invoice.created_at && _localDateKey(new Date(invoice.created_at)) === today);
     const sales = todaysInvoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
     metrics = [
       ['สินค้าในคลัง', data[0] ? products.length : '—', 'รายการที่เปิดขาย', 'box', 'text-primary'],
@@ -182,7 +179,7 @@ async function _renderBusinessHome(container, storeId, role) {
     const rooms = rows(data[0]);
     const requested = rows(data[1]);
     const upcoming = rows(data[2]);
-    const todayBookings = [...requested, ...upcoming].filter(item => (item.appt_date || item.starts_at?.slice(0, 10)) === today);
+    const todayBookings = _uniqueById([...requested, ...upcoming]).filter(item => _apptDate(item) === today);
     const occupied = rooms.filter(room => room.status === 'occupied').length;
     metrics = [
       ['ห้องทั้งหมด', data[0] ? rooms.length : '—', 'ห้องในระบบ', 'bed', 'text-primary'],
@@ -193,7 +190,7 @@ async function _renderBusinessHome(container, storeId, role) {
     recentTitle = 'งานที่ต้องดูวันนี้';
     recentRows = todayBookings.slice(0, 5).map(item => ({
       primary: item.pet_name || item.notes || 'สัตว์เลี้ยง',
-      secondary: `${item.appt_time_slot || item.starts_at?.slice(11, 16) || 'ไม่ระบุเวลา'} · ${item.owner_name || item.customer_name || 'เจ้าของสัตว์'}`,
+      secondary: `${_apptTime(item)} · ${item.owner_name || item.customer_name || 'เจ้าของสัตว์'}`,
       trailing: _appointmentStatus(item.status),
     }));
     emptyMessage = 'วันนี้ยังไม่มีการจองหรือเช็กอิน';
@@ -201,8 +198,8 @@ async function _renderBusinessHome(container, storeId, role) {
     const requested = rows(data[0]);
     const upcoming = rows(data[1]);
     const queue = rows(data[2]);
-    const appointments = [...requested, ...upcoming];
-    const todayAppointments = appointments.filter(item => (item.appt_date || item.starts_at?.slice(0, 10)) === today);
+    const appointments = _uniqueById([...requested, ...upcoming]);
+    const todayAppointments = appointments.filter(item => _apptDate(item) === today);
     metrics = [
       ['นัดหมายวันนี้', data[0] && data[1] ? todayAppointments.length : '—', 'บริการที่กำหนดไว้วันนี้', 'calendar-alt', 'text-primary'],
       ['รอยืนยัน', data[0] ? requested.length : '—', 'คำขอใหม่จากเจ้าของสัตว์', 'clipboard-list', requested.length ? 'text-orange-600' : 'text-primary'],
@@ -210,9 +207,9 @@ async function _renderBusinessHome(container, storeId, role) {
       ['บริการที่เปิด', '—', 'ดูแลรายการบริการในหน้า Grooming', 'cut', 'text-primary'],
     ];
     recentTitle = 'นัดหมายที่ต้องดำเนินการ';
-    recentRows = [...requested, ...todayAppointments].slice(0, 5).map(item => ({
+    recentRows = _uniqueById([...requested, ...todayAppointments]).slice(0, 5).map(item => ({
       primary: item.pet_name || item.notes || 'สัตว์เลี้ยง',
-      secondary: `${item.appt_time_slot || item.starts_at?.slice(11, 16) || 'ไม่ระบุเวลา'} · ${item.owner_name || item.customer_name || 'เจ้าของสัตว์'}`,
+      secondary: `${_apptTime(item)} · ${item.owner_name || item.customer_name || 'เจ้าของสัตว์'}`,
       trailing: _appointmentStatus(item.status),
     }));
     emptyMessage = 'ยังไม่มีนัดหมายที่ต้องดำเนินการ';
@@ -220,14 +217,15 @@ async function _renderBusinessHome(container, storeId, role) {
 
   const dataContainer = container.querySelector('#business-home-data');
   if (!dataContainer) return;
+  // metric color hint → a quiet state: orange text when something needs attention
   dataContainer.innerHTML = `
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
-      ${metrics.map(([label, value, detail, glyph, color]) => `<article class="card p-4 sm:p-5 min-h-32"><div class="flex items-start justify-between gap-2"><div class="text-sm text-slate-500">${label}</div><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-subtle ${color}">${icon(glyph, 'w-4 h-4')}</span></div><div class="mt-3 text-2xl sm:text-3xl font-bold text-navy tabular-nums">${value}</div><div class="mt-1 text-xs text-slate-400">${detail}</div></article>`).join('')}
-    </div>
-    <section class="card overflow-hidden">
-      <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4"><div><h2 class="font-semibold text-navy">${recentTitle}</h2><p class="mt-1 text-xs text-slate-400">ข้อมูลจริงจากระบบของร้าน</p></div><span class="text-xs font-medium text-slate-400">${new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span></div>
-      ${recentRows.length ? `<div class="divide-y divide-slate-100">${recentRows.map(row => `<div class="flex items-center justify-between gap-3 px-5 py-3"><div class="min-w-0"><div class="truncate text-sm font-semibold text-navy">${escapeText(row.primary)}</div><div class="mt-0.5 truncate text-xs text-slate-500">${escapeText(row.secondary)}</div></div><span class="flex-shrink-0 text-sm font-semibold text-primary">${escapeText(row.trailing)}</span></div>`).join('')}</div>` : `<div class="px-5 py-9 text-center"><p class="text-sm font-semibold text-slate-600">${emptyMessage}</p><p class="mt-1 text-xs text-slate-400">เมื่อมีรายการใหม่ ระบบจะแสดงไว้ตรงนี้</p></div>`}
-      ${hasErrors ? '<div class="border-t border-amber-100 bg-amber-50 px-5 py-3 text-xs text-amber-800" role="status">ข้อมูลบางส่วนโหลดไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วรีเฟรช</div>' : ''}
+    <dl class="ph-stats">
+      ${metrics.map(([label, value, detail, , color]) => `<div class="ph-stat ${color === 'text-orange-600' ? 'is-alert' : ''}"><dt>${color === 'text-orange-600' ? '<span class="ph-dot"></span>' : ''}${label}</dt><dd>${value}</dd><small>${detail}</small></div>`).join('')}
+    </dl>
+    <section class="ph-section">
+      <div class="ph-section__head"><div><h2 class="ph-section__title">${recentTitle}</h2></div><span class="ph-section__hint">${new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span></div>
+      ${recentRows.length ? recentRows.map(row => `<div class="ph-row"><div class="ph-row__main"><div class="ph-row__title">${escapeText(row.primary)}</div><div class="ph-row__meta">${escapeText(row.secondary)}</div></div>${/^฿/.test(row.trailing) ? `<b class="ph-row__title">${escapeText(row.trailing)}</b>` : `<span class="ph-tag ${row.trailing === 'รอยืนยัน' ? 'is-warn' : 'is-ok'}">${escapeText(row.trailing)}</span>`}</div>`).join('') : `<div class="ph-empty">${emptyMessage}</div>`}
+      ${hasErrors ? '<div class="ph-empty" role="status">ข้อมูลบางส่วนโหลดไม่สำเร็จ ลองกดรีเฟรชอีกครั้ง</div>' : ''}
     </section>`;
 
   container.onclick = event => {
@@ -235,6 +233,27 @@ async function _renderBusinessHome(container, storeId, role) {
     const button = event.target.closest('[data-home-nav]');
     if (button) import('./dashboard.js').then(({ navigate }) => navigate(button.dataset.homeNav));
   };
+}
+
+// Appointment date/time in the clinic's local time (starts_at is stored in UTC)
+function _apptDate(item) {
+  if (item.appt_date) return item.appt_date;
+  return item.starts_at ? _localDateKey(new Date(item.starts_at)) : '';
+}
+function _apptTime(item) {
+  if (item.appt_time_slot) return item.appt_time_slot;
+  if (!item.starts_at) return 'ไม่ระบุเวลา';
+  return new Date(item.starts_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function _uniqueById(items) {
+  const seen = new Set();
+  return items.filter(item => {
+    if (item?.id == null) return true;
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
 
 function _localDateKey(date) {
@@ -252,14 +271,10 @@ function _appointmentStatus(status) {
 
 async function _renderMvpHome(container, storeId) {
   container.innerHTML = `
-    <div class="space-y-4">
-      <div>
-        <h2 class="text-xl font-bold text-navy">สิ่งที่ต้องทำวันนี้</h2>
-        <p class="text-sm text-slate-400 font-body mt-1">ข้อมูลนัดหมายจริงจากระบบ ไม่มีข้อมูลตัวอย่าง</p>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        ${[1, 2, 3].map(() => '<div class="card p-5 h-28 animate-pulse bg-slate-50"></div>').join('')}
-      </div>
+    <div class="space-y-4 sm:space-y-5">
+      <div class="ph-head"><div><h1 class="ph-title">สิ่งที่ต้องทำวันนี้</h1><p class="ph-sub">กำลังโหลดข้อมูล…</p></div></div>
+      <div class="skeleton ph-skel" aria-hidden="true"></div>
+      <div class="skeleton ph-skel" style="height:180px" aria-hidden="true"></div>
     </div>`;
 
   const [appointmentsResponse, upcomingResponse, screeningResponse] = await Promise.allSettled([
@@ -273,54 +288,60 @@ async function _renderMvpHome(container, storeId) {
 
   if (!result?.success) {
     container.innerHTML = `
-      <div class="card p-8 text-center space-y-3">
-        <div class="font-semibold text-navy">โหลดข้อมูลนัดหมายไม่สำเร็จ</div>
-        <p class="text-sm text-slate-500 font-body">ตรวจสอบการเชื่อมต่อ แล้วลองใหม่อีกครั้ง</p>
-        <button id="retry-mvp-home" class="btn-primary px-4 py-2 text-sm">ลองใหม่</button>
+      <div class="ph-section text-center" style="padding:36px 18px">
+        <div class="ph-section__title">โหลดข้อมูลนัดหมายไม่สำเร็จ</div>
+        <p class="ph-sub">ตรวจสอบการเชื่อมต่อ แล้วลองใหม่อีกครั้ง</p>
+        <button id="retry-mvp-home" class="ph-btn is-primary" style="margin-top:16px">ลองใหม่</button>
       </div>`;
     container.querySelector('#retry-mvp-home')?.addEventListener('click', () => _renderMvpHome(container, storeId));
     return;
   }
 
-  const appointments = [...(Array.isArray(result.data) ? result.data : []), ...(Array.isArray(upcomingResult?.data) ? upcomingResult.data : [])];
-  const today = new Date().toISOString().slice(0, 10);
+  // The two buckets can overlap; count each appointment once
+  const appointments = _uniqueById([...(Array.isArray(result.data) ? result.data : []), ...(Array.isArray(upcomingResult?.data) ? upcomingResult.data : [])]);
+  const today = _localDateKey(new Date());
   const statusOf = item => String(item.status || '').toLowerCase();
   const requested = appointments.filter(item => ['pending', 'requested'].includes(statusOf(item)));
-  const todayAppointments = appointments.filter(item => {
-    const date = item.appt_date || item.starts_at?.slice(0, 10);
-    return date === today;
-  });
+  const todayAppointments = appointments.filter(item => _apptDate(item) === today);
   const confirmedToday = todayAppointments.filter(item => statusOf(item) === 'confirmed');
   const referrals = Array.isArray(screeningResult?.data) ? screeningResult.data : [];
   const urgentReferrals = referrals.filter(item => item.triage_level === 'emergency');
+  const caseCount = screeningResult?.count ?? referrals.length;
 
   container.innerHTML = `
-    <div class="space-y-5">
-      <div class="flex items-start justify-between gap-3 flex-wrap">
+    <div class="space-y-4 sm:space-y-5">
+      <div class="ph-head">
         <div>
-          <h2 class="text-xl font-bold text-navy">สิ่งที่ต้องทำวันนี้</h2>
-          <p class="text-sm text-slate-400 font-body mt-1">อัปเดตล่าสุด ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
+          <h1 class="ph-title">สิ่งที่ต้องทำวันนี้</h1>
+          <p class="ph-sub">อัปเดตล่าสุด ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</p>
         </div>
-        <button id="refresh-mvp-home" class="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary">รีเฟรช</button>
+        <button id="refresh-mvp-home" class="ph-btn">${icon('exchange-alt', 'w-3.5 h-3.5')}รีเฟรช</button>
       </div>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        ${_mvpMetric('นัดรอยืนยัน', requested.length, 'ควรตอบกลับก่อน', 'text-orange-600', true)}
-        ${_mvpMetric('นัดวันนี้', todayAppointments.length, 'รายการทั้งหมดวันนี้', 'text-blue-600')}
-        ${_mvpMetric('ยืนยันแล้ววันนี้', confirmedToday.length, 'เตรียมรับบริการ', 'text-primary')}
-        ${_mvpMetric('เคส AI รอพิจารณา', screeningResult?.count ?? referrals.length, urgentReferrals.length ? `${urgentReferrals.length} เคสเร่งด่วน` : 'จากเจ้าของสัตว์', urgentReferrals.length ? 'text-red-700' : 'text-brand', urgentReferrals.length > 0)}
-      </div>
-      <div class="card p-5">
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-semibold text-navy">เคสคัดกรองที่ควรดู</h3><p class="mt-1 text-xs text-slate-400">พิจารณาความเร่งด่วนและติดต่อเจ้าของสัตว์</p></div><button id="open-screening-inbox" class="min-h-10 rounded-lg px-3 text-sm font-semibold text-primary hover:bg-primary/10">เปิดกล่องรับเคส →</button></div>
-        ${referrals.length === 0 ? '<div class="py-5 text-center text-sm text-slate-400 font-body">ยังไม่มีเคส AI ที่รอพิจารณา</div>' : referrals.slice(0, 4).map(item => `<div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 py-3"><div><p class="font-semibold text-slate-800">${escapeText(item.pet?.name || 'สัตว์เลี้ยง')} · ${escapeText(item.body_part || 'ผลคัดกรอง')}</p><p class="mt-0.5 text-xs text-slate-500">${escapeText(item.owner_contact?.name || 'เจ้าของสัตว์')} · ${escapeText(item.result_json?.summary || 'รอสัตวแพทย์พิจารณา')}</p></div><span class="rounded-full px-2.5 py-1 text-xs font-bold ${item.triage_level === 'emergency' ? 'bg-red-50 text-red-700' : item.triage_level === 'vet_24_48h' ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600'}">${item.triage_level === 'emergency' ? 'เร่งด่วน' : item.triage_level === 'vet_24_48h' ? '24–48 ชม.' : 'คัดกรอง'}</span></div>`).join('')}
-      </div>
-      <div class="card p-5">
-        <div class="flex items-center justify-between gap-3 mb-4">
-          <h3 class="font-semibold text-navy">นัดที่ต้องดำเนินการ</h3>
-          <button id="open-mvp-appointments" class="text-sm font-semibold text-primary hover:underline">ดูนัดหมายทั้งหมด →</button>
-        </div>
-        ${requested.length === 0
-          ? '<div class="py-8 text-center text-sm text-slate-400 font-body">ไม่มีนัดรอยืนยัน</div>'
-          : requested.slice(0, 5).map(_mvpAppointmentRow).join('')}
+      <dl class="ph-stats">
+        ${_mvpMetric('นัดรอยืนยัน', requested.length, 'ควรตอบกลับก่อน', requested.length ? 'is-alert' : '')}
+        ${_mvpMetric('นัดวันนี้', todayAppointments.length, 'รายการทั้งหมดวันนี้')}
+        ${_mvpMetric('ยืนยันแล้ววันนี้', confirmedToday.length, 'เตรียมรับบริการ')}
+        ${_mvpMetric('เคส AI รอพิจารณา', caseCount, urgentReferrals.length ? `${urgentReferrals.length} เคสเร่งด่วน` : 'จากเจ้าของสัตว์', urgentReferrals.length ? 'is-urgent' : '')}
+      </dl>
+      <div class="ph-grid is-2">
+        <section class="ph-section">
+          <div class="ph-section__head">
+            <div><h2 class="ph-section__title">เคสคัดกรองที่ควรดู</h2><p class="ph-section__hint">เรียงตามความเร่งด่วน</p></div>
+            <button id="open-screening-inbox" class="ph-link">ดูทั้งหมด ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
+          </div>
+          ${referrals.length === 0
+            ? '<div class="ph-empty">ยังไม่มีเคส AI ที่รอพิจารณา</div>'
+            : _sortByTriage(referrals).slice(0, 4).map(_mvpReferralRow).join('')}
+        </section>
+        <section class="ph-section">
+          <div class="ph-section__head">
+            <div><h2 class="ph-section__title">นัดรอยืนยัน</h2><p class="ph-section__hint">ตอบกลับเจ้าของสัตว์</p></div>
+            <button id="open-mvp-appointments" class="ph-link">ดูนัดหมาย ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
+          </div>
+          ${requested.length === 0
+            ? '<div class="ph-empty">ไม่มีนัดรอยืนยัน</div>'
+            : requested.slice(0, 5).map(_mvpAppointmentRow).join('')}
+        </section>
       </div>
     </div>`;
 
@@ -333,32 +354,61 @@ async function _renderMvpHome(container, storeId) {
   });
 }
 
-function _mvpMetric(label, value, detail, color, urgent = false) {
+function _mvpMetric(label, value, detail, state = '') {
   return `
-    <div class="card p-4 sm:p-5 ${urgent && value > 0 ? 'border border-orange-200 bg-orange-50/40' : ''}">
-      <div class="text-xs sm:text-sm text-slate-500 font-body">${label}</div>
-      <div class="text-2xl sm:text-3xl font-bold ${color} mt-1.5 sm:mt-2 tabular-nums">${value}</div>
-      <div class="text-xs text-slate-400 font-body mt-1">${detail}</div>
+    <div class="ph-stat ${state}">
+      <dt>${state ? '<span class="ph-dot"></span>' : ''}${label}</dt>
+      <dd>${value}</dd>
+      <small>${detail}</small>
+    </div>`;
+}
+
+const BODY_PART_TH = { skin: 'ผิวหนัง', eye: 'ตา', eyes: 'ตา', ear: 'หู', ears: 'หู', dental: 'ช่องปาก', mouth: 'ช่องปาก', teeth: 'ช่องปาก' };
+const TRIAGE_RANK = { emergency: 0, vet_24_48h: 1 };
+
+function _sortByTriage(items) {
+  return [...items].sort((a, b) => (TRIAGE_RANK[a.triage_level] ?? 2) - (TRIAGE_RANK[b.triage_level] ?? 2));
+}
+
+function _mvpReferralRow(item) {
+  const part = BODY_PART_TH[String(item.body_part || '').toLowerCase()] || item.body_part || 'ผลคัดกรอง';
+  const level = item.triage_level;
+  const tag = level === 'emergency' ? ['is-bad', 'เร่งด่วน'] : level === 'vet_24_48h' ? ['is-warn', '24–48 ชม.'] : ['', 'ดูที่บ้าน'];
+  return `
+    <div class="ph-row">
+      <div class="ph-row__main">
+        <div class="ph-row__title">${escapeText(item.pet?.name || 'สัตว์เลี้ยง')} · ${escapeText(part)}</div>
+        <div class="ph-row__meta">${escapeText(item.owner_contact?.name || 'เจ้าของสัตว์')} · ${escapeText(item.result_json?.summary || 'รอสัตวแพทย์พิจารณา')}</div>
+      </div>
+      <span class="ph-tag ${tag[0]}">${tag[1]}</span>
     </div>`;
 }
 
 function _mvpAppointmentRow(item) {
-  const date = item.appt_date || item.starts_at?.slice(0, 10) || '';
-  const time = item.appt_time_slot || item.starts_at?.slice(11, 16) || 'ไม่ระบุเวลา';
+  const time = _apptTime(item);
   const customer = item.customer_name || item.owner_name || 'ลูกค้า';
   const pet = item.pet_name || item.notes || 'ไม่ระบุชื่อสัตว์';
+  const service = item.service || item.service_name || '';
   return `
-    <div class="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
-      <div class="w-16 flex-shrink-0 text-center">
-        <div class="text-sm font-bold text-navy">${escapeText(time)}</div>
-        <div class="text-xs text-slate-400">${escapeText(date)}</div>
+    <div class="ph-row">
+      <div class="ph-row__time"><b>${escapeText(time)}</b><span>${escapeText(_dayLabel(_apptDate(item)))}</span></div>
+      <div class="ph-row__main">
+        <div class="ph-row__title">${escapeText(pet)}</div>
+        <div class="ph-row__meta">${escapeText(service ? `${customer} · ${service}` : customer)}</div>
       </div>
-      <div class="min-w-0 flex-1">
-        <div class="text-sm font-semibold text-navy truncate">${escapeText(pet)}</div>
-        <div class="text-xs text-slate-400 font-body truncate">${escapeText(customer)}</div>
-      </div>
-      <span class="text-xs font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-700">รอยืนยัน</span>
+      <span class="ph-tag is-warn">รอยืนยัน</span>
     </div>`;
+}
+
+// "วันนี้" / "พรุ่งนี้" / "14 พ.ย." for a YYYY-MM-DD key
+function _dayLabel(key) {
+  if (!key) return '';
+  const now = new Date();
+  if (key === _localDateKey(now)) return 'วันนี้';
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  if (key === _localDateKey(tomorrow)) return 'พรุ่งนี้';
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 }
 
 function escapeText(value) {

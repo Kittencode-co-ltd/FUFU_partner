@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#1B414B">
+  <meta name="theme-color" content="#F5F9F8">
+  <script src="/js/theme-init.js"></script>
   <title>FUFU Partner — Dashboard</title>
   <link rel="icon" href="/img/brand/favicon-64.png">
   <link rel="apple-touch-icon" href="/img/brand/apple-touch-icon.png">
@@ -15,63 +16,40 @@
 
 <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
 <!-- Layout breakpoints: <1024px = drawer sidebar (tablet + mobile), <768px = + bottom tab bar.
-     Styles live in src/css/input.css (#sidebar, #sb-overlay, #bottom-nav). -->
+     Styles live in src/css/input.css (#sidebar, #sb-overlay, #bottom-nav, .sb-*). -->
 
 <!-- Drawer overlay (tablet / mobile) -->
-<div id="sb-overlay" class="fixed inset-0 z-30 bg-navy/50 backdrop-blur-sm lg:hidden" aria-hidden="true"></div>
+<div id="sb-overlay" class="fixed inset-0 z-30 lg:hidden" aria-hidden="true"></div>
 
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 lg:w-64 bg-navy flex flex-col" aria-label="เมนูหลัก">
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 lg:w-64 flex flex-col" aria-label="เมนูหลัก">
 
   <!-- Logo -->
-  <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-    <img src="/img/brand/fufu-mark.webp" alt="" width="40" height="40" class="w-10 h-10 rounded-xl bg-white flex-shrink-0 shadow-glow">
-    <div>
-      <div class="font-brand text-lg leading-none"><span class="text-white">FUFU</span> <span class="text-accent">Pet Care</span></div>
-      <div class="text-brand-muted/70 text-[11px] tracking-[0.14em] uppercase mt-1">Partner Portal</div>
+  <div class="sb-brand">
+    <img src="/img/brand/fufu-mark.webp" alt="" width="36" height="36">
+    <div class="min-w-0">
+      <div class="sb-brand__name">FUFU <em>Pet Care</em></div>
+      <div class="sb-brand__sub">Partner Portal</div>
     </div>
   </div>
 
   <!-- Store info / switcher -->
-  <div class="relative border-b border-white/10">
-    <button id="sb-store-switcher" type="button"
-      class="w-full flex items-center justify-between gap-2 px-5 py-3 text-left hover:bg-white/5 transition-colors">
-      <div class="min-w-0">
-        <div id="sb-store-name" class="text-white text-sm font-semibold truncate">—</div>
-        <div id="sb-store-type" class="text-slate-400 text-xs font-body mt-0.5"></div>
+  <div class="relative px-3 pb-2">
+    <button id="sb-store-switcher" type="button" class="sb-store">
+      <div class="min-w-0 flex-1">
+        <div id="sb-store-name" class="sb-store__name truncate">—</div>
+        <div id="sb-store-type" class="sb-store__type"></div>
       </div>
-      <svg id="sb-store-chevron" class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform"
+      <svg id="sb-store-chevron" class="w-4 h-4 flex-shrink-0 transition-transform"
            fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
       </svg>
     </button>
-    <div id="sb-store-dropdown"
-         class="hidden absolute left-2 right-2 top-full mt-1 z-30 bg-white rounded-xl shadow-xl
-                border border-slate-200 p-1.5 max-h-72 overflow-y-auto"></div>
+    <div id="sb-store-dropdown" class="sb-dropdown hidden"></div>
   </div>
-
-
 
   <!-- Nav -->
-  <nav id="sidebar-nav" class="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 space-y-0.5"></nav>
+  <nav id="sidebar-nav" class="flex-1 overflow-y-auto scrollbar-thin px-3 py-2 space-y-0.5"></nav>
 
-  <!-- User / Logout -->
-  <div class="px-4 py-4 border-t border-white/10">
-    <div class="flex items-center justify-between gap-2">
-      <div class="min-w-0 flex-1">
-        <div id="sb-user-email" class="text-slate-300 text-xs font-body truncate"></div>
-        <div id="sb-user-role"  class="text-slate-500 text-xs font-body capitalize mt-0.5"></div>
-      </div>
-      <button id="logout-btn"
-        title="ออกจากระบบ"
-        class="flex-shrink-0 flex items-center gap-2 text-slate-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-white/10">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-        </svg>
-        <span class="text-xs font-body">ออกจากระบบ</span>
-      </button>
-    </div>
-  </div>
 </aside>
 
 <!-- ── Main ──────────────────────────────────────────────────────────────── -->
@@ -82,17 +60,17 @@
     <div class="flex items-center gap-2 sm:gap-3 min-w-0">
       <button id="sidebar-toggle" title="ซ่อน/แสดง Sidebar" aria-label="เปิด/ปิดเมนู" aria-controls="sidebar" aria-expanded="false"
         class="icon-btn">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h10"/>
         </svg>
       </button>
-      <div id="topbar-title" class="font-semibold text-navy text-base sm:text-lg truncate"></div>
+      <div id="topbar-title" class="topbar-title truncate"></div>
     </div>
 
     <!-- Mode switcher -->
     <!-- <div id="mode-switcher" class="flex items-center gap-1.5 flex-wrap"></div> -->
 
-    <div class="flex items-center gap-3 flex-shrink-0">
+    <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
       <!-- Offline / sync badge -->
       <div id="offline-badge"
            class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full
@@ -106,12 +84,16 @@
                      bg-amber-500 text-white text-xs leading-none"></span>
       </div>
       <div id="save-indicator" class="text-xs text-slate-400 font-body hidden"></div>
-      <div id="topbar-date"    class="text-slate-400 text-sm font-body hidden lg:block"></div>
+      <div id="topbar-date" class="topbar-date hidden lg:block"></div>
+      <button type="button" id="profile-btn" class="profile-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="บัญชีของฉัน">
+        <span data-profile-initial>?</span>
+      </button>
     </div>
   </header>
 
   <!-- Pages -->
   <main id="app-main" class="flex-1 min-w-0 p-3 sm:p-5 lg:p-6 xl:p-8 pb-24 md:pb-6 w-full max-w-[1600px] mx-auto">
+    <nav id="flow-steps" class="flow-steps" aria-label="ขั้นตอนการให้บริการ" hidden></nav>
     <section id="page-home"      class="hidden"></section>
     <section id="page-screenings" class="hidden"></section>
     <section id="page-appointments" class="hidden"></section>
@@ -121,6 +103,7 @@
     <section id="page-clinic"       class="hidden"></section>
     <section id="page-users"        class="hidden"></section>
     <section id="page-queue"     class="hidden"></section>
+    <section id="page-cashier"   class="hidden"></section>
     <section id="page-opd"       class="hidden" style="margin:-12px;overflow:hidden;"><div id="doctor-workroom-root"></div></section>
     <section id="page-pets"         class="hidden"></section>
     <section id="page-pet-profile"  class="hidden"></section>

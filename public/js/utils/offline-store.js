@@ -19,7 +19,8 @@ const CACHE_PATTERNS = [
   '/api/staff',
 ];
 
-const BLOCK_OFFLINE = ['/api/pos/checkout'];
+// Money and receipt actions must never be queued for later replay
+const BLOCK_OFFLINE = ['/api/pos/checkout', '/api/cashier'];
 
 export function shouldCacheGet(path) {
   return CACHE_PATTERNS.some(p => path.startsWith(p));

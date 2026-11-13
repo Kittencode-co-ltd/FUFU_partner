@@ -13,7 +13,7 @@ const nextConfig = {
     return [
       { source: '/:path*', headers: toHeaders(BASE_SECURITY_HEADERS) },
       // Static partner portal pages (login / register / onboarding / dashboard)
-      { source: '/:page(login|register|onboarding|dashboard).html', headers: toHeaders({ 'Content-Security-Policy': PORTAL_CSP }) },
+      { source: '/:page(login|register|onboarding|dashboard|receipt).html', headers: toHeaders({ 'Content-Security-Policy': PORTAL_CSP }) },
     ]
   },
 

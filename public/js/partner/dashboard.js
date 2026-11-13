@@ -1,4 +1,6 @@
 import { getCurrentRole, getCurrentUser, getCurrentStore, logout } from '../auth.js';
+import { initProfileMenu, setProfileMenuItems, setProfileRole } from './profile-menu.js';
+import { pageLabel, groupLabel, t as tr, locale, applyLangAttr } from './portal-i18n.js';
 import { showToast } from '../utils/toast.js';
 import { apiFetch }       from '../utils/api-client.js';
 import { storage }        from '../utils/storage.js';
@@ -119,49 +121,75 @@ const MVP_NAV = [
 
 // MVP workspaces stay focused on each store's real day-to-day tasks. The
 // category comes from the selected store, not from an account-wide default.
+// Items are listed in the order the work happens and grouped by step, so staff move
+// down the menu instead of jumping around. `group` is a key in portal-i18n (NAV_GROUPS).
+// clinic / users / settings live in the profile menu (ACCOUNT_PAGES).
 const BUSINESS_NAV = {
   vet: [
-    MVP_NAV[0], MVP_NAV[1],
-    { id: 'queue', icon: 'clipboard-list', label: 'คิวตรวจ' },
-    MVP_NAV[2], MVP_NAV[3], MVP_NAV[4],
-    { id: 'opd', icon: 'stethoscope', label: 'OPD · ห้องตรวจ' },
-    { id: 'ipd', icon: 'hospital', label: 'IPD · ผู้ป่วยใน' },
-    { id: 'medical', icon: 'folder-open', label: 'ประวัติการรักษา' },
-    { id: 'inventory', icon: 'box', label: 'คลังยาและเวชภัณฑ์' },
-    MVP_NAV[5], MVP_NAV[6], MVP_NAV[7],
+    { id: 'home', icon: 'chart-bar', label: 'ภาพรวม', group: 'today' },
+    { id: 'appointments', icon: 'calendar-alt', label: 'นัดหมาย', group: 'intake' },
+    { id: 'screenings', icon: 'stethoscope', label: 'เคส AI ส่งต่อ', group: 'intake' },
+    { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน', group: 'intake' },
+    { id: 'queue', icon: 'clipboard-list', label: 'คิวตรวจ', group: 'care' },
+    { id: 'opd', icon: 'stethoscope', label: 'OPD · ห้องตรวจ', group: 'care' },
+    { id: 'ipd', icon: 'hospital', label: 'IPD · ผู้ป่วยใน', group: 'care' },
+    { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
+    { id: 'patients', icon: 'paw', label: 'สัตว์ที่เข้ารับบริการ', group: 'records' },
+    { id: 'medical', icon: 'folder-open', label: 'ประวัติการรักษา', group: 'records' },
+    { id: 'summaries', icon: 'file-alt', label: 'สรุปการเข้ารับบริการ', group: 'records' },
+    { id: 'inventory', icon: 'box', label: 'คลังยาและเวชภัณฑ์', group: 'stock' },
+    { id: 'clinic', icon: 'hospital-alt', label: 'ข้อมูลคลินิก' },
+    { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
   ],
   shop: [
-    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมร้านค้า' },
-    { id: 'inventory', icon: 'box', label: 'คลังสินค้า' },
-    { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS' },
-    { id: 'orders', icon: 'receipt', label: 'คำสั่งซื้อออนไลน์' },
-    { id: 'delivery', icon: 'exchange-alt', label: 'จัดส่ง' },
-    { id: 'income', icon: 'coins', label: 'ยอดขายและรายได้' },
+    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมร้านค้า', group: 'today' },
+    { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS', group: 'sales' },
+    { id: 'orders', icon: 'receipt', label: 'คำสั่งซื้อออนไลน์', group: 'sales' },
+    { id: 'delivery', icon: 'exchange-alt', label: 'จัดส่ง', group: 'sales' },
+    { id: 'inventory', icon: 'box', label: 'คลังสินค้า', group: 'stock' },
+    { id: 'income', icon: 'coins', label: 'ยอดขายและรายได้', group: 'money' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
     { id: 'settings', icon: 'cog', label: 'ตั้งค่าร้าน' },
   ],
   hotel: [
-    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมโรงแรม' },
-    { id: 'hotel', icon: 'bed', label: 'ห้องพักและการจอง' },
-    { id: 'queue', icon: 'clipboard-list', label: 'คิวเช็กอิน / เช็กเอาต์' },
-    { id: 'appointments', icon: 'calendar-alt', label: 'การจอง' },
-    { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน' },
-    { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ' },
-    { id: 'income', icon: 'coins', label: 'รายได้' },
+    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมโรงแรม', group: 'today' },
+    { id: 'appointments', icon: 'calendar-alt', label: 'การจอง', group: 'booking' },
+    { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน', group: 'booking' },
+    { id: 'queue', icon: 'clipboard-list', label: 'คิวเช็กอิน / เช็กเอาต์', group: 'stay' },
+    { id: 'hotel', icon: 'bed', label: 'ห้องพักและการดูแล', group: 'stay' },
+    { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
+    { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ', group: 'records' },
+    { id: 'income', icon: 'coins', label: 'รายได้', group: 'records' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
     { id: 'settings', icon: 'cog', label: 'ตั้งค่าโรงแรม' },
   ],
   grooming: [
-    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมร้าน' },
-    { id: 'queue', icon: 'clipboard-list', label: 'คิวบริการ' },
-    { id: 'appointments', icon: 'calendar-alt', label: 'นัดหมาย' },
-    { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน' },
-    { id: 'grooming', icon: 'cut', label: 'บริการและคิวอาบน้ำตัดขน' },
-    { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ' },
-    { id: 'income', icon: 'coins', label: 'รายได้' },
+    { id: 'home', icon: 'chart-bar', label: 'ภาพรวมร้าน', group: 'today' },
+    { id: 'appointments', icon: 'calendar-alt', label: 'นัดหมาย', group: 'booking' },
+    { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน', group: 'booking' },
+    { id: 'queue', icon: 'clipboard-list', label: 'คิวบริการ', group: 'service' },
+    { id: 'grooming', icon: 'cut', label: 'งานอาบน้ำตัดขน', group: 'service' },
+    { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
+    { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ', group: 'records' },
+    { id: 'income', icon: 'coins', label: 'รายได้', group: 'records' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
     { id: 'settings', icon: 'cog', label: 'ตั้งค่าร้าน' },
   ],
+};
+
+// Mobile bottom bar: the 4 pages each workspace uses most, in work order
+const BOTTOM_TABS = {
+  vet: ['home', 'queue', 'opd', 'cashier'],
+  shop: ['home', 'pos', 'orders', 'inventory'],
+  hotel: ['home', 'appointments', 'queue', 'cashier'],
+  grooming: ['home', 'appointments', 'queue', 'cashier'],
+};
+
+// The patient journey, shown as a step bar on these pages (นัด/เคส → คิว → ตรวจ → ชำระเงิน)
+const FLOW_STEPS = {
+  vet: ['appointments', 'queue', 'opd', 'cashier'],
+  hotel: ['appointments', 'queue', 'hotel', 'cashier'],
+  grooming: ['appointments', 'queue', 'grooming', 'cashier'],
 };
 
 // Checked before rendering so a store cannot restore another category's page.
@@ -172,8 +200,8 @@ const MVP_NAV_PAGES = new Set([
 ]);
 const MVP_ROLE_PAGES = {
   owner: new Set([...MVP_NAV_PAGES]),
-  reception: new Set(['screenings', 'home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
-  vet: new Set(['screenings', 'home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
+  reception: new Set(['screenings', 'home', 'queue', 'cashier', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
+  vet: new Set(['screenings', 'home', 'queue', 'cashier', 'opd', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
 };
 const BUSINESS_ROLE_PAGES = {
   shop: {
@@ -181,12 +209,12 @@ const BUSINESS_ROLE_PAGES = {
     vet: new Set(['home', 'inventory', 'pos', 'orders', 'delivery']),
   },
   hotel: {
-    reception: new Set(['home', 'hotel', 'queue', 'appointments', 'calendar', 'pets']),
-    vet: new Set(['home', 'hotel', 'queue', 'appointments', 'calendar', 'pets']),
+    reception: new Set(['home', 'hotel', 'queue', 'cashier', 'appointments', 'calendar', 'pets']),
+    vet: new Set(['home', 'hotel', 'queue', 'cashier', 'appointments', 'calendar', 'pets']),
   },
   grooming: {
-    reception: new Set(['home', 'queue', 'appointments', 'calendar', 'grooming', 'pets']),
-    vet: new Set(['home', 'queue', 'appointments', 'calendar', 'grooming', 'pets']),
+    reception: new Set(['home', 'queue', 'cashier', 'appointments', 'calendar', 'grooming', 'pets']),
+    vet: new Set(['home', 'queue', 'cashier', 'appointments', 'calendar', 'grooming', 'pets']),
   },
 };
 
@@ -216,6 +244,7 @@ const PAGE_TITLES = {
   orders:       'คำสั่งซื้อออนไลน์',
   delivery:     'จัดส่ง',
   queue:        'คิวตรวจ',
+  cashier:      'แคชเชียร์',
   pets:         'สัตว์เลี้ยง & นัดหมาย',
   'pet-profile':'โปรไฟล์สัตว์เลี้ยง',
   opd:          'ห้องตรวจ',
@@ -238,7 +267,7 @@ const PAGE_TITLES = {
 const _RESTORABLE_PAGES = new Set([
   'home','queue','medical','pets','hotel','grooming',
   'inventory','finance','ipd','documents','kanban','settings','users','staff','opd',
-  'appointments','calendar','patients','summaries','clinic','orders','delivery',
+  'appointments','calendar','patients','summaries','clinic','orders','delivery','cashier',
 ]);
 const _PAGE_KEY = 'fufu_current_page';
 let _pageEnterTimer = null;
@@ -261,7 +290,9 @@ export function navigate(pageId, detail = null) {
   window.scrollTo({ top: 0, behavior: 'instant' });
 
   const titleEl = document.getElementById('topbar-title');
-  if (titleEl) titleEl.textContent = PAGE_TITLES[pageId] || pageId;
+  // Same wording as the menu item, so the title always matches what was tapped
+  const navItem = _navItems.find(item => item.id === pageId);
+  if (titleEl) titleEl.textContent = pageLabel(pageId, navItem?.label || PAGE_TITLES[pageId] || pageId);
 
   document.querySelectorAll('[data-nav]').forEach(el => {
     const active = el.dataset.nav === pageId;
@@ -269,6 +300,8 @@ export function navigate(pageId, detail = null) {
     if (active) el.setAttribute('aria-current', 'page');
     else el.removeAttribute('aria-current');
   });
+
+  _renderFlowSteps(pageId);
 
   if (_RESTORABLE_PAGES.has(pageId)) sessionStorage.setItem(_PAGE_KEY, pageId);
 
@@ -367,6 +400,7 @@ function _switchStore(id, name, category) {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 export async function initDashboard() {
+  applyLangAttr();
   const role    = getCurrentRole();
   const user    = getCurrentUser();
   const store   = getCurrentStore();
@@ -376,14 +410,19 @@ export async function initDashboard() {
   const q = (id) => document.getElementById(id);
   if (q('sb-store-name')) q('sb-store-name').textContent = store.name || 'ร้านของคุณ';
   if (q('sb-store-type')) q('sb-store-type').innerHTML = `<span class="inline-flex items-center gap-1">${icon(catInfo.icon, 'w-3 h-3')} ${catInfo.label}</span>`;
-  if (q('sb-user-email')) q('sb-user-email').textContent = user.email || '';
-  if (q('sb-user-role'))  q('sb-user-role').textContent  = role;
+  initProfileMenu({
+    email: user.email || '',
+    role: 'owner',
+    storeName: store.name || '',
+    onNavigate: navigate,
+    onLogout: logout,
+  });
 
   _initStoreSwitcher();
 
   const dateEl = q('topbar-date');
   if (dateEl) {
-    dateEl.textContent = new Date().toLocaleDateString('th-TH', {
+    dateEl.textContent = new Date().toLocaleDateString(locale(), {
       weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
     });
   }
@@ -406,20 +445,18 @@ export async function initDashboard() {
     storage.set('fufu_staff_name',       myStaff.name);
     if (myStaff.permissions) storage.set('fufu_staff_permissions', JSON.stringify(myStaff.permissions));
     else storage.remove('fufu_staff_permissions');
-    if (q('sb-user-role')) q('sb-user-role').textContent = allowedModes.join(', ');
+    setProfileRole(allowedModes.join(','));
   } else {
     // Owner — full access
     _currentMode = storage.get(MODE_KEY) || 'all';
     storage.set(STORAGE_KEYS.STAFF_ROLE, 'owner');
     storage.remove('fufu_staff_roles');
     storage.remove('fufu_staff_permissions');
-    if (q('sb-user-role')) q('sb-user-role').textContent = 'owner';
+    setProfileRole('owner');
   }
 
   _buildNav(role);
   _renderModeSwitcher(role);
-
-  q('logout-btn')?.addEventListener('click', logout);
 
   if (!isStoreActive) {
     const main = q('app-main');
@@ -555,6 +592,29 @@ function _initSidebarToggle() {
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
+let _navItems = [];
+let _navRole = 'vet';
+
+// Step bar (นัด → คิว → ตรวจ → ชำระเงิน) above pages that are part of the visit journey.
+// Only steps this user can open are shown; it hides itself on every other page.
+function _renderFlowSteps(pageId) {
+  const bar = document.getElementById('flow-steps');
+  if (!bar) return;
+  const steps = (FEATURE_FLAGS.MVP_MODE ? FLOW_STEPS[_navRole] : null) || [];
+  const visible = steps.map(id => _navItems.find(item => item.id === id)).filter(Boolean);
+  if (visible.length < 2 || !visible.some(item => item.id === pageId)) { bar.hidden = true; bar.innerHTML = ''; return; }
+  const current = visible.findIndex(item => item.id === pageId);
+  bar.hidden = false;
+  bar.innerHTML = visible.map((item, i) => `
+    <button type="button" data-nav="${item.id}" class="flow-step ${i === current ? 'is-current' : i < current ? 'is-done' : ''}" ${i === current ? 'aria-current="step"' : ''}>
+      <span class="flow-step__n">${i + 1}</span><span class="flow-step__label">${pageLabel(item.id, item.label).split(' · ')[0]}</span>
+    </button>${i < visible.length - 1 ? '<span class="flow-step__line" aria-hidden="true"></span>' : ''}`).join('');
+  bar.onclick = e => { const btn = e.target.closest('[data-nav]'); if (btn) navigate(btn.dataset.nav); };
+}
+
+// Pages reached from the profile menu (top-right avatar) instead of the sidebar
+const ACCOUNT_PAGES = new Set(['clinic', 'users', 'settings', 'staff']);
+
 function _buildNav(role) {
   const allItems = FEATURE_FLAGS.MVP_MODE ? (BUSINESS_NAV[role] || BUSINESS_NAV.vet) : (NAV[role] || NAV.vet);
   const modeCfg = FEATURE_FLAGS.MVP_MODE ? null : MODES[_currentMode];
@@ -573,16 +633,26 @@ function _buildNav(role) {
   // Gate home/overview: only owner or staff explicitly granted 'home' view permission
   if (!FEATURE_FLAGS.MVP_MODE && !canHome) items = items.filter(i => i.id !== 'home');
 
+  // Store settings, team and account pages live in the profile menu, not the sidebar
+  setProfileMenuItems(items.filter(item => ACCOUNT_PAGES.has(item.id)));
+  items = items.filter(item => !ACCOUNT_PAGES.has(item.id));
+
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;
 
-  nav.innerHTML = items.map((item, i) => `
+  // A heading each time the step (group) changes, so the menu reads top-to-bottom like the day's work
+  let lastGroup = null;
+  nav.innerHTML = items.map((item, i) => {
+    const heading = item.group && item.group !== lastGroup && i > 0
+      ? `<div class="nav-group" role="presentation">${groupLabel(item.group)}</div>` : '';
+    lastGroup = item.group || lastGroup;
+    return `${heading}
     <button type="button" data-nav="${item.id}" class="nav-item" style="--i:${i}">
       <span class="nav-item__icon">${icon(item.icon, 'w-4 h-4')}</span>
-      <span class="flex-1 text-left truncate">${item.label}</span>
+      <span class="flex-1 text-left truncate">${pageLabel(item.id, item.label)}</span>
       ${item.id === 'appointments' ? '<span id="appt-nav-badge" class="nav-badge" hidden></span>' : ''}
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
 
   // onclick (not addEventListener) so rebuilding the nav never stacks handlers
   nav.onclick = (e) => {
@@ -590,24 +660,28 @@ function _buildNav(role) {
     if (btn) navigate(btn.dataset.nav);
   };
 
-  _buildBottomNav(items);
+  _buildBottomNav(items, role);
+  _navItems = items;
+  _navRole = role;
   _loadApptBadge();
 }
 
-// Mobile bottom tab bar: first 4 nav items + a "menu" tab that opens the drawer.
-function _buildBottomNav(items) {
+// Mobile bottom tab bar: the workspace's 4 main steps (BOTTOM_TABS) + a "menu" tab that opens the drawer.
+function _buildBottomNav(items, role) {
   const bar = document.getElementById('bottom-nav');
   if (!bar) return;
-  const tabs = items.slice(0, 4);
+  const preferred = (FEATURE_FLAGS.MVP_MODE ? BOTTOM_TABS[role] : null) || [];
+  let tabs = preferred.map(id => items.find(item => item.id === id)).filter(Boolean);
+  if (tabs.length < 4) tabs = [...tabs, ...items.filter(item => !tabs.includes(item))].slice(0, 4);
   bar.innerHTML = `
     ${tabs.map(item => `
       <button type="button" data-nav="${item.id}" class="tab-item">
         ${icon(item.icon, 'w-5 h-5')}
-        <span class="tab-item__label">${item.label.split(/[\s(/]/)[0]}</span>
+        <span class="tab-item__label">${pageLabel(item.id, item.label).split(/[\s(/·]/)[0]}</span>
       </button>`).join('')}
     <button type="button" class="tab-item" data-open-drawer aria-controls="sidebar">
       ${icon('th-large', 'w-5 h-5')}
-      <span class="tab-item__label">เมนู</span>
+      <span class="tab-item__label">${tr('menu')}</span>
     </button>`;
   bar.onclick = (e) => {
     if (e.target.closest('[data-open-drawer]')) return _setDrawer(true);
@@ -711,6 +785,11 @@ async function _renderPage(pageId, detail = null) {
   if (pageId === 'orders' || pageId === 'delivery') {
     const { renderShopOperations } = await import('./shop-operations.js');
     await renderShopOperations(document.getElementById(`page-${pageId}`), pageId);
+    return;
+  }
+  if (pageId === 'cashier') {
+    const { renderCashier } = await import('./cashier.js');
+    await renderCashier(document.getElementById('page-cashier'));
     return;
   }
   if (pageId === 'queue') {

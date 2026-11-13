@@ -249,13 +249,8 @@ async function _handleDone() {
   clearTimeout(_autosaveTimer);
   await _saveRecord('completed');
 
-  // Only update queue status if this came from an actual queue entry (id is set)
-  if (_queueItem.id) {
-    await apiFetch(`/api/queue/${_queueItem.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'completed' }),
-    }).catch(() => {});
-  }
+  // The queue stays "กำลังตรวจ" until the bill is sent to the cashier (ส่งชำระเงิน),
+  // so a visit cannot be closed without being charged.
 
   // ── บันทึกแล้ว — เปิดให้บันทึกซ้ำได้จนกว่าจะชำระเงิน ───────────────────────
   if (btn) {
@@ -289,13 +284,34 @@ async function _handleDone() {
 
 // ── ส่งรายการไปชำระที่เคาน์เตอร์ ─────────────────────────────────────────────
 
-function _sendToPayment() {
-  document.dispatchEvent(new CustomEvent('fufu:openPOS', {
-    detail: {
-      queueItem:     _queueItem,
-      medicalRecord: { ...(_currentRecord || {}), prescriptions: _prescriptions },
+async function _sendToPayment() {
+  if (!_queueItem?.id) { showToast('ส่งชำระเงินได้เฉพาะผู้ป่วยที่มาจากคิว', 'error'); return; }
+  const storeId = storage.get(STORAGE_KEYS.STORE_ID);
+  if (!_invCache) {
+    const inv = await apiFetch(`/api/inventory?store_id=${storeId}`);
+    _invCache = inv?.data || [];
+    _invCacheAt = Date.now();
+  }
+  // Prefill the bill with the prescription; staff can add the exam fee and other services
+  const lines = _prescriptions.map(rx => {
+    const product = _invCache.find(p => p.id === rx.product_id || p.name === rx.drug);
+    return {
+      name: rx.drug || product?.name || 'ยา',
+      qty: Math.max(1, Math.round(Number(rx.qty) || 1)),
+      unit_price: Number(product?.sell_price ?? product?.price) || 0,
+      product_id: product?.id || null,
+    };
+  });
+  const { openSendToCashier } = await import('./send-to-cashier.js');
+  openSendToCashier({
+    queueItem: _queueItem,
+    lines,
+    medicalRecordId: _currentRecord?.id || null,
+    onDone: () => {
+      showToast('ส่งไปแคชเชียร์แล้ว');
+      import('./dashboard.js').then(({ navigate }) => navigate('queue'));
     },
-  }));
+  });
 }
 
 // ── Left panel — Pet info ─────────────────────────────────────────────────────
