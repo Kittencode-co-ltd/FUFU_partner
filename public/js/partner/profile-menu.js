@@ -111,7 +111,7 @@ function _render() {
         ${_segmented('scale', SCALES, p.getFontScale())}
         <div class="pm-label">${t('language')}</div>
         <div class="pm-langs" role="radiogroup" aria-label="${t('language')}">
-          ${LANGS.map(l => `<button type="button" role="radio" lang="${l.html}" aria-checked="${l.code === getLang()}" class="${l.code === getLang() ? 'is-on' : ''}" data-lang="${l.code}">${l.label}</button>`).join('')}
+          ${LANGS.map(l => `<button type="button" role="radio" lang="${l.html}" aria-checked="${l.code === getLang()}" class="${l.code === getLang() ? 'is-on' : ''}" data-pm-lang="${l.code}">${l.label}</button>`).join('')}
         </div>
         ${getLang() !== 'th' ? `<p class="pm-note">${t('partialNote')}</p>` : ''}
       </div>
@@ -135,8 +135,9 @@ function _onClick(event) {
     _render();
     return;
   }
-  const langBtn = event.target.closest('[data-lang]');
-  if (langBtn) { if (langBtn.dataset.lang !== getLang()) setLang(langBtn.dataset.lang); return; }
+  // data-pm-lang, not data-lang: <html data-lang> would match closest() for every row in the menu
+  const langBtn = event.target.closest('[data-pm-lang]');
+  if (langBtn) { if (langBtn.dataset.pmLang !== getLang()) setLang(langBtn.dataset.pmLang); return; }
   const nav = event.target.closest('[data-pm-nav]');
   if (nav) { _toggle(false); _state.onNavigate(nav.dataset.pmNav); return; }
   if (event.target.closest('[data-pm-logout]')) { _toggle(false); _state.onLogout(); }
