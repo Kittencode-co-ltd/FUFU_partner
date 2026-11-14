@@ -267,7 +267,7 @@ const PAGE_TITLES = {
 const _RESTORABLE_PAGES = new Set([
   'home','queue','medical','pets','hotel','grooming',
   'inventory','finance','ipd','documents','kanban','settings','users','staff','opd',
-  'appointments','calendar','patients','summaries','clinic','orders','delivery','cashier',
+  'appointments','calendar','patients','summaries','clinic','orders','delivery','cashier','pos','income',
 ]);
 const _PAGE_KEY = 'fufu_current_page';
 let _pageEnterTimer = null;
@@ -300,6 +300,9 @@ export function navigate(pageId, detail = null) {
     if (active) el.setAttribute('aria-current', 'page');
     else el.removeAttribute('aria-current');
   });
+  // Pages that are not one of the bottom tabs live under "menu", so light that tab up instead
+  const menuTab = document.querySelector('#bottom-nav [data-open-drawer]');
+  menuTab?.classList.toggle('is-active', !document.querySelector(`#bottom-nav [data-nav="${pageId}"]`));
 
   _renderFlowSteps(pageId);
 
@@ -666,6 +669,13 @@ function _buildNav(role) {
   _loadApptBadge();
 }
 
+// Short names for the bottom bar (full names stay in the side menu)
+const SHORT_LABELS = { home: 'ภาพรวม', queue: 'คิว', opd: 'ห้องตรวจ', cashier: 'แคชเชียร์', pos: 'ขาย', orders: 'ออเดอร์', inventory: 'คลัง', appointments: 'นัดหมาย', hotel: 'ห้องพัก', grooming: 'งานบริการ', income: 'รายได้' };
+function shortLabel(item) {
+  const full = pageLabel(item.id, item.label);
+  return full !== item.label ? full.split(/[\s(/·]/)[0] : (SHORT_LABELS[item.id] || full.split(/[\s(/·]/)[0]);
+}
+
 // Mobile bottom tab bar: the workspace's 4 main steps (BOTTOM_TABS) + a "menu" tab that opens the drawer.
 function _buildBottomNav(items, role) {
   const bar = document.getElementById('bottom-nav');
@@ -677,7 +687,7 @@ function _buildBottomNav(items, role) {
     ${tabs.map(item => `
       <button type="button" data-nav="${item.id}" class="tab-item">
         ${icon(item.icon, 'w-5 h-5')}
-        <span class="tab-item__label">${pageLabel(item.id, item.label).split(/[\s(/·]/)[0]}</span>
+        <span class="tab-item__label">${shortLabel(item)}</span>
       </button>`).join('')}
     <button type="button" class="tab-item" data-open-drawer aria-controls="sidebar">
       ${icon('th-large', 'w-5 h-5')}
@@ -819,8 +829,14 @@ async function _renderPage(pageId, detail = null) {
     return;
   }
   if (pageId === 'pos') {
-    const { renderPOS } = await import('./pos.js');
-    renderPOS(document.getElementById('page-pos'), detail || {});
+    // Walk-up sales use the iPad POS; a bill handed over from a queue/OPD visit keeps the older checkout screen
+    if (detail?.queueItem || detail?.medicalRecord) {
+      const { renderPOS } = await import('./pos.js');
+      renderPOS(document.getElementById('page-pos'), detail);
+    } else {
+      const { renderRetailPOS } = await import('./pos-retail.js');
+      await renderRetailPOS(document.getElementById('page-pos'));
+    }
     return;
   }
   if (pageId === 'hotel') {

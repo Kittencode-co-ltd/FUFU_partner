@@ -62,7 +62,7 @@ export async function renderQueue(container) {
     <!-- Walk-in quick-add bar -->
     <div class="card p-3 sm:p-4 mb-3 sm:mb-4" ${!can('queue','create') ? 'style="display:none"' : ''}>
       <div class="flex flex-wrap gap-2 sm:gap-3 items-end">
-        <div class="relative flex-1 min-w-0 w-full sm:w-auto sm:min-w-52">
+        <div class="relative min-w-0 basis-full sm:basis-0 sm:flex-1 sm:min-w-52">
           <label class="input-label">ค้นหาสัตว์เลี้ยง / เจ้าของ / เบอร์โทร</label>
           <input id="wk-search" class="input-field" placeholder="บัดดี้ หรือ 0812345678..." autocomplete="off">
           <div id="wk-dropdown"
@@ -313,13 +313,22 @@ function _renderCards(queue) {
     return a.queue_number - b.queue_number;
   });
 
+  const byCol = KANBAN_COLS.map(col => ({ col, items: sorted.filter(q => col.statuses.includes(q.status)) }));
+  // Phones / iPad portrait: columns become swipeable panels; the chips jump straight to a status
   el.innerHTML = `
-    <div style="display:flex;gap:12px;width:100%">
-      ${KANBAN_COLS.map(col => {
-        const items = sorted.filter(q => col.statuses.includes(q.status));
-        return _kanbanColumn(col, items);
-      }).join('')}
+    <div class="qk-jump" role="tablist" aria-label="สถานะคิว">
+      ${byCol.map(({ col, items }) => `<button type="button" data-qk-jump="${col.key}" class="qk-chip">${col.label}<span>${items.length}</span></button>`).join('')}
+    </div>
+    <div class="qk-board">
+      ${byCol.map(({ col, items }) => _kanbanColumn(col, items)).join('')}
     </div>`;
+  el.querySelectorAll('[data-qk-jump]').forEach(btn => {
+    btn.onclick = () => {
+      const target = el.querySelector(`[data-qk-col="${btn.dataset.qkJump}"]`);
+      const board = el.querySelector('.qk-board');
+      if (target && board) board.scrollTo({ left: target.offsetLeft - board.offsetLeft, behavior: 'smooth' });
+    };
+  });
 }
 
 function _kanbanColumn(col, items) {
@@ -327,7 +336,7 @@ function _kanbanColumn(col, items) {
     ? `<div class="rounded-lg border-2 border-dashed border-slate-200 py-8 text-center text-slate-300 text-xs font-body">ว่าง</div>`
     : items.map(_kanbanCard).join('');
   return `
-    <div style="flex:1;min-width:0" class="flex flex-col rounded-xl bg-slate-50 border border-slate-200 overflow-hidden">
+    <div data-qk-col="${col.key}" class="qk-col flex flex-col rounded-xl bg-slate-50 border border-slate-200 overflow-hidden">
       <div class="flex items-center justify-between px-3 py-2.5 bg-white border-b border-slate-100">
         <span class="flex items-center gap-1.5 font-bold text-sm ${col.hdrCls}">${col.icon} ${col.label}</span>
         <span class="text-xs font-bold px-2 py-0.5 rounded-full ${col.countCls}">${items.length}</span>

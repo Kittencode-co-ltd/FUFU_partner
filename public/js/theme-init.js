@@ -5,7 +5,8 @@
 (function () {
   var THEME_KEY = 'fufu_theme';
   var SCALE_KEY = 'fufu_font_scale';
-  var SCALES = { sm: '93.75%', md: '100%', lg: '112.5%', xl: '125%' };
+  // Multipliers on the device base text size set in CSS (phone 100%, iPad 106.25%, PC 103.125%, same as the app)
+  var SCALES = { sm: 0.9375, md: 1, lg: 1.125, xl: 1.25 };
   var root = document.documentElement;
   var media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
@@ -29,7 +30,7 @@
   }
   function applyFontScale() {
     var s = getFontScale();
-    root.style.fontSize = SCALES[s];
+    root.style.setProperty('--fs-user', String(SCALES[s]));
     root.dataset.fontScale = s;
   }
 
