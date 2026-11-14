@@ -36,15 +36,13 @@ function render(container, state) {
         </div>
         <div class="flex items-center gap-4">
           <div class="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center">
-            ${profile.logo_url ? `<img src="${escapeHtml(profile.logo_url)}" alt="โลโก้คลินิก" class="w-full h-full object-cover">` : '<span class="text-slate-400 text-xs">ไม่มีโลโก้</span>'}
+            ${profile.store_profile_image_url || profile.logo_url ? `<img id="store-profile-preview" src="${escapeHtml(profile.store_profile_image_url || profile.logo_url)}" alt="รูปโปรไฟล์ร้านค้า" class="w-full h-full object-cover">` : '<img id="store-profile-preview" alt="รูปโปรไฟล์ร้านค้า" class="hidden w-full h-full object-cover">'}
           </div>
-          ${canEdit ? '<input id="logo-file" type="file" accept="image/jpeg,image/png,image/webp" class="text-sm">' : ''}
-        </div>
-        <div class="space-y-3 border-t border-slate-100 pt-4">
-          <div><h3 class="font-semibold text-navy">รูปโปรไฟล์ร้านค้า</h3><p class="text-sm text-slate-400">รูปประจำร้านที่แสดงในหน้าและรายการร้านค้าบน FUFU</p></div>
-          ${profile.store_profile_image_url ? `<img id="profile-image-preview" src="${escapeHtml(profile.store_profile_image_url)}" alt="รูปโปรไฟล์ร้านค้า" class="w-36 h-36 rounded-full object-cover">` : '<img id="profile-image-preview" alt="รูปโปรไฟล์ร้านค้า" class="hidden w-36 h-36 rounded-full object-cover">'}
-          ${canEdit ? '<input id="profile-image-file" type="file" accept="image/jpeg,image/png,image/webp" class="input-field"><button id="save-profile-image" class="btn-primary px-5 py-2">บันทึกรูปโปรไฟล์</button>' : ''}
-          <p class="text-xs text-slate-400">รองรับ JPEG, PNG และ WebP ระบบย่อภาพให้อัตโนมัติ</p>
+          <div class="min-w-0 space-y-1">
+            <div class="font-semibold text-sm text-navy">รูปโปรไฟล์ร้านค้า</div>
+            ${canEdit ? '<input id="store-profile-file" type="file" accept="image/jpeg,image/png,image/webp" class="text-sm">' : ''}
+            <p class="text-xs text-slate-400">ใช้แสดงใน Partner และ FUFU</p>
+          </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           ${field('clinic-name','ชื่อคลินิก',profile.name,canEdit)}
@@ -101,30 +99,20 @@ function bind(container, state) {
     await mutate(container, `/api/clinic/${state.storeId}`, { method:'PATCH', body:JSON.stringify(body) }, 'บันทึกข้อมูลคลินิกแล้ว');
   });
   container.querySelector('#accepting')?.addEventListener('change', async event => mutate(container, `/api/clinic/${state.storeId}`, { method:'PATCH', body:JSON.stringify({ accepting_appointments:event.target.checked }) }, event.target.checked ? 'เปิดรับนัดหมายแล้ว' : 'ปิดรับนัดหมายแล้ว'));
-  container.querySelector('#logo-file')?.addEventListener('change', async event => {
-    const file = event.target.files?.[0]; if (!file) return;
-    if (file.size > 2 * 1024 * 1024) return showToast('โลโก้ต้องไม่เกิน 2 MB','error');
-    const data = await readDataUrl(file);
-    await mutate(container, `/api/clinic/${state.storeId}/logo`, { method:'POST', body:JSON.stringify({ data }) }, 'อัปโหลดโลโก้แล้ว', true);
-  });
-  container.querySelector('#profile-image-file')?.addEventListener('change', async event => {
+  container.querySelector('#store-profile-file')?.addEventListener('change', async event => {
     const file = event.target.files?.[0]; if (!file) return;
     if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { showToast('กรุณาเลือกรูป JPEG, PNG หรือ WebP','error'); event.target.value = ''; return; }
     try {
-      const data = await preparePromoDataUrl(file);
-      const preview = container.querySelector('#profile-image-preview');
+      const data = await prepareProfileImageDataUrl(file);
+      const preview = container.querySelector('#store-profile-preview');
       preview.src = data; preview.classList.remove('hidden');
-    } catch { showToast('เปิดรูปภาพไม่สำเร็จ','error'); }
-  });
-  container.querySelector('#save-profile-image')?.addEventListener('click', async event => {
-    const file = container.querySelector('#profile-image-file')?.files?.[0];
-    if (!file) return showToast('กรุณาเลือกรูปโปรไฟล์ก่อน','error');
-    const button = event.currentTarget; button.disabled = true; button.textContent = 'กำลังบันทึก...';
-    try {
-      const data = await preparePromoDataUrl(file);
-      await mutate(container, `/api/clinic/${state.storeId}/profile-image`, { method:'POST', body:JSON.stringify({ data }) }, 'บันทึกรูปโปรไฟล์แล้ว', true);
+      const result = await mutate(container, `/api/clinic/${state.storeId}/profile-image`, { method:'POST', body:JSON.stringify({ data }) }, 'บันทึกรูปโปรไฟล์แล้ว', true);
+      if (result?.success && result.data?.store_profile_image_url) {
+        const storeInfo = storage.getJSON(STORAGE_KEYS.STORE_INFO) || {};
+        storage.set(STORAGE_KEYS.STORE_INFO, JSON.stringify({ ...storeInfo, store_profile_image_url: result.data.store_profile_image_url }));
+        window.dispatchEvent(new CustomEvent('fufu:store-profile-image-updated', { detail: { url: result.data.store_profile_image_url } }));
+      }
     } catch { showToast('บันทึกรูปไม่สำเร็จ','error'); }
-    finally { button.disabled = false; button.textContent = 'บันทึกรูปโปรไฟล์'; }
   });
   container.querySelector('#save-hours')?.addEventListener('click', async () => {
     const hours = [...container.querySelectorAll('[data-hours-day]')].map(row => ({ day_of_week:Number(row.dataset.hoursDay), is_closed:row.querySelector('.hours-closed').checked, opens_at:row.querySelector('.hours-open').value, closes_at:row.querySelector('.hours-close').value }));
@@ -141,11 +129,11 @@ async function mutate(container, path, options, success, reload = false) {
   if (!result?.success) return showToast(result?.error || 'บันทึกไม่สำเร็จ','error');
   showToast(success);
   if (reload) await renderClinicProfile(container);
+  return result;
 }
 const value = (container, id) => container.querySelector(`#${id}`)?.value.trim() || '';
 const nullableNumber = input => input === '' ? null : Number(input);
-const readDataUrl = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload=()=>resolve(reader.result); reader.onerror=reject; reader.readAsDataURL(file); });
-function preparePromoDataUrl(file) {
+function prepareProfileImageDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader(); reader.onerror = reject;
     reader.onload = () => {

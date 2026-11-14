@@ -28,6 +28,24 @@ export async function renderSettings(container) {
   container.innerHTML = `
     <div class="space-y-5 w-full">
 
+      ${canManage ? `
+      <div class="card p-5 space-y-4">
+        <div>
+          <h3 class="font-bold text-navy text-lg">รูปโปรไฟล์ร้านค้า</h3>
+          <p class="text-sm text-slate-400 font-body mt-0.5">ใช้แสดงใน Partner และ FUFU</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+            <img id="si-profile-image-preview" src="${store.store_profile_image_url || ''}" alt="รูปโปรไฟล์ร้านค้า"
+              class="${store.store_profile_image_url ? '' : 'hidden'} h-full w-full object-cover">
+          </div>
+          <div class="min-w-0 space-y-1">
+            <input id="si-profile-image-file" type="file" accept="image/jpeg,image/png,image/webp" class="text-sm">
+            <p class="text-xs text-slate-400 font-body">เลือกภาพเพื่อบันทึก · JPEG, PNG หรือ WebP</p>
+          </div>
+        </div>
+      </div>` : ''}
+
       <!-- ── ข้อมูลร้านค้า ── -->
       ${canManage ? `
       <div class="card p-5 space-y-4">
@@ -73,19 +91,6 @@ export async function renderSettings(container) {
           </div>
         </div>
         <button id="save-store-info" class="btn-primary px-6 py-2">บันทึกข้อมูลร้านค้า</button>
-      </div>` : ''}
-
-      ${canManage ? `
-      <div class="card p-5 space-y-4">
-        <div>
-          <h3 class="font-bold text-navy text-lg">รูปโปรไฟล์ร้านค้า</h3>
-          <p class="text-sm text-slate-400 font-body mt-0.5">รูปประจำร้านที่แสดงในรายการร้านค้าบน FUFU</p>
-        </div>
-        <img id="si-profile-image-preview" src="${store.store_profile_image_url || ''}" alt="รูปโปรไฟล์ร้านค้า"
-          class="${store.store_profile_image_url ? '' : 'hidden'} w-36 h-36 object-cover rounded-full">
-        <input id="si-profile-image-file" type="file" accept="image/jpeg,image/png,image/webp" class="input-field">
-        <p class="text-xs text-slate-400 font-body">รองรับ JPEG, PNG และ WebP ระบบจะย่อภาพให้อัตโนมัติ (ไม่เกิน 2 MB)</p>
-        <button id="save-profile-image" class="btn-primary px-6 py-2">บันทึกรูปโปรไฟล์</button>
       </div>` : ''}
 
       <!-- ── บัญชีของฉัน ── -->
@@ -246,26 +251,16 @@ export async function renderSettings(container) {
       const data = await _prepareStoreProfileImage(file);
       const preview = container.querySelector('#si-profile-image-preview');
       preview.src = data; preview.classList.remove('hidden');
-    } catch { showToast('เปิดรูปภาพไม่สำเร็จ', 'error'); }
-  });
-
-  container.querySelector('#save-profile-image')?.addEventListener('click', async () => {
-    const input = container.querySelector('#si-profile-image-file');
-    if (!input?.files?.[0]) { showToast('กรุณาเลือกรูปโปรไฟล์ก่อน', 'error'); return; }
-    const btn = container.querySelector('#save-profile-image');
-    btn.disabled = true; btn.textContent = 'กำลังอัปโหลด...';
-    try {
-      const data = await _prepareStoreProfileImage(input.files[0]);
       const res = await apiFetch(`/api/clinic/${storeId}/profile-image`, { method: 'POST', body: JSON.stringify({ data }) });
       if (res?.success) {
         const updated = { ...store, store_profile_image_url: res.data?.store_profile_image_url || store.store_profile_image_url };
         store.store_profile_image_url = updated.store_profile_image_url;
         localStorage.setItem(STORAGE_KEYS.STORE_INFO, JSON.stringify(updated));
-        container.querySelector('#si-profile-image-preview').src = `${updated.store_profile_image_url}?v=${Date.now()}`;
+        preview.src = `${updated.store_profile_image_url}?v=${Date.now()}`;
+        window.dispatchEvent(new CustomEvent('fufu:store-profile-image-updated', { detail: { url: updated.store_profile_image_url } }));
         showToast('บันทึกรูปโปรไฟล์แล้ว ✓');
-      } else showToast(res?.error || 'อัปโหลดรูปไม่สำเร็จ', 'error');
-    } catch { showToast('อัปโหลดรูปไม่สำเร็จ', 'error'); }
-    finally { btn.disabled = false; btn.textContent = 'บันทึกรูปโปรไฟล์'; }
+      } else showToast(res?.error || 'บันทึกรูปไม่สำเร็จ', 'error');
+    } catch { showToast('บันทึกรูปไม่สำเร็จ', 'error'); }
   });
 
   // ── PromptPay ──────────────────────────────────────────────────────────────

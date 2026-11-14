@@ -13,16 +13,24 @@ const supabase = createClient(
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const validEmail = value => typeof value === 'string' && value.length <= 254 && EMAIL.test(value);
 const validPassword = value => typeof value === 'string' && value.length >= 8 && value.length <= 128;
-const STORE_FIELDS = 'id, name, category, verification_status, is_verified, is_active, suspension_reason';
-const STORE_FIELDS_NO_SUSPENSION_REASON = 'id, name, category, verification_status, is_verified, is_active';
+const STORE_FIELDS = 'id, name, category, verification_status, is_verified, is_active, suspension_reason, store_profile_image_url';
+const STORE_FIELDS_NO_SUSPENSION_REASON = 'id, name, category, verification_status, is_verified, is_active, store_profile_image_url';
+const STORE_FIELDS_NO_PROFILE_IMAGE = 'id, name, category, verification_status, is_verified, is_active, suspension_reason';
+const STORE_FIELDS_NO_OPTIONAL = 'id, name, category, verification_status, is_verified, is_active';
 const LEGACY_STORE_FIELDS = 'id, name, category, is_verified, is_active';
 const missingVerificationStatus = error => String(error?.message || '').includes('verification_status');
 const missingSuspensionReason = error => String(error?.message || '').includes('suspension_reason');
+const missingStoreProfileImage = error => String(error?.message || '').includes('store_profile_image_url');
 
 async function queryStores(makeQuery) {
-  let result = await makeQuery(STORE_FIELDS);
-  if (missingSuspensionReason(result.error)) result = await makeQuery(STORE_FIELDS_NO_SUSPENSION_REASON);
-  if (missingVerificationStatus(result.error)) result = await makeQuery(LEGACY_STORE_FIELDS);
+  const variants = [STORE_FIELDS, STORE_FIELDS_NO_SUSPENSION_REASON, STORE_FIELDS_NO_PROFILE_IMAGE, STORE_FIELDS_NO_OPTIONAL, LEGACY_STORE_FIELDS];
+  let result;
+  for (const fields of variants) {
+    result = await makeQuery(fields);
+    if (!result.error) return result;
+    const expectedSchemaMismatch = missingSuspensionReason(result.error) || missingStoreProfileImage(result.error) || missingVerificationStatus(result.error);
+    if (!expectedSchemaMismatch) return result;
+  }
   return result;
 }
 

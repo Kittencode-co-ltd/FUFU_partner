@@ -53,6 +53,7 @@ export default function DashboardPage() {
 
         <div className="relative px-3 pb-2">
           <button id="sb-store-switcher" type="button" className="sb-store">
+            <span id="sb-store-avatar" className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary-subtle text-primary" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <div id="sb-store-name" className="sb-store__name truncate">—</div>
               <div id="sb-store-type" className="sb-store__type" />

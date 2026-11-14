@@ -352,11 +352,14 @@ async function _initStoreSwitcher() {
           ? { label: 'ถูกระงับ', dot: 'bg-red-500', text: 'text-red-700' }
           : { label: 'ใช้งานได้', dot: 'bg-emerald-500', text: 'text-emerald-700' };
     const branch = s.branch_name ? ` · ${s.branch_name}` : '';
+    const imageUrl = [s.store_profile_image_url, s.logo_url].find(url => typeof url === 'string' && /^https?:\/\//i.test(url));
     return `
       <button ${canEnter ? '' : 'disabled'} data-store-id="${s.id}" data-store-name="${escapeHtml(s.name)}" data-store-category="${escapeHtml(s.category)}"
         title="${canEnter ? '' : 'ร้านค้ายังไม่ได้รับอนุมัติ จึงยังเข้าใช้งานไม่ได้'}"
         class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${active ? 'bg-primary-subtle' : canEnter ? 'hover:bg-slate-50' : 'cursor-not-allowed opacity-70'}">
-        <span class="w-4 flex items-center justify-center flex-shrink-0 text-slate-400">${icon(cat.icon, 'w-3.5 h-3.5')}</span>
+        <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white text-slate-400 ring-1 ring-slate-100">
+          ${imageUrl ? `<img data-store-image src="${escapeHtml(imageUrl)}" alt="" class="h-full w-full object-cover"><span class="hidden">${icon(cat.icon, 'w-4 h-4')}</span>` : icon(cat.icon, 'w-4 h-4')}
+        </span>
         <span class="flex-1 min-w-0">
           <span class="block text-sm font-semibold text-navy truncate">${escapeHtml(s.name)}${escapeHtml(branch)}</span>
           <span class="block text-xs text-slate-400 truncate">${cat.label}</span>
@@ -369,6 +372,11 @@ async function _initStoreSwitcher() {
     <div class="mt-1 border-t border-slate-100 pt-1">
       <a href="/login" class="block rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary-subtle">เลือกร้านค้า</a>
     </div>`;
+  dd.querySelectorAll('img[data-store-image]').forEach(img => img.addEventListener('error', () => {
+    img.classList.add('hidden'); img.nextElementSibling?.classList.remove('hidden');
+  }, { once: true }));
+  const activeStore = stores.find(s => s.id === currentId);
+  if (activeStore) _renderStoreIdentity(activeStore);
   btn.style.cursor = 'pointer';
 
   const setOpen = (open) => {
@@ -400,6 +408,22 @@ async function _initStoreSwitcher() {
   });
 }
 
+function _renderStoreIdentity(store) {
+  const name = document.getElementById('sb-store-name');
+  const type = document.getElementById('sb-store-type');
+  const avatar = document.getElementById('sb-store-avatar');
+  const category = CATEGORY_MAP[store?.category] || { label: store?.category || '', icon: 'store' };
+  if (name) name.textContent = store?.name || 'ร้านของคุณ';
+  if (type) type.innerHTML = `<span class="inline-flex items-center gap-1">${icon(category.icon, 'w-3 h-3')} ${escapeHtml(category.label)}</span>`;
+  if (avatar) {
+    const imageUrl = [store?.store_profile_image_url, store?.logo_url].find(url => typeof url === 'string' && /^https?:\/\//i.test(url));
+    avatar.innerHTML = imageUrl
+      ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(store?.name || 'รูปโปรไฟล์ร้าน')}" class="h-full w-full object-cover">`
+      : icon(category.icon, 'w-5 h-5');
+    avatar.querySelector('img')?.addEventListener('error', () => { avatar.innerHTML = icon(category.icon, 'w-5 h-5'); }, { once: true });
+  }
+}
+
 function _switchStore(id, name, category) {
   const cat = CATEGORY_MAP[category] || {};
   storage.set(STORAGE_KEYS.STORE_ID,       id);
@@ -425,12 +449,10 @@ export async function initDashboard() {
   const role    = getCurrentRole();
   const user    = getCurrentUser();
   const store   = getCurrentStore();
-  const catInfo = CATEGORY_MAP[store.category] || { label: store.category || '', icon: 'store' };
   const isStoreActive = storage.get(STORAGE_KEYS.STORE_ACTIVE) !== 'false';
 
   const q = (id) => document.getElementById(id);
-  if (q('sb-store-name')) q('sb-store-name').textContent = store.name || 'ร้านของคุณ';
-  if (q('sb-store-type')) q('sb-store-type').innerHTML = `<span class="inline-flex items-center gap-1">${icon(catInfo.icon, 'w-3 h-3')} ${catInfo.label}</span>`;
+  _renderStoreIdentity(store);
   initProfileMenu({
     email: user.email || '',
     role: 'owner',
@@ -440,6 +462,20 @@ export async function initDashboard() {
   });
 
   _initStoreSwitcher();
+  window.addEventListener('fufu:store-profile-image-updated', event => {
+    const imageUrl = event.detail?.url;
+    if (!imageUrl) return;
+    const currentStore = { ...getCurrentStore(), store_profile_image_url: imageUrl };
+    storage.set(STORAGE_KEYS.STORE_INFO, JSON.stringify(currentStore));
+    _renderStoreIdentity(currentStore);
+    const currentOption = document.querySelector(`#sb-store-dropdown [data-store-id="${currentStore.id}"]`);
+    const image = currentOption?.querySelector('img[data-store-image]');
+    if (image) image.src = imageUrl;
+    else if (currentOption) {
+      const iconBox = currentOption.querySelector('.bg-white');
+      if (iconBox) iconBox.innerHTML = `<img data-store-image src="${escapeHtml(imageUrl)}" alt="" class="h-full w-full object-cover"><span class="hidden">${icon(CATEGORY_MAP[currentStore.category]?.icon || 'store', 'w-4 h-4')}</span>`;
+    }
+  });
 
   const dateEl = q('topbar-date');
   if (dateEl) {

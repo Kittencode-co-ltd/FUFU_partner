@@ -7,16 +7,25 @@ router.use(requireAuth);
 
 const STORE_FIELDS = 'id, name, category, branch_name, phone, address, tax_id, website, receipt_header_note, business_hours, default_service_rates, store_profile_image_url';
 const BASE_STORE_FIELDS = 'id, name, category';
+const OPTIONAL_STORE_FIELDS = ['branch_name','phone','address','tax_id','website','receipt_header_note','business_hours','default_service_rates','store_profile_image_url'];
 
 function isMissingOptionalStoreField(error) {
   const message = String(error?.message || '').toLowerCase();
-  const isOptionalField = message.includes('branch_name') || message.includes('store_profile_image_url');
-  return isOptionalField && (message.includes('schema cache') || error?.code === 'PGRST204' || error?.code === '42703');
+  const namesOptionalField = OPTIONAL_STORE_FIELDS.some(field => message.includes(field));
+  return namesOptionalField && (message.includes('schema cache') || error?.code === 'PGRST204' || error?.code === '42703');
 }
 
 async function listStores(makeQuery) {
-  const result = await makeQuery(STORE_FIELDS);
-  if (!isMissingOptionalStoreField(result.error)) return result;
+  const fields = STORE_FIELDS.split(',').map(field => field.trim());
+  let result;
+  while (fields.length > BASE_STORE_FIELDS.split(',').length) {
+    result = await makeQuery(fields.join(', '));
+    if (!result.error) return result;
+    if (!isMissingOptionalStoreField(result.error)) return result;
+    const missing = OPTIONAL_STORE_FIELDS.find(field => fields.includes(field) && String(result.error.message || '').toLowerCase().includes(field));
+    if (!missing) return result;
+    fields.splice(fields.indexOf(missing), 1);
+  }
   return makeQuery(BASE_STORE_FIELDS);
 }
 

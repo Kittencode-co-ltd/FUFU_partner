@@ -143,7 +143,7 @@ router.post('/:store_id/profile-image', requireRole('owner'), async (req, res) =
   const { error: uploadError } = await req.supabase.storage.from('store-profile-images').upload(path, bytes, { contentType: match[1], upsert: true });
   if (uploadError) return res.status(400).json({ error: uploadError.message });
   const { data: publicData } = req.supabase.storage.from('store-profile-images').getPublicUrl(path);
-  const { data, error } = await req.supabase.from('stores').update({ store_profile_image_url: publicData.publicUrl }).eq('id', req.params.store_id).select(STORE_FIELDS).single();
+  const { data, error } = await req.supabase.from('stores').update({ store_profile_image_url: publicData.publicUrl, logo_url: publicData.publicUrl }).eq('id', req.params.store_id).select(STORE_FIELDS).single();
   if (missingProfileImageColumn(error)) return res.status(503).json({ error: 'ต้องอัปเดตฐานข้อมูลก่อนจึงจะบันทึกรูปโปรไฟล์ได้' });
   if (error) return res.status(400).json({ error: error.message });
   res.json({ success: true, data });

@@ -144,9 +144,11 @@ export function logout() {
 export function getCurrentUser()  { return storage.getJSON(STORAGE_KEYS.USER) || {}; }
 export function getCurrentRole()  { return storage.get(STORAGE_KEYS.ROLE) || 'vet'; }
 export function getCurrentStore() {
+  const info = storage.getJSON(STORAGE_KEYS.STORE_INFO) || {};
   return {
     id:       storage.get(STORAGE_KEYS.STORE_ID),
     name:     storage.get(STORAGE_KEYS.STORE_NAME),
     category: storage.get(STORAGE_KEYS.STORE_CATEGORY),
+    store_profile_image_url: info.store_profile_image_url || null,
   };
 }
