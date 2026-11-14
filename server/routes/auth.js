@@ -23,6 +23,57 @@ async function queryStores(makeQuery) {
   return result;
 }
 
+function createStoreLookupClient() {
+  const serviceKey = process.env.service_role_key || process.env.SERVICE_ROLE_KEY;
+  if (!serviceKey) return null;
+  return createClient(process.env.Project_URL, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+function createUserStoreLookupClient(token) {
+  return createClient(process.env.Project_URL, process.env.publishable_key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+async function listAccessibleStores(client, user) {
+  if (!client) return { error: new Error('Store lookup service key is not configured') };
+
+  const [byId, byEmail, staffResult] = await Promise.all([
+    queryStores(fields => client.from('stores').select(fields).eq('owner_id', user.id)),
+    queryStores(fields => client.from('stores').select(fields).eq('owner_email', user.email)),
+    client.from('staff').select('store_id, role, full_name').eq('email', user.email).eq('is_active', true),
+  ]);
+  const error = byId.error || byEmail.error || staffResult.error;
+  if (error) return { error };
+
+  const storesById = new Map();
+  for (const store of [...(byId.data || []), ...(byEmail.data || [])]) storesById.set(store.id, store);
+
+  const staffRows = staffResult.data || [];
+  if (staffRows.length) {
+    const storeIds = [...new Set(staffRows.map(row => row.store_id))];
+    const { data: staffStores, error: staffStoresError } = await queryStores(fields => client
+      .from('stores').select(fields).in('id', storeIds));
+    if (staffStoresError) return { error: staffStoresError };
+    for (const store of staffStores || []) {
+      const staffRow = staffRows.find(row => row.store_id === store.id);
+      if (!storesById.has(store.id)) {
+        storesById.set(store.id, {
+          ...store,
+          staff_roles: staffRow?.role ? [staffRow.role] : ['staff'],
+          staff_role: staffRow?.role,
+          is_staff: true,
+        });
+      }
+    }
+  }
+
+  return { stores: [...storesById.values()], isStaffMember: staffRows.length > 0 };
+}
+
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
 router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
@@ -56,70 +107,16 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
   }
   clearFailedLoginAttempts(req);
 
-  // Optional partner-access RPC gate — skip if function doesn't exist yet.
-  // If it exists and returns false → user is purely a mobile app user, still allowed
-  // to login but will get needs_onboarding: true (handled below).
-  const { data: isStaff, error: rpcErr } = await supabase
-    .rpc('is_fufu_staff', { user_id: data.user.id });
-
-  const rpcMissing  = rpcErr?.code === 'PGRST202' || rpcErr?.message?.includes('Could not find');
-  const isConfirmed = rpcMissing || isStaff !== false; // default allow if RPC missing
-
-  // Use user-scoped client (respects RLS)
-  const userSb = createClient(
-    process.env.Project_URL,
-    process.env.publishable_key,
-    {
-      global: { headers: { Authorization: `Bearer ${data.session.access_token}` } },
-      auth:   { persistSession: false, autoRefreshToken: false },
-    },
+  const lookup = await listAccessibleStores(
+    createStoreLookupClient() || createUserStoreLookupClient(data.session.access_token),
+    data.user,
   );
-
-  // 1. Look up owned stores (by owner_id, then by owner_email fallback)
-  let { data: stores, error: storesError } = await queryStores(fields => userSb
-    .from('stores').select(fields).eq('owner_id', data.user.id));
-
-  if (!stores?.length) {
-    const { data: byEmail, error: emailError } = await queryStores(fields => userSb
-      .from('stores').select(fields).eq('owner_email', data.user.email));
-    stores = byEmail;
-    storesError = emailError;
-  }
-  if (storesError) {
-    console.error('[Partner login] Store lookup failed:', storesError.code || storesError.message);
+  if (lookup.error) {
+    console.error('[Partner login] Store lookup failed:', lookup.error.code || lookup.error.message);
     return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
   }
-  // Return every owned store, including inactive and not-yet-approved stores.
-  // The picker labels each state; activation must not make an existing store
-  // disappear and accidentally send its owner into first-store onboarding.
-  const allOwnedStores = stores || [];
-  let isStaffMember = false;
-  const { data: staffRows, error: staffError } = await userSb
-    .from('staff')
-    .select('store_id, role, full_name')
-    .eq('email', data.user.email)
-    .eq('is_active', true);
-  if (staffError) {
-    console.error('[Partner login] Staff lookup failed:', staffError.code || staffError.message);
-  }
-  let staffStores = [];
-  if (staffRows?.length) {
-    isStaffMember = true;
-    const staffStoreIds = [...new Set(staffRows.map(row => row.store_id))];
-    const { data: foundStaffStores, error: staffStoresError } = await queryStores(fields => userSb
-      .from('stores').select(fields).in('id', staffStoreIds));
-    if (staffStoresError) {
-      console.error('[Partner login] Staff store lookup failed:', staffStoresError.code || staffStoresError.message);
-      return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
-    }
-    staffStores = (foundStaffStores || []).map(store => {
-      const staffRow = staffRows.find(row => row.store_id === store.id);
-      return { ...store, staff_roles: staffRow?.role ? [staffRow.role] : ['staff'], staff_role: staffRow?.role, is_staff: true };
-    });
-  }
-  const storesById = new Map(allOwnedStores.map(store => [store.id, store]));
-  for (const store of staffStores) if (!storesById.has(store.id)) storesById.set(store.id, store);
-  stores = [...storesById.values()];
+  const stores = lookup.stores;
+  const isStaffMember = lookup.isStaffMember;
 
   // No store and not staff → a mobile-only account can create its first store.
   const needs_onboarding = !stores.length && !isStaffMember;
@@ -134,8 +131,20 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
       id:    data.user.id,
       email: data.user.email,
     },
-    stores: stores || [],
+    stores,
   });
+});
+
+// Refresh the current user's complete store list when revisiting the picker from
+// the dashboard. The server lookup includes inactive stores that RLS discovery
+// policies intentionally hide from public/user-scoped queries.
+router.get('/stores', requireAuth, async (req, res) => {
+  const lookup = await listAccessibleStores(createStoreLookupClient() || req.supabase, req.user);
+  if (lookup.error) {
+    console.error('[Partner store picker] Store lookup failed:', lookup.error.code || lookup.error.message);
+    return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'โหลดรายชื่อร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+  }
+  res.json({ success: true, stores: lookup.stores, is_staff: lookup.isStaffMember });
 });
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────

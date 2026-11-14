@@ -23,20 +23,22 @@ export default function LoginPage() {
   const [stores, setStores] = useState(null)
 
   useEffect(() => {
-    const cachedStores = localStorage.getItem(KEYS.stores)
-    if (localStorage.getItem(KEYS.token) && cachedStores) {
-      try {
-        const availableStores = JSON.parse(cachedStores)
-        if (Array.isArray(availableStores) && availableStores.length) {
-          setStores(availableStores) // eslint-disable-line react-hooks/set-state-in-effect
-          return
-        }
-      } catch { localStorage.removeItem(KEYS.stores) }
+    const token = localStorage.getItem(KEYS.token)
+    if (token) {
+      fetch('/api/auth/stores', { headers: { Authorization: `Bearer ${token}` } })
+        .then(async response => {
+          const result = await response.json().catch(() => ({}))
+          if (!response.ok || !result.success || !Array.isArray(result.stores)) throw new Error(result.error || 'โหลดรายชื่อร้านไม่สำเร็จ')
+          localStorage.setItem(KEYS.stores, JSON.stringify(result.stores))
+          setStores(result.stores)
+        })
+        .catch(() => setError('โหลดรายชื่อร้านไม่สำเร็จ กรุณาลองเข้าสู่ระบบอีกครั้ง'))
+      return
     }
     // Restore the remembered email (the static login page did this too)
     if (localStorage.getItem(KEYS.remember) === '1') {
       const saved = localStorage.getItem(KEYS.email)
-      if (saved) { setEmail(saved); setRemember(true) }
+      if (saved) { setEmail(saved); setRemember(true) } // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [])
 
