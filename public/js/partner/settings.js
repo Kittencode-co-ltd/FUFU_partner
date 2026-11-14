@@ -75,6 +75,19 @@ export async function renderSettings(container) {
         <button id="save-store-info" class="btn-primary px-6 py-2">บันทึกข้อมูลร้านค้า</button>
       </div>` : ''}
 
+      ${canManage ? `
+      <div class="card p-5 space-y-4">
+        <div>
+          <h3 class="font-bold text-navy text-lg">รูปโปรไฟล์ร้านค้า</h3>
+          <p class="text-sm text-slate-400 font-body mt-0.5">รูปประจำร้านที่แสดงในรายการร้านค้าบน FUFU</p>
+        </div>
+        <img id="si-profile-image-preview" src="${store.store_profile_image_url || ''}" alt="รูปโปรไฟล์ร้านค้า"
+          class="${store.store_profile_image_url ? '' : 'hidden'} w-36 h-36 object-cover rounded-full">
+        <input id="si-profile-image-file" type="file" accept="image/jpeg,image/png,image/webp" class="input-field">
+        <p class="text-xs text-slate-400 font-body">รองรับ JPEG, PNG และ WebP ระบบจะย่อภาพให้อัตโนมัติ (ไม่เกิน 2 MB)</p>
+        <button id="save-profile-image" class="btn-primary px-6 py-2">บันทึกรูปโปรไฟล์</button>
+      </div>` : ''}
+
       <!-- ── บัญชีของฉัน ── -->
       <div class="card p-5 space-y-3">
         <h3 class="font-bold text-navy text-lg">บัญชีของฉัน</h3>
@@ -221,6 +234,38 @@ export async function renderSettings(container) {
     } else {
       showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
     }
+  });
+
+  container.querySelector('#si-profile-image-file')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast('กรุณาเลือกรูป JPEG, PNG หรือ WebP', 'error'); event.target.value = ''; return;
+    }
+    try {
+      const data = await _prepareStoreProfileImage(file);
+      const preview = container.querySelector('#si-profile-image-preview');
+      preview.src = data; preview.classList.remove('hidden');
+    } catch { showToast('เปิดรูปภาพไม่สำเร็จ', 'error'); }
+  });
+
+  container.querySelector('#save-profile-image')?.addEventListener('click', async () => {
+    const input = container.querySelector('#si-profile-image-file');
+    if (!input?.files?.[0]) { showToast('กรุณาเลือกรูปโปรไฟล์ก่อน', 'error'); return; }
+    const btn = container.querySelector('#save-profile-image');
+    btn.disabled = true; btn.textContent = 'กำลังอัปโหลด...';
+    try {
+      const data = await _prepareStoreProfileImage(input.files[0]);
+      const res = await apiFetch(`/api/clinic/${storeId}/profile-image`, { method: 'POST', body: JSON.stringify({ data }) });
+      if (res?.success) {
+        const updated = { ...store, store_profile_image_url: res.data?.store_profile_image_url || store.store_profile_image_url };
+        store.store_profile_image_url = updated.store_profile_image_url;
+        localStorage.setItem(STORAGE_KEYS.STORE_INFO, JSON.stringify(updated));
+        container.querySelector('#si-profile-image-preview').src = `${updated.store_profile_image_url}?v=${Date.now()}`;
+        showToast('บันทึกรูปโปรไฟล์แล้ว ✓');
+      } else showToast(res?.error || 'อัปโหลดรูปไม่สำเร็จ', 'error');
+    } catch { showToast('อัปโหลดรูปไม่สำเร็จ', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'บันทึกรูปโปรไฟล์'; }
   });
 
   // ── PromptPay ──────────────────────────────────────────────────────────────
@@ -420,4 +465,27 @@ function _pwScore(pw) {
   if (/[0-9]/.test(pw))         s++;
   if (/[^A-Za-z0-9]/.test(pw))  s++;
   return Math.max(1, s);
+}
+
+function _prepareStoreProfileImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = reject;
+      image.onload = () => {
+        const scale = Math.min(1, 1600 / image.width, 1200 / image.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        let quality = 0.86; let data = canvas.toDataURL('image/jpeg', quality);
+        while (data.length > 2_700_000 && quality > 0.5) { quality -= 0.08; data = canvas.toDataURL('image/jpeg', quality); }
+        if (data.length > 2_700_000) return reject(new Error('Image too large'));
+        resolve(data);
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }

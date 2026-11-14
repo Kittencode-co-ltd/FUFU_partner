@@ -10,10 +10,14 @@ router.param('store_id', (req, _res, next, value) => {
   next();
 });
 
-const STORE_FIELDS = 'id,name,description,phone,email,address,province,district,website,logo_url,location_lat,location_lng,timezone,is_verified,is_active,accepting_appointments';
+const STORE_FIELDS = 'id,name,description,phone,email,address,province,district,website,logo_url,store_profile_image_url,location_lat,location_lng,timezone,is_verified,is_active,accepting_appointments';
+const LEGACY_STORE_FIELDS = 'id,name,description,phone,email,address,province,district,website,logo_url,location_lat,location_lng,timezone,is_verified,is_active,accepting_appointments';
+const missingProfileImageColumn = error => String(error?.message || '').toLowerCase().includes('store_profile_image_url');
 
 router.get('/:store_id', requireRole('owner', 'reception', 'vet'), async (req, res) => {
-  const { data, error } = await req.supabase.from('stores').select(STORE_FIELDS).eq('id', req.params.store_id).single();
+  let { data, error } = await req.supabase.from('stores').select(STORE_FIELDS).eq('id', req.params.store_id).single();
+  // Keep the clinic profile usable until the store profile-image migration is applied.
+  if (missingProfileImageColumn(error)) ({ data, error } = await req.supabase.from('stores').select(LEGACY_STORE_FIELDS).eq('id', req.params.store_id).single());
   if (error || !data) return res.status(404).json({ success: false, error: 'Clinic not found' });
   res.json({ success: true, data });
 });
@@ -30,7 +34,8 @@ router.patch('/:id', useStoreIdParam('id'), requireRole('owner'), async (req, re
   if (updates.location_lat !== undefined && !finiteInRange(updates.location_lat, -90, 90)) return res.status(400).json({ error: 'Invalid latitude' });
   if (updates.location_lng !== undefined && !finiteInRange(updates.location_lng, -180, 180)) return res.status(400).json({ error: 'Invalid longitude' });
   if (!Object.keys(updates).length) return res.status(400).json({ error: 'No valid fields' });
-  const { data, error } = await req.supabase.from('stores').update(updates).eq('id', req.params.id).select(STORE_FIELDS).single();
+  let { data, error } = await req.supabase.from('stores').update(updates).eq('id', req.params.id).select(STORE_FIELDS).single();
+  if (missingProfileImageColumn(error)) ({ data, error } = await req.supabase.from('stores').update(updates).eq('id', req.params.id).select(LEGACY_STORE_FIELDS).single());
   if (error) return res.status(400).json({ error: error.message });
   res.json({ success: true, data });
 });
@@ -122,7 +127,24 @@ router.post('/:store_id/logo', requireRole('owner'), async (req, res) => {
   const { error: uploadError } = await req.supabase.storage.from('clinic-logos').upload(path, bytes, { contentType: match[1], upsert: true });
   if (uploadError) return res.status(400).json({ error: uploadError.message });
   const { data: publicData } = req.supabase.storage.from('clinic-logos').getPublicUrl(path);
-  const { data, error } = await req.supabase.from('stores').update({ logo_url: publicData.publicUrl }).eq('id', req.params.store_id).select(STORE_FIELDS).single();
+  let { data, error } = await req.supabase.from('stores').update({ logo_url: publicData.publicUrl }).eq('id', req.params.store_id).select(STORE_FIELDS).single();
+  if (missingProfileImageColumn(error)) ({ data, error } = await req.supabase.from('stores').update({ logo_url: publicData.publicUrl }).eq('id', req.params.store_id).select(LEGACY_STORE_FIELDS).single());
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ success: true, data });
+});
+
+router.post('/:store_id/profile-image', requireRole('owner'), async (req, res) => {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(req.body?.data || '');
+  if (!match) return res.status(400).json({ error: 'รูปโปรไฟล์ต้องเป็น JPEG, PNG หรือ WebP' });
+  const bytes = Buffer.from(match[2], 'base64');
+  if (!bytes.length || bytes.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'รูปโปรไฟล์ต้องมีขนาดไม่เกิน 2 MB' });
+  const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[match[1]];
+  const path = `${req.user.id}/${req.params.store_id}/profile.${extension}`;
+  const { error: uploadError } = await req.supabase.storage.from('store-profile-images').upload(path, bytes, { contentType: match[1], upsert: true });
+  if (uploadError) return res.status(400).json({ error: uploadError.message });
+  const { data: publicData } = req.supabase.storage.from('store-profile-images').getPublicUrl(path);
+  const { data, error } = await req.supabase.from('stores').update({ store_profile_image_url: publicData.publicUrl }).eq('id', req.params.store_id).select(STORE_FIELDS).single();
+  if (missingProfileImageColumn(error)) return res.status(503).json({ error: 'ต้องอัปเดตฐานข้อมูลก่อนจึงจะบันทึกรูปโปรไฟล์ได้' });
   if (error) return res.status(400).json({ error: error.message });
   res.json({ success: true, data });
 });

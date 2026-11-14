@@ -40,6 +40,12 @@ function render(container, state) {
           </div>
           ${canEdit ? '<input id="logo-file" type="file" accept="image/jpeg,image/png,image/webp" class="text-sm">' : ''}
         </div>
+        <div class="space-y-3 border-t border-slate-100 pt-4">
+          <div><h3 class="font-semibold text-navy">รูปโปรไฟล์ร้านค้า</h3><p class="text-sm text-slate-400">รูปประจำร้านที่แสดงในหน้าและรายการร้านค้าบน FUFU</p></div>
+          ${profile.store_profile_image_url ? `<img id="profile-image-preview" src="${escapeHtml(profile.store_profile_image_url)}" alt="รูปโปรไฟล์ร้านค้า" class="w-36 h-36 rounded-full object-cover">` : '<img id="profile-image-preview" alt="รูปโปรไฟล์ร้านค้า" class="hidden w-36 h-36 rounded-full object-cover">'}
+          ${canEdit ? '<input id="profile-image-file" type="file" accept="image/jpeg,image/png,image/webp" class="input-field"><button id="save-profile-image" class="btn-primary px-5 py-2">บันทึกรูปโปรไฟล์</button>' : ''}
+          <p class="text-xs text-slate-400">รองรับ JPEG, PNG และ WebP ระบบย่อภาพให้อัตโนมัติ</p>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           ${field('clinic-name','ชื่อคลินิก',profile.name,canEdit)}
           ${field('clinic-phone','เบอร์โทร',profile.phone,canEdit,'tel')}
@@ -101,6 +107,25 @@ function bind(container, state) {
     const data = await readDataUrl(file);
     await mutate(container, `/api/clinic/${state.storeId}/logo`, { method:'POST', body:JSON.stringify({ data }) }, 'อัปโหลดโลโก้แล้ว', true);
   });
+  container.querySelector('#profile-image-file')?.addEventListener('change', async event => {
+    const file = event.target.files?.[0]; if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { showToast('กรุณาเลือกรูป JPEG, PNG หรือ WebP','error'); event.target.value = ''; return; }
+    try {
+      const data = await preparePromoDataUrl(file);
+      const preview = container.querySelector('#profile-image-preview');
+      preview.src = data; preview.classList.remove('hidden');
+    } catch { showToast('เปิดรูปภาพไม่สำเร็จ','error'); }
+  });
+  container.querySelector('#save-profile-image')?.addEventListener('click', async event => {
+    const file = container.querySelector('#profile-image-file')?.files?.[0];
+    if (!file) return showToast('กรุณาเลือกรูปโปรไฟล์ก่อน','error');
+    const button = event.currentTarget; button.disabled = true; button.textContent = 'กำลังบันทึก...';
+    try {
+      const data = await preparePromoDataUrl(file);
+      await mutate(container, `/api/clinic/${state.storeId}/profile-image`, { method:'POST', body:JSON.stringify({ data }) }, 'บันทึกรูปโปรไฟล์แล้ว', true);
+    } catch { showToast('บันทึกรูปไม่สำเร็จ','error'); }
+    finally { button.disabled = false; button.textContent = 'บันทึกรูปโปรไฟล์'; }
+  });
   container.querySelector('#save-hours')?.addEventListener('click', async () => {
     const hours = [...container.querySelectorAll('[data-hours-day]')].map(row => ({ day_of_week:Number(row.dataset.hoursDay), is_closed:row.querySelector('.hours-closed').checked, opens_at:row.querySelector('.hours-open').value, closes_at:row.querySelector('.hours-close').value }));
     await mutate(container, `/api/clinic/${state.storeId}/hours`, { method:'PUT', body:JSON.stringify({ hours }) }, 'บันทึกเวลาทำการแล้ว');
@@ -120,4 +145,23 @@ async function mutate(container, path, options, success, reload = false) {
 const value = (container, id) => container.querySelector(`#${id}`)?.value.trim() || '';
 const nullableNumber = input => input === '' ? null : Number(input);
 const readDataUrl = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload=()=>resolve(reader.result); reader.onerror=reject; reader.readAsDataURL(file); });
+function preparePromoDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader(); reader.onerror = reject;
+    reader.onload = () => {
+      const image = new Image(); image.onerror = reject;
+      image.onload = () => {
+        const scale = Math.min(1, 1600 / image.width, 1200 / image.height);
+        const canvas = document.createElement('canvas'); canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        let quality = 0.86; let data = canvas.toDataURL('image/jpeg', quality);
+        while (data.length > 2_700_000 && quality > 0.5) { quality -= 0.08; data = canvas.toDataURL('image/jpeg', quality); }
+        if (data.length > 2_700_000) return reject(new Error('Image too large'));
+        resolve(data);
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 function renderError(container, message) { container.innerHTML = `<div class="card p-8 text-center"><div class="font-semibold text-navy">โหลดข้อมูลไม่สำเร็จ</div><p class="text-sm text-slate-500 mt-2">${escapeHtml(message)}</p><button id="retry-clinic" class="btn-primary mt-4 px-4 py-2">ลองใหม่</button></div>`; container.querySelector('#retry-clinic')?.addEventListener('click',()=>renderClinicProfile(container)); }
