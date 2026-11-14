@@ -26,9 +26,9 @@
   --pt-muted: #5E7379;
   --pt-subtle: #8FA2A6;
   --pt-brand: #2A6374;
-  --pt-brand-ink: #1F5F5A;
+  --pt-brand-ink: #1B414B;
   --pt-tint: #E3F2EF;
-  --pt-accent: #0F9D8A;
+  --pt-accent: #2A6374;  /* main colour = FUFU logo teal (same as the app) */
   color-scheme: light;
 }
 html.dark {

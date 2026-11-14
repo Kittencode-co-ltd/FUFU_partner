@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>FUFU Pet Care — System Flow</title>
+<!-- Source for docs/diagrams/fufu-system-flow.png.
+     Nodes and links are defined in the NODES / CHIPS / EDGES arrays below (canvas units, 2400 × 1150).
+     Re-render with headless Chrome (see docs/diagrams/README.md). -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=Fredoka:wght@600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --brand:#2a6374; --brand-50:#eaf3f4; --coral:#f0865e; --coral-50:#fdf0ea; --mint:#3c8a80; --mint-50:#ecf7f5; --gold:#b98a45; --gold-50:#fff7e8; --ink:#1d3640; --muted:#5e7379; --cream:#faf7f2; --line:#e4eae9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--cream); font-family: 'Noto Sans Thai', 'DM Sans', sans-serif; color: var(--ink); }
+  .page { width: 2560px; padding: 64px 80px 56px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; margin-bottom: 36px; }
+  .brand { display: flex; align-items: center; gap: 18px; }
+  .brand img { width: 80px; height: 80px; border-radius: 24px; box-shadow: 0 8px 24px rgba(42,99,116,.15); }
+  .brand b { font: 700 36px/1 'Fredoka', sans-serif; color: var(--brand); }
+  .brand em { font: 600 36px/1 'Fredoka', sans-serif; font-style: normal; color: var(--coral); }
+  h1 { margin: 18px 0 0; font-size: 46px; line-height: 1.2; letter-spacing: -.02em; }
+  .sub { margin-top: 8px; color: var(--muted); font-size: 20px; }
+  .legend { display: grid; grid-template-columns: repeat(2, auto); gap: 12px 30px; padding: 20px 26px; border-radius: 20px; background: #fff; border: 1px solid var(--line); font-size: 17px; }
+  .legend span { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; }
+  .ln { width: 40px; height: 0; border-top: 3px solid var(--brand); position: relative; }
+  .ln::after { content: ''; position: absolute; right: -2px; top: -7px; border: 5.5px solid transparent; border-left: 8px solid var(--brand); }
+  .ln.dash { border-top: 3px dashed var(--coral); }
+  .ln.dash::after { border-left-color: var(--coral); }
+  .dia { width: 18px; height: 18px; transform: rotate(45deg); border: 2px solid var(--brand); background: #fff; margin: 0 6px; }
+
+  .canvas { position: relative; width: 2400px; height: 1150px; }
+  .lane { position: absolute; left: 0; right: 0; border-radius: 26px; }
+  .lane-label { position: absolute; left: 0; top: 0; bottom: 0; width: 210px; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 26px; border-radius: 26px 0 0 26px; }
+  .lane-label i { font-style: normal; font-size: 30px; }
+  .lane-label b { font-size: 21px; line-height: 1.3; }
+  .lane-label small { font-size: 15px; color: var(--muted); line-height: 1.4; }
+  .l-ai { top: 0; height: 190px; background: #fffaf7; border: 1.5px solid #f6d3c3; }
+  .l-ai .lane-label { background: var(--coral-50); color: #b5542c; }
+  .l-owner { top: 210px; height: 440px; background: #f6fafa; border: 1.5px solid #cfe0e3; }
+  .l-owner .lane-label { background: var(--brand-50); color: var(--brand); }
+  .l-cloud { top: 670px; height: 160px; background: #fffcf5; border: 1.5px solid #efdfbd; }
+  .l-cloud .lane-label { background: var(--gold-50); color: var(--gold); }
+  .l-partner { top: 850px; height: 300px; background: #f5fbfa; border: 1.5px solid #cfe7e3; }
+  .l-partner .lane-label { background: var(--mint-50); color: var(--mint); }
+
+  .node { position: absolute; z-index: 2; width: 210px; min-height: 76px; transform: translate(-50%, -50%); display: flex; flex-direction: column; justify-content: center; padding: 12px 16px; border-radius: 16px; background: #fff; border: 2px solid; font-size: 17px; line-height: 1.4; text-align: center; box-shadow: 0 6px 16px rgba(29,54,64,.06); }
+  .node b { font-size: 18px; font-weight: 700; }
+  .node small { display: block; margin-top: 2px; color: var(--muted); font-size: 14.5px; line-height: 1.4; }
+  .node.owner { border-color: var(--brand); }
+  .node.ai { border-color: var(--coral); background: #fff; }
+  .node.partner { border-color: var(--mint); }
+  .node.start { border-radius: 999px; background: var(--brand); color: #fff; border-color: var(--brand); }
+  .node.start small { color: rgba(255,255,255,.8); }
+  .node.partner.start { background: var(--mint); border-color: var(--mint); }
+  .node.wide { width: 250px; }
+  .decision { position: absolute; z-index: 2; width: 128px; height: 128px; transform: translate(-50%, -50%); display: grid; place-items: center; }
+  .decision::before { content: ''; position: absolute; inset: 18px; transform: rotate(45deg); border-radius: 14px; background: #fff; border: 2px solid var(--brand); box-shadow: 0 6px 16px rgba(29,54,64,.06); }
+  .decision.partner::before { border-color: var(--mint); }
+  .decision span { position: relative; font-size: 15.5px; font-weight: 700; line-height: 1.3; text-align: center; width: 96px; }
+
+  .bar { position: absolute; z-index: 1; left: 230px; right: 20px; top: 702px; height: 96px; border-radius: 20px; background: #fff; border: 2px dashed #e3cf9f; }
+  .chip { position: absolute; z-index: 2; width: 196px; transform: translate(-50%, -50%); padding: 10px 12px; border-radius: 14px; background: var(--gold-50); border: 2px solid #e3cf9f; text-align: center; font-size: 15.5px; line-height: 1.35; }
+  .chip b { display: block; font-size: 16.5px; color: #8a6424; }
+
+  svg.links { position: absolute; inset: 0; z-index: 1; overflow: visible; }
+  .solid { fill: none; stroke: var(--brand); stroke-width: 2.6; }
+  .dash { fill: none; stroke: var(--coral); stroke-width: 2.6; stroke-dasharray: 9 7; }
+  .solid.p { stroke: var(--mint); }
+  .label { position: absolute; z-index: 3; transform: translate(-50%, -50%); padding: 3px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--line); color: var(--muted); font-size: 14.5px; font-weight: 600; white-space: nowrap; }
+  .label.d { color: #c25a33; border-color: #f6d3c3; }
+  footer { display: flex; justify-content: space-between; margin-top: 30px; color: var(--muted); font-size: 17px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <div class="brand"><img src="fufu-mark.webp" alt=""><div><b>FUFU</b> <em>Pet Care</em></div></div>
+      <h1>ภาพรวมการทำงานของระบบ FUFU</h1>
+      <div class="sub">เจ้าของสัตว์ใช้ FUFU App → ข้อมูลผ่าน FUFU Cloud และ AI → ถึงหลังบ้านของพาร์ทเนอร์แบบเรียลไทม์ → สรุปผลกลับถึงเจ้าของ</div>
+    </div>
+    <div class="legend">
+      <span><i class="ln"></i>ขั้นตอนการใช้งาน</span>
+      <span><i class="dia"></i>จุดตัดสินใจ</span>
+      <span><i class="ln dash"></i>ข้อมูลรับ-ส่ง / แจ้งเตือนเรียลไทม์</span>
+      <span>ส่งเคสให้คลินิกเมื่อเจ้าของยินยอมเท่านั้น</span>
+    </div>
+  </header>
+
+  <div class="canvas" id="canvas">
+    <div class="lane l-ai"><div class="lane-label"><b>FUFU AI</b><small>วิเคราะห์ภาพ · แชท · คาดการณ์</small></div></div>
+    <div class="lane l-owner"><div class="lane-label"><b>เจ้าของสัตว์เลี้ยง</b><small>FUFU App<br>iOS · Android · Web</small></div></div>
+    <div class="lane l-cloud"><div class="lane-label"><b>FUFU Cloud</b><small>Supabase · API</small></div></div>
+    <div class="lane l-partner"><div class="lane-label"><b>พาร์ทเนอร์</b><small>FUFU Partner Portal<br>คลินิก · ร้าน · Grooming · โรงแรม</small></div></div>
+    <div class="bar"></div>
+    <svg class="links" viewBox="0 0 2400 1150" width="2400" height="1150" id="links">
+      <defs>
+        <marker id="a-solid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2a6374"/></marker>
+        <marker id="a-mint" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3c8a80"/></marker>
+        <marker id="a-dash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#f0865e"/></marker>
+      </defs>
+    </svg>
+  </div>
+
+  <footer><span>© 2026 FUFU Pet Care · KITTEN CODE Co., Ltd.</span><span>Happy Pet, Healthy Life</span></footer>
+</div>
+
+<script>
+  // Column centres
+  const C = [0, 360, 590, 820, 1050, 1280, 1510, 1740, 1970, 2200]
+  const NODES = [
+    // AI lane
+    { x: C[3], y: 95, cls: 'ai', html: '<b>AI Vet · NLP</b><small>แชทตอบคำถามสุขภาพ</small>' },
+    { x: C[5], y: 95, cls: 'ai', html: '<b>AI Vision · YOLO</b><small>ตรวจจับโรคผิวหนังจากภาพ</small>' },
+    { x: C[9], y: 95, cls: 'ai', html: '<b>Health Insight · LSTM</b><small>คาดการณ์แนวโน้มสุขภาพ</small>' },
+    // Owner lane
+    { x: C[1], y: 540, cls: 'owner start', html: '<b>สมัคร / เข้าสู่ระบบ</b><small>Email · Google</small>' },
+    { x: C[2], y: 540, cls: 'owner', html: '<b>เพิ่มโปรไฟล์น้อง</b><small>สายพันธุ์ · อายุ · น้ำหนัก · รูป</small>' },
+    { x: C[4], y: 290, cls: 'owner', html: '<b>AI Scan</b><small>ถ่ายภาพจุดที่กังวล + ตอบคำถาม</small>' },
+    { x: C[4], y: 392, cls: 'owner', html: '<b>AI Vet Chat</b><small>ถามได้ 24 ชม.</small>' },
+    { x: C[4], y: 590, cls: 'owner', html: '<b>ค้นหา & จองบริการ</b><small>คลินิก · ร้านค้า · อาบน้ำตัดขน · โรงแรม</small>' },
+    { x: C[5], y: 470, cls: 'owner', html: '<b>สมุดสุขภาพ</b><small>วัคซีน · บันทึก · Health Score · เตือนยา</small>' },
+    { x: C[6], y: 290, cls: 'owner', html: '<b>ยินยอมส่งเคส<br>+ จองนัดคลินิก</b>' },
+    { x: C[9], y: 300, cls: 'owner', html: '<b>คำแนะนำเฉพาะน้อง</b><small>จากประวัติสุขภาพ</small>' },
+    { x: C[9], y: 520, cls: 'owner wide', html: '<b>รับแจ้งเตือน</b><small>สรุปการรักษา · นัดครั้งถัดไป<br>บันทึกลงสมุดสุขภาพอัตโนมัติ</small>' },
+    // Partner lane
+    { x: C[1], y: 990, cls: 'partner start', html: '<b>สมัครพาร์ทเนอร์</b><small>ใช้ฟรีช่วงเปิดตัว</small>' },
+    { x: C[2], y: 990, cls: 'partner', html: '<b>ตั้งค่าโปรไฟล์ร้าน</b><small>บริการ · เวลาทำการ · พิกัด</small>' },
+    { x: C[7], y: 990, cls: 'partner', html: '<b>กล่องรับนัด<br>& เคส AI ส่งต่อ</b>' },
+    { x: C[9], y: 990, cls: 'partner', html: '<b>ตรวจรักษา<br>& บันทึกสรุป</b><small>+ นัดติดตาม</small>' },
+    { x: C[8], y: 1098, cls: 'partner', html: '<b>แจ้งเจ้าของ</b><small>เสนอเวลาใหม่ / ปฏิเสธ</small>' },
+  ]
+  const DECISIONS = [
+    { x: C[3], y: 540, text: 'วันนี้อยาก<br>ทำอะไร?' },
+    { x: C[5], y: 290, text: 'ผลประเมิน<br>4 ระดับ' },
+    { x: C[8], y: 990, text: 'พิจารณา<br>นัด / เคส', cls: 'partner' },
+  ]
+  const CHIPS = [
+    { x: C[1], html: '<b>Auth</b>บัญชี · สิทธิ์ผู้ใช้' },
+    { x: C[2], html: '<b>Database</b>โปรไฟล์น้อง · ร้าน / คลินิก' },
+    { x: C[4], html: '<b>Database</b>บริการ · คำสั่งซื้อ' },
+    { x: C[6], html: '<b>Database</b>นัดหมาย · เคสส่งต่อ' },
+    { x: C[7], html: '<b>Realtime</b>แจ้งเตือนทันที' },
+    { x: C[9], html: '<b>Partner API</b>สรุปการรักษา · Audit log' },
+  ]
+  // d = SVG path, t = solid | p (partner solid) | dash, two = arrow at both ends, lb = [x, y, text]
+  const EDGES = [
+    // owner steps
+    { d: 'M465 540 H485', t: 'solid' },
+    { d: 'M695 540 H756', t: 'solid' },
+    { d: 'M884 540 H912 V290 H945', t: 'solid', lb: [975, 250, 'สงสัยอาการ'] },
+    { d: 'M912 392 H945', t: 'solid', lb: [912, 432, 'มีคำถาม'] },
+    { d: 'M912 540 V590 H945', t: 'solid', lb: [870, 620, 'หาบริการ'] },
+    { d: 'M912 470 H1175', t: 'solid', lb: [1050, 470, 'ดูแลประจำวัน'] },
+    { d: 'M1344 290 H1405', t: 'solid', lb: [1376, 252, '24–48 ชม. / ฉุกเฉิน'] },
+    { d: 'M1280 354 V432', t: 'solid', lb: [1360, 394, 'ปกติ / เฝ้าดู'] },
+    // AI
+    { d: 'M1050 252 V95 H1175', t: 'dash', lb: [1110, 160, 'ภาพ + คำตอบ'] },
+    { d: 'M1280 133 V226', t: 'dash', lb: [1340, 180, 'ผลคัดกรอง'] },
+    { d: 'M945 382 H880 V133', t: 'dash', two: true, lb: [880, 210, 'ถาม-ตอบ'] },
+    { d: 'M2200 133 V262', t: 'dash', lb: [2270, 200, 'วิเคราะห์ประวัติ'] },
+    // owner ↔ cloud
+    { d: 'M360 578 V702', t: 'dash' },
+    { d: 'M590 578 V702', t: 'dash' },
+    { d: 'M1050 628 V702', t: 'dash', lb: [1050, 664, 'จอง / สั่งซื้อ'] },
+    { d: 'M1510 328 V702', t: 'dash', lb: [1510, 520, 'นัด + เคส'] },
+    { d: 'M2200 702 V566', t: 'dash', lb: [2200, 634, 'สรุป · แจ้งเตือน'] },
+    // inside the cloud
+    { d: 'M688 750 H952', t: 'dash', lb: [820, 750, 'ร้านขึ้นแผนที่ในแอป'] },
+    { d: 'M1608 750 H1642', t: 'dash' },
+    // cloud ↔ partner
+    { d: 'M590 952 V798', t: 'dash' },
+    { d: 'M1740 798 V948', t: 'dash', lb: [1740, 872, 'นัด / เคสใหม่ทันที'] },
+    { d: 'M2200 948 V798', t: 'dash', lb: [2200, 872, 'บันทึกผ่าน API'] },
+    { d: 'M1865 1098 H1625 V798', t: 'dash', lb: [1700, 1098, 'แจ้งผ่านแอป'] },
+    // partner steps
+    { d: 'M465 990 H485', t: 'p' },
+    { d: 'M1845 990 H1906', t: 'p' },
+    { d: 'M2034 990 H2095', t: 'p', lb: [2064, 952, 'ยืนยัน'] },
+    { d: 'M1970 1054 V1060', t: 'p', lb: [2050, 1062, 'ไม่สะดวก'] },
+  ]
+
+  const canvas = document.getElementById('canvas')
+  const svg = document.getElementById('links')
+  const add = (cls, x, y, html) => { const el = document.createElement('div'); el.className = cls; el.style.left = x + 'px'; el.style.top = y + 'px'; el.innerHTML = html; canvas.appendChild(el); return el }
+  NODES.forEach(n => add('node ' + n.cls, n.x, n.y, n.html))
+  DECISIONS.forEach(d => add('decision ' + (d.cls || ''), d.x, d.y, `<span>${d.text}</span>`))
+  CHIPS.forEach(c => add('chip', c.x, 750, c.html))
+  EDGES.forEach(e => {
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    p.setAttribute('d', e.d)
+    p.setAttribute('class', e.t === 'p' ? 'solid p' : e.t)
+    const m = e.t === 'dash' ? 'a-dash' : e.t === 'p' ? 'a-mint' : 'a-solid'
+    p.setAttribute('marker-end', `url(#${m})`)
+    if (e.two) p.setAttribute('marker-start', `url(#${m})`)
+    svg.appendChild(p)
+    if (e.lb) add('label' + (e.t === 'dash' ? ' d' : ''), e.lb[0], e.lb[1], e.lb[2])
+  })
+  document.fonts.ready.then(() => { document.body.dataset.ready = '1' })
+</script>
+</body>
+</html>
