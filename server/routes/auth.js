@@ -13,12 +13,15 @@ const supabase = createClient(
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const validEmail = value => typeof value === 'string' && value.length <= 254 && EMAIL.test(value);
 const validPassword = value => typeof value === 'string' && value.length >= 8 && value.length <= 128;
-const STORE_FIELDS = 'id, name, category, verification_status, is_verified, is_active';
+const STORE_FIELDS = 'id, name, category, verification_status, is_verified, is_active, suspension_reason';
+const STORE_FIELDS_NO_SUSPENSION_REASON = 'id, name, category, verification_status, is_verified, is_active';
 const LEGACY_STORE_FIELDS = 'id, name, category, is_verified, is_active';
 const missingVerificationStatus = error => String(error?.message || '').includes('verification_status');
+const missingSuspensionReason = error => String(error?.message || '').includes('suspension_reason');
 
 async function queryStores(makeQuery) {
   let result = await makeQuery(STORE_FIELDS);
+  if (missingSuspensionReason(result.error)) result = await makeQuery(STORE_FIELDS_NO_SUSPENSION_REASON);
   if (missingVerificationStatus(result.error)) result = await makeQuery(LEGACY_STORE_FIELDS);
   return result;
 }
@@ -260,6 +263,39 @@ router.post('/register', authRateLimit, async (req, res) => {
 // Confirm access on every dashboard load, including sessions issued before
 // approval checks were enabled.
 router.get('/partner-access', requireAuth, async (req, res) => {
+  // Check the selected store against the full accessible-store lookup. User RLS
+  // can hide suspended stores after is_active becomes false, which must not
+  // turn an approved suspended store into an inaccessible/unknown store.
+  const hasSelectedStore = req.query.store_id !== undefined;
+  const selectedStoreId = typeof req.query.store_id === 'string' ? req.query.store_id : '';
+  if (hasSelectedStore) {
+    if (!selectedStoreId) return res.json({ success: true, status: 'forbidden', stores: [] });
+    const lookupClient = createStoreLookupClient();
+    if (!lookupClient) return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+    const lookup = await listAccessibleStores(lookupClient, req.user);
+    if (lookup.error) return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+    const selectedStore = lookup.stores.find(store => store.id === selectedStoreId);
+    if (!selectedStore) return res.json({ success: true, status: 'forbidden', stores: [] });
+
+    const selectedVerification = selectedStore.verification_status || (selectedStore.is_verified ? 'accept' : 'pending');
+    const selectedStatus = selectedVerification === 'accept' ? 'approved' : selectedVerification === 'reject' ? 'rejected' : 'pending';
+    if (selectedStore.is_active === false) {
+      if (!selectedStore.suspension_reason) {
+        let { data: suspensionAudit, error: suspensionAuditError } = await lookupClient.from('audit_logs')
+          .select('reason, new_data, created_at').eq('store_id', selectedStoreId).eq('action', 'PARTNER_SUSPEND')
+          .order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (suspensionAuditError) {
+          const fallback = await lookupClient.from('audit_logs').select('new_data, created_at')
+            .eq('store_id', selectedStoreId).eq('action', 'PARTNER_SUSPEND')
+            .order('created_at', { ascending: false }).limit(1).maybeSingle();
+          suspensionAudit = fallback.data;
+        }
+        selectedStore.suspension_reason = suspensionAudit?.reason || suspensionAudit?.new_data?.reason || suspensionAudit?.new_data?.suspension_reason || 'ไม่ระบุรายละเอียด';
+      }
+    }
+    return res.json({ success: true, status: selectedStatus, stores: [selectedStore] });
+  }
+
   let { data: owned, error: ownedError } = await queryStores(fields => req.supabase
     .from('stores').select(fields).eq('owner_id', req.user.id));
   if (!owned?.length) {
@@ -270,6 +306,7 @@ router.get('/partner-access', requireAuth, async (req, res) => {
   }
   if (ownedError) return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
   const ownedStores = owned || [];
+
   const acceptedOwned = ownedStores.filter(store => (store.verification_status || (store.is_verified ? 'accept' : 'pending')) === 'accept');
   if (acceptedOwned.length) return res.json({ success: true, status: 'approved', stores: acceptedOwned });
 

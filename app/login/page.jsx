@@ -43,6 +43,8 @@ export default function LoginPage() {
   }, [])
 
   function chooseStore(store) {
+    const verification = store.verification_status || (store.is_verified ? 'accept' : 'pending')
+    if (verification !== 'accept') return
     const category = CATEGORIES[store.category] ?? CATEGORIES.vet_clinic
     localStorage.setItem(KEYS.storeId, store.id)
     localStorage.setItem(KEYS.storeName, store.name)
@@ -105,13 +107,16 @@ export default function LoginPage() {
               const cat = CATEGORIES[store.category]
               const Icon = cat?.icon ?? Store
               const verification = store.verification_status || (store.is_verified ? 'accept' : 'pending')
-              const status = store.is_active === false
-                ? { label: 'ถูกระงับ', className: styles.statusSuspended }
-                : verification === 'accept'
-                  ? { label: 'ใช้งานได้', className: styles.statusActive }
-                  : { label: 'รอตรวจสอบ', className: styles.statusPending }
+              const canEnter = verification === 'accept'
+              const status = verification === 'reject'
+                ? { label: 'ไม่อนุมัติ', className: styles.statusSuspended }
+                : verification !== 'accept'
+                  ? { label: 'รอตรวจสอบ', className: styles.statusPending }
+                  : store.is_active === false
+                    ? { label: 'ถูกระงับ', className: styles.statusSuspended }
+                    : { label: 'ใช้งานได้', className: styles.statusActive }
               return (
-                <button type="button" key={store.id} className={styles.store} onClick={() => chooseStore(store)}>
+                <button type="button" key={store.id} className={styles.store} onClick={() => chooseStore(store)} disabled={!canEnter} title={!canEnter ? 'ร้านค้ายังไม่ได้รับอนุมัติ จึงยังเข้าใช้งานไม่ได้' : undefined}>
                   <span className={styles.storeIcon}><Icon size={20} aria-hidden="true" /></span>
                   <span className={styles.storeText}>
                     <strong>{store.name}</strong>
@@ -123,7 +128,7 @@ export default function LoginPage() {
               )
             })}
           </div>
-          <Link className={styles.createStore} href="/onboarding"><Plus size={17} aria-hidden="true" />สร้างร้านค้าใหม่</Link>
+          <Link className={styles.createStore} href="/onboarding"><Plus size={17} aria-hidden="true" />สร้างร้านค้าเพิ่มเติม</Link>
         </>
       ) : (
         <>

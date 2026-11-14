@@ -64,6 +64,20 @@ export default function DashboardPage() {
           <div id="sb-store-dropdown" className="sb-dropdown hidden" />
         </div>
 
+        <div className="relative px-3 pb-2">
+          <section id="sb-store-alert" role="alert" aria-live="polite" className="hidden w-full rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">
+            <div className="flex items-center gap-2 text-xs font-bold">
+              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v4m0 4h.01" />
+              </svg>
+              <span className="text-red-700">ร้านถูกระงับการใช้งาน</span>
+            </div>
+            <p className="mt-2 text-[11px] font-semibold text-red-700">เหตุผล</p>
+            <p id="sb-store-alert-reason" className="mt-0.5 break-words text-xs leading-5 text-red-700" />
+            <p className="mt-2 border-t border-red-200 pt-2 text-[11px] leading-4 text-red-700">กรุณาติดต่อทีมงาน kittencode</p>
+          </section>
+        </div>
+
         <nav id="sidebar-nav" className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2 scrollbar-thin" />
       </aside>
 

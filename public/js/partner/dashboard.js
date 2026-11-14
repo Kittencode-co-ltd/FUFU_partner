@@ -319,14 +319,17 @@ async function _initStoreSwitcher() {
   const chev = document.getElementById('sb-store-chevron');
   if (!btn || !dd) return;
 
-  // Prefer the cached stores list saved at login time — it includes ALL accessible
-  // stores (owned + staff). Falling back to /api/stores only returns owned stores,
-  // which makes staff accounts always see length≤1 and hides the chevron even when
-  // they can access multiple branches.
+  // Refresh the cached list so status badges and switch permissions reflect the
+  // latest admin review decision. /api/auth/stores includes owned and staff stores.
   const cachedRaw = storage.get(STORAGE_KEYS.STORES_LIST);
-  let stores = cachedRaw ? JSON.parse(cachedRaw) : null;
+  let stores = null;
+  try { stores = cachedRaw ? JSON.parse(cachedRaw) : null; } catch { stores = null; }
 
-  if (!stores) {
+  const fresh = await apiFetch('/api/auth/stores');
+  if (fresh?.success && Array.isArray(fresh.stores)) {
+    stores = fresh.stores;
+    storage.set(STORAGE_KEYS.STORES_LIST, JSON.stringify(stores));
+  } else if (!stores) {
     const res = await apiFetch('/api/stores');
     stores = res?.data || [];
     if (stores.length) storage.set(STORAGE_KEYS.STORES_LIST, JSON.stringify(stores));
@@ -339,15 +342,26 @@ async function _initStoreSwitcher() {
   const storeOptions = stores.map(s => {
     const cat    = CATEGORY_MAP[s.category] || { label: s.category || '', icon: 'store' };
     const active = s.id === currentId;
+    const verification = s.verification_status || (s.is_verified ? 'accept' : 'pending');
+    const canEnter = verification === 'accept';
+    const status = verification === 'reject'
+      ? { label: 'ไม่อนุมัติ', dot: 'bg-red-500', text: 'text-red-700' }
+      : !canEnter
+        ? { label: 'รอตรวจสอบ', dot: 'bg-amber-500', text: 'text-amber-700' }
+        : s.is_active === false
+          ? { label: 'ถูกระงับ', dot: 'bg-red-500', text: 'text-red-700' }
+          : { label: 'ใช้งานได้', dot: 'bg-emerald-500', text: 'text-emerald-700' };
     const branch = s.branch_name ? ` · ${s.branch_name}` : '';
     return `
-      <button data-store-id="${s.id}" data-store-name="${escapeHtml(s.name)}" data-store-category="${escapeHtml(s.category)}"
-        class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${active ? 'bg-primary-subtle' : 'hover:bg-slate-50'}">
+      <button ${canEnter ? '' : 'disabled'} data-store-id="${s.id}" data-store-name="${escapeHtml(s.name)}" data-store-category="${escapeHtml(s.category)}"
+        title="${canEnter ? '' : 'ร้านค้ายังไม่ได้รับอนุมัติ จึงยังเข้าใช้งานไม่ได้'}"
+        class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${active ? 'bg-primary-subtle' : canEnter ? 'hover:bg-slate-50' : 'cursor-not-allowed opacity-70'}">
         <span class="w-4 flex items-center justify-center flex-shrink-0 text-slate-400">${icon(cat.icon, 'w-3.5 h-3.5')}</span>
         <span class="flex-1 min-w-0">
           <span class="block text-sm font-semibold text-navy truncate">${escapeHtml(s.name)}${escapeHtml(branch)}</span>
           <span class="block text-xs text-slate-400 truncate">${cat.label}</span>
         </span>
+        <span class="inline-flex flex-shrink-0 items-center gap-1.5 text-[10px] font-semibold ${status.text}"><span class="h-1.5 w-1.5 rounded-full ${status.dot}" aria-hidden="true"></span>${status.label}</span>
         ${active ? check : ''}
       </button>`;
   }).join('');
@@ -375,6 +389,12 @@ async function _initStoreSwitcher() {
     const item = e.target.closest('[data-store-id]');
     if (!item) return;
     const { storeId, storeName, storeCategory } = item.dataset;
+    const targetStore = stores.find(store => store.id === storeId);
+    const verification = targetStore?.verification_status || (targetStore?.is_verified ? 'accept' : 'pending');
+    if (!targetStore || verification !== 'accept') {
+      showToast('ร้านค้ายังไม่ได้รับอนุมัติ จึงยังเข้าใช้งานไม่ได้', 'error');
+      return;
+    }
     if (storeId === currentId) { setOpen(false); return; }
     _switchStore(storeId, storeName, storeCategory);
   });

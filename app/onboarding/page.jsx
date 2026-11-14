@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertCircle, ArrowLeft, CheckCircle2, Info, Loader2 } from 'lucide-react'
+import { AlertCircle, ArrowLeft, CheckCircle2, Info, Loader2, Plus } from 'lucide-react'
 import { AuthShell, CategoryPicker, useAuthLang } from '../components/auth-ui'
 import styles from '../login/page.module.css'
 
@@ -35,7 +35,6 @@ export default function OnboardingPage() {
       if (response.status === 401) { window.location.replace('/login'); return }
       const result = await response.json().catch(() => ({}))
       if (!response.ok || !result.success) { setError(result.error || t('errGeneric')); return }
-      Object.values(KEY).forEach(key => localStorage.removeItem(key))
       setDone(true)
     } catch { setError(t('errNetwork')) }
     finally { setBusy(false) }
@@ -43,13 +42,17 @@ export default function OnboardingPage() {
 
   return (
     <AuthShell>
+      <Link className={styles.backInline} href="/login"><ArrowLeft size={16} aria-hidden="true" />{t('storeSelection')}</Link>
       <h1 className={styles.title}>{t('firstStore')}</h1>
       <p className={styles.subtitle}>{t('firstStoreSub')}</p>
       {done ? (
-        <div className={styles.success} role="status">
-          <CheckCircle2 size={16} aria-hidden="true" />
-          <div><p>{t('onboardDone')}</p><Link className={styles.noticeLink} href="/"><ArrowLeft size={15} aria-hidden="true" />{t('home')}</Link></div>
-        </div>
+        <>
+          <div className={styles.success} role="status">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            <p>{t('onboardDone')}</p>
+          </div>
+          <button type="button" className={styles.submit} onClick={() => { setDone(false); setName(''); setCategory('vet_clinic'); setError('') }}><Plus size={17} aria-hidden="true" />{t('addAnotherStore')}</button>
+        </>
       ) : (
         <>
           <p className={styles.notice}><Info size={16} aria-hidden="true" /><span>{t('onboardNotice')}</span></p>

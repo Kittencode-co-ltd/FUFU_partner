@@ -114,8 +114,8 @@ async function bootLogin() {
       storePanel?.classList.remove('hidden');
       const heading = storePanel.querySelector('h2');
       const sub     = storePanel.querySelector('p');
-      if (heading) heading.textContent = tr('firstStore', 'สร้างร้านค้าแรก');
-      if (sub)     sub.textContent     = tr('firstStoreSub', 'บัญชีของคุณยังไม่มีร้านค้า — สร้างได้เลยตอนนี้');
+      if (heading) heading.textContent = tr('firstStore', 'เพิ่มร้านค้า / คลินิก');
+      if (sub)     sub.textContent     = tr('firstStoreSub', 'กรอกข้อมูลร้านค้าหรือคลินิกที่ต้องการเพิ่ม');
       renderCreateStore(storeList, result.token, showToast, selectStore);
     } else if (result.stores.length === 1) {
       selectStore(result.stores[0]);
@@ -310,26 +310,48 @@ async function bootOnboarding() {
 async function bootDashboard() {
   const { requireAuth } = await import('./auth.js');
   if (!requireAuth()) return;
+  const [{ storage }, { STORAGE_KEYS }] = await Promise.all([
+    import('./utils/storage.js'),
+    import('./utils/config.js'),
+  ]);
+  const selectedId = storage.get(STORAGE_KEYS.STORE_ID);
+  if (!selectedId) { window.location.replace('/login'); return; }
   const { apiFetch } = await import('./utils/api-client.js');
-  const access = await apiFetch('/api/auth/partner-access');
-  if (!access?.success) return;
+  const access = await apiFetch(`/api/auth/partner-access?store_id=${encodeURIComponent(selectedId)}`);
+  if (!access?.success) {
+    document.getElementById('portal-shell')?.classList.add('hidden');
+    const notice = document.getElementById('portal-access-notice');
+    if (notice) {
+      notice.classList.remove('hidden');
+      notice.innerHTML = `
+        <main class="min-h-screen grid place-items-center bg-[#faf7f2] p-5">
+          <section class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+            <h1 class="text-xl font-bold text-slate-800">ตรวจสอบสิทธิ์ร้านค้าไม่ได้</h1>
+            <p class="mt-3 text-sm leading-6 text-slate-500">กรุณาเชื่อมต่ออินเทอร์เน็ต แล้วลองเข้าสู่ระบบและเลือกร้านค้าอีกครั้ง</p>
+            <a href="/login" class="mt-6 flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">กลับไปหน้าเลือกร้านค้า</a>
+          </section>
+        </main>`;
+    }
+    return;
+  }
+  if (access.status === 'forbidden') {
+    storage.remove(STORAGE_KEYS.STORE_ID);
+    storage.remove(STORAGE_KEYS.STORE_NAME);
+    window.location.replace('/login');
+    return;
+  }
   if (Array.isArray(access.stores)) {
-    const [{ storage }, { STORAGE_KEYS }] = await Promise.all([
-      import('./utils/storage.js'),
-      import('./utils/config.js'),
-    ]);
-    const selectedId = storage.get(STORAGE_KEYS.STORE_ID);
     const selected = access.stores.find(store => store.id === selectedId);
     if (selected) {
       storage.set(STORAGE_KEYS.STORE_ACTIVE, selected.is_active === false ? 'false' : 'true');
       if (selected.is_active === false) {
         const reason = selected.suspension_reason || selected.suspend_reason || selected.inactive_reason || selected.reject_reason || 'ไม่ระบุรายละเอียด';
-        const alert = document.createElement('div');
-        alert.setAttribute('role', 'alert');
-        alert.className = 'mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8';
-        alert.innerHTML = '<div class="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm"></div>';
-        alert.firstElementChild.textContent = `ร้านค้า/คลินิกของคุณถูกระงับ เนื่องจาก ${reason} กรุณาติดต่อทีมงาน kittencode`;
-        (document.getElementById('portal-alerts') || document.body).prepend(alert);
+        const alert = document.getElementById('sb-store-alert');
+        const reasonText = document.getElementById('sb-store-alert-reason');
+        if (alert && reasonText) {
+          reasonText.textContent = reason;
+          alert.classList.remove('hidden');
+        }
       }
     }
   }
@@ -348,10 +370,15 @@ async function bootDashboard() {
     notice.innerHTML = `
       <main class="min-h-screen grid place-items-center bg-[#faf7f2] p-5">
         <section class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+          <div class="mb-4 flex justify-start"><a href="/login" class="inline-flex min-h-10 items-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5m7 7-7-7 7-7" /></svg>กลับไปหน้าเลือกร้านค้า</a></div>
           <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full ${access.status === 'rejected' ? 'bg-red-50' : 'bg-amber-50'} text-2xl">${access.status === 'rejected' ? '✕' : ''}</div>
           <h1 class="text-xl font-bold text-slate-800">${access.status === 'rejected' ? 'ไม่อนุมัติคำขอพาร์ทเนอร์' : tr('pendingTitle', 'รอการอนุมัติ')}</h1>
-          <p class="mt-3 text-sm leading-6 text-slate-500">${access.status === 'rejected' ? 'คำขอสมัครร้านของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ' : tr('pendingApproval', 'บัญชีพาร์ทเนอร์ของคุณยังรอ FUFU อนุมัติ เมื่ออนุมัติแล้วจึงจะเข้าใช้งานได้')}</p>
-          <button id="pending-logout" class="btn-primary mt-6 w-full">${tr('logout', 'ออกจากระบบ')}</button>
+          <p class="mt-3 text-sm leading-6 text-slate-500">${access.status === 'rejected' ? 'คำขอสมัครร้านของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ' : 'ร้านค้าของคุณกำลังรอทีมงานตรวจสอบและอนุมัติ'}</p>
+          <div class="mt-6 grid gap-3">
+            <a href="/login" class="flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">กลับไปหน้าเลือกร้านค้า</a>
+            <a href="/onboarding" class="flex min-h-11 items-center justify-center rounded-xl bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800">สร้างร้านค้าเพิ่มเติม</a>
+            <button id="pending-logout" class="text-sm font-medium text-slate-500 hover:text-slate-700">${tr('logout', 'ออกจากระบบ')}</button>
+          </div>
         </section>
       </main>`;
     document.getElementById('pending-logout')?.addEventListener('click', async () => {
