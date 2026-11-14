@@ -115,7 +115,10 @@ export const BASE_SECURITY_HEADERS = {
 
 export function securityHeaders(req, res, next) {
   const nonce = randomBytes(18).toString('base64');
-  const isDevelopment = process.env.NODE_ENV !== 'production';
+  // The custom server is launched as `node server/index.js dev`; unlike the
+  // Next CLI, that argument does not always set NODE_ENV before this middleware
+  // runs. Keep the development CSP aligned with Next's actual dev mode.
+  const isDevelopment = process.argv.includes('dev') || process.env.NODE_ENV !== 'production';
   const forNext = isNextRequest(req.path);
   const contentSecurityPolicy = [
     "default-src 'self'",

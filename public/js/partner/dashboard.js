@@ -334,16 +334,9 @@ async function _initStoreSwitcher() {
 
   const currentId = storage.get(STORAGE_KEYS.STORE_ID);
 
-  // Only one store (or none) → nothing to switch; keep it static.
-  if (stores.length <= 1) {
-    chev?.classList.add('hidden');
-    btn.style.cursor = 'default';
-    return;
-  }
-
   const check = `<svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
 
-  dd.innerHTML = stores.map(s => {
+  const storeOptions = stores.map(s => {
     const cat    = CATEGORY_MAP[s.category] || { label: s.category || '', icon: 'store' };
     const active = s.id === currentId;
     const branch = s.branch_name ? ` · ${s.branch_name}` : '';
@@ -358,6 +351,11 @@ async function _initStoreSwitcher() {
         ${active ? check : ''}
       </button>`;
   }).join('');
+  dd.innerHTML = `${storeOptions || '<div class="px-3 py-2 text-xs text-slate-400">ไม่พบร้านค้า</div>'}
+    <div class="mt-1 border-t border-slate-100 pt-1">
+      <a href="/login" class="block rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary-subtle">เลือกร้านค้า</a>
+    </div>`;
+  btn.style.cursor = 'pointer';
 
   const setOpen = (open) => {
     dd.classList.toggle('hidden', !open);

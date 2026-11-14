@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertCircle, ArrowLeft, ChevronRight, Loader2, Store } from 'lucide-react'
+import { AlertCircle, ArrowLeft, ChevronRight, Loader2, Plus, Store } from 'lucide-react'
 import { AuthShell, CATEGORIES, PasswordInput, useAuthLang } from '../components/auth-ui'
 import styles from './page.module.css'
 
@@ -23,14 +23,20 @@ export default function LoginPage() {
   const [stores, setStores] = useState(null)
 
   useEffect(() => {
-    if (localStorage.getItem(KEYS.token) && localStorage.getItem(KEYS.storeId)) {
-      window.location.replace('/dashboard.html')
-      return
+    const cachedStores = localStorage.getItem(KEYS.stores)
+    if (localStorage.getItem(KEYS.token) && cachedStores) {
+      try {
+        const availableStores = JSON.parse(cachedStores)
+        if (Array.isArray(availableStores) && availableStores.length) {
+          setStores(availableStores) // eslint-disable-line react-hooks/set-state-in-effect
+          return
+        }
+      } catch { localStorage.removeItem(KEYS.stores) }
     }
     // Restore the remembered email (the static login page did this too)
     if (localStorage.getItem(KEYS.remember) === '1') {
       const saved = localStorage.getItem(KEYS.email)
-      if (saved) { setEmail(saved); setRemember(true) } // eslint-disable-line react-hooks/set-state-in-effect
+      if (saved) { setEmail(saved); setRemember(true) }
     }
   }, [])
 
@@ -75,8 +81,6 @@ export default function LoginPage() {
 
       if (!result.stores?.length || result.needs_onboarding) {
         window.location.assign('/onboarding')
-      } else if (result.stores.length === 1) {
-        chooseStore(result.stores[0])
       } else {
         setStores(result.stores)
       }
@@ -93,23 +97,31 @@ export default function LoginPage() {
         <>
           <button type="button" className={styles.backInline} onClick={() => setStores(null)}><ArrowLeft size={16} aria-hidden="true" />{t('backBtn')}</button>
           <h1 className={styles.title}>{t('storeTitle')}</h1>
-          <p className={styles.subtitle}>{t('chooseStoreSub')}</p>
+          <p className={styles.subtitle}>เลือกร้านค้าที่ต้องการเข้าดู</p>
           <div className={styles.storeList}>
             {stores.map(store => {
               const cat = CATEGORIES[store.category]
               const Icon = cat?.icon ?? Store
+              const verification = store.verification_status || (store.is_verified ? 'accept' : 'pending')
+              const status = store.is_active === false
+                ? { label: 'ถูกระงับ', className: styles.statusSuspended }
+                : verification === 'accept'
+                  ? { label: 'ใช้งานได้', className: styles.statusActive }
+                  : { label: 'รอตรวจสอบ', className: styles.statusPending }
               return (
                 <button type="button" key={store.id} className={styles.store} onClick={() => chooseStore(store)}>
                   <span className={styles.storeIcon}><Icon size={20} aria-hidden="true" /></span>
                   <span className={styles.storeText}>
                     <strong>{store.name}</strong>
-                    <small>{t(cat?.key ?? 'storeFallback')}{store.is_active === false && <span className={styles.inactive}> · {t('inactive')}</span>}</small>
+                    <small>{t(cat?.key ?? 'storeFallback')}</small>
                   </span>
+                  <span className={`${styles.statusBadge} ${status.className}`}>{status.label}</span>
                   <ChevronRight size={18} className={styles.storeArrow} aria-hidden="true" />
                 </button>
               )
             })}
           </div>
+          <Link className={styles.createStore} href="/onboarding"><Plus size={17} aria-hidden="true" />สร้างร้านค้าใหม่</Link>
         </>
       ) : (
         <>

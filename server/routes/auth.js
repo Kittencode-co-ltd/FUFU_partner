@@ -89,53 +89,40 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
     console.error('[Partner login] Store lookup failed:', storesError.code || storesError.message);
     return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
   }
-  const ownedForReview = stores || [];
-  let hasPartnerStore = Boolean(stores?.length);
-  // Activation is independent from approval: suspended stores remain selectable
-  // so owners can review their data and see the suspension notice in the portal.
-  stores = (stores || []).filter(store => (store.verification_status || (store.is_verified ? 'accept' : 'pending')) === 'accept');
-
-  // 2. If not owner → check staff membership
+  // Return every owned store, including inactive and not-yet-approved stores.
+  // The picker labels each state; activation must not make an existing store
+  // disappear and accidentally send its owner into first-store onboarding.
+  const allOwnedStores = stores || [];
   let isStaffMember = false;
-  if (!stores?.length) {
-    const { data: staffRows } = await userSb
-      .from('staff')
-      .select('store_id, role, full_name')
-      .eq('email', data.user.email)
-      .eq('is_active', true);
-
-    if (staffRows?.length) {
-      isStaffMember = true;
-      const storeIds = [...new Set(staffRows.map(s => s.store_id))];
-      const { data: staffStores, error: staffStoresError } = await queryStores(fields => userSb
-        .from('stores').select(fields).in('id', storeIds));
-      if (staffStoresError) {
-        console.error('[Partner login] Staff store lookup failed:', staffStoresError.code || staffStoresError.message);
-        return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
-      }
-      hasPartnerStore = hasPartnerStore || Boolean(staffStores?.length);
-      stores = (staffStores || []).filter(store => (store.verification_status || (store.is_verified ? 'accept' : 'pending')) === 'accept').map(store => {
-        const staffRow = staffRows.find(s => s.store_id === store.id);
-        // normalize role → roles[] for frontend compatibility
-        const roleArr = staffRow?.role ? [staffRow.role] : ['staff'];
-        return { ...store, staff_roles: roleArr, staff_role: staffRow?.role, is_staff: true };
-      });
-    }
+  const { data: staffRows, error: staffError } = await userSb
+    .from('staff')
+    .select('store_id, role, full_name')
+    .eq('email', data.user.email)
+    .eq('is_active', true);
+  if (staffError) {
+    console.error('[Partner login] Staff lookup failed:', staffError.code || staffError.message);
   }
-
-  if (hasPartnerStore && !stores?.length) {
-    const allOwned = ownedForReview;
-    return res.status(403).json({
-      success: false,
-      code: allOwned.some(store => store.verification_status === 'reject') ? 'PARTNER_REJECTED' : 'PARTNER_PENDING_APPROVAL',
-      error: allOwned.some(store => store.verification_status === 'reject')
-        ? 'คำขอสมัครพาร์ทเนอร์ไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ'
-        : 'บัญชีพาร์ทเนอร์กำลังรอ FUFU อนุมัติ กรุณารอการตรวจสอบก่อนเข้าใช้งาน',
+  let staffStores = [];
+  if (staffRows?.length) {
+    isStaffMember = true;
+    const staffStoreIds = [...new Set(staffRows.map(row => row.store_id))];
+    const { data: foundStaffStores, error: staffStoresError } = await queryStores(fields => userSb
+      .from('stores').select(fields).in('id', staffStoreIds));
+    if (staffStoresError) {
+      console.error('[Partner login] Staff store lookup failed:', staffStoresError.code || staffStoresError.message);
+      return res.status(503).json({ success: false, code: 'PARTNER_STORE_LOOKUP_FAILED', error: 'ตรวจสอบข้อมูลร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+    }
+    staffStores = (foundStaffStores || []).map(store => {
+      const staffRow = staffRows.find(row => row.store_id === store.id);
+      return { ...store, staff_roles: staffRow?.role ? [staffRow.role] : ['staff'], staff_role: staffRow?.role, is_staff: true };
     });
   }
+  const storesById = new Map(allOwnedStores.map(store => [store.id, store]));
+  for (const store of staffStores) if (!storesById.has(store.id)) storesById.set(store.id, store);
+  stores = [...storesById.values()];
 
-  // 3. No store and not staff → user is a mobile-only account, needs onboarding
-  const needs_onboarding = !stores?.length && !isStaffMember;
+  // No store and not staff → a mobile-only account can create its first store.
+  const needs_onboarding = !stores.length && !isStaffMember;
 
   res.json({
     success:          true,

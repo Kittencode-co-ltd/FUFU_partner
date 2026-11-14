@@ -86,7 +86,12 @@
 .store strong,.store small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .store strong{font-size:14.5px;font-weight:600;color:var(--ink)}.store small{margin-top:2px;color:var(--muted);font-size:12px}
 .storeArrow{color:var(--faint)}
-.inactive{color:#b26a3d}
+.statusBadge{flex-shrink:0;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.statusSuspended{background:#fef0ef;color:#b42318}
+.statusActive{background:#eaf7ef;color:#18794e}
+.statusPending{background:#fff6df;color:#9a6700}
+.createStore{display:flex;min-height:46px;align-items:center;justify-content:center;gap:8px;margin-top:14px;border:1px solid var(--line);border-radius:999px;color:var(--teal);font-size:14px;font-weight:600;transition:border-color .15s,background .15s}
+.createStore:hover{border-color:var(--teal);background:#f3f9f8}
 
 .catGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .cat{display:flex;align-items:center;gap:9px;min-height:48px;padding:0 12px!important;border:1px solid var(--line)!important;border-radius:12px;background:var(--cream)!important;color:var(--ink2);font-size:13.5px;font-weight:500;text-align:left;transition:border-color .15s,background .15s}
