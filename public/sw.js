@@ -1,9 +1,9 @@
-const CACHE = 'fufu-v11';
+const CACHE = 'fufu-v12';
 
 // App shell — all files needed to render the dashboard while offline
 const SHELL = [
-  '/dashboard.html',
-  '/login.html',
+  '/dashboard',
+  '/login',
   '/css/main.css',
   '/js/vendor/dexie.mjs',
   '/js/app.js',
@@ -71,11 +71,16 @@ self.addEventListener('fetch', e => {
   // The public landing page must reach Next.js. Keep the portal shell available offline.
   if (e.request.mode === 'navigate') {
     const path = new URL(e.request.url).pathname;
-    if (path === '/dashboard.html' || path === '/login.html') {
-      const shell = path;
-      e.respondWith(caches.match(shell).then(r => r || fetch(e.request)));
+    if (['/dashboard', '/login', '/register', '/onboarding', '/receipt', '/dashboard.html', '/login.html'].includes(path)) {
+      const cachePath = path.endsWith('.html') ? path.slice(0, -5) : path;
+      e.respondWith(fetch(e.request).then(response => {
+        if (response.ok && response.type === 'basic') {
+          caches.open(CACHE).then(cache => cache.put(cachePath, response.clone()));
+        }
+        return response;
+      }).catch(async () => (await caches.match(cachePath)) || (await caches.match('/login'))));
     } else {
-      e.respondWith(fetch(e.request).catch(() => caches.match('/login.html')));
+      e.respondWith(fetch(e.request).catch(() => caches.match('/login')));
     }
     return;
   }

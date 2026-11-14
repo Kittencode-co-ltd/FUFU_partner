@@ -2,7 +2,7 @@
   "name": "FUFU Partner Portal",
   "short_name": "FUFU Partner",
   "description": "ระบบจัดการธุรกิจสัตว์เลี้ยงครบวงจร",
-  "start_url": "/login.html",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#FAF7F2",
   "theme_color": "#2A6374",

@@ -1,4 +1,4 @@
-/* Receipt / tax invoice document (public/receipt.html). Black-on-white on paper; toolbar is screen-only. */
+/* Receipt / tax invoice document (app/receipt/page.jsx). Black-on-white on paper; toolbar is screen-only. */
 :root { --ink: #111827; --muted: #6B7280; --line: #D1D5DB; --brand: #1F5F5A; --bg: #EEF2F1; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }

@@ -34,7 +34,7 @@ async function bootLogin() {
   if (storage.get(STORAGE_KEYS.REMEMBER) === '1'
       && isAuthenticated()
       && storage.get(STORAGE_KEYS.STORE_ID)) {
-    window.location.replace('/dashboard.html');
+    window.location.replace('/dashboard');
     return;
   }
 
@@ -44,7 +44,7 @@ async function bootLogin() {
     banner.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-primary rounded-xl px-5 py-3 shadow-card flex items-center gap-4 text-sm';
     banner.innerHTML = `
       <span class="text-navy font-semibold">คุณ login อยู่แล้ว</span>
-      <a href="/dashboard.html" class="btn-primary py-1.5 px-4 text-xs">ไป Dashboard</a>
+      <a href="/dashboard" class="btn-primary py-1.5 px-4 text-xs">ไป Dashboard</a>
       <button id="banner-logout" class="text-slate-400 hover:text-red-500 transition-colors text-xs">ออกจากระบบ</button>`;
     document.body.appendChild(banner);
     banner.querySelector('#banner-logout').addEventListener('click', async () => {
@@ -205,14 +205,14 @@ async function bootRegister() {
     if (result.needs_email_verification) {
       showToast(tr('okVerify', 'สร้างบัญชีสำเร็จ กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'));
       form.reset();
-      setTimeout(() => { window.location.href = '/login.html'; }, 1800);
+      setTimeout(() => { window.location.href = '/login'; }, 1800);
       return;
     }
 
     if (result.pending_approval) {
       form.reset();
       showToast(result.message || tr('pendingApproval', 'สมัครสำเร็จ บัญชีกำลังรอ FUFU อนุมัติก่อนเข้าใช้งาน'));
-      setTimeout(() => { window.location.href = '/login.html'; }, 2200);
+      setTimeout(() => { window.location.href = '/login'; }, 2200);
       return;
     }
 
@@ -229,7 +229,7 @@ async function bootRegister() {
     } else {
       // needs_onboarding — redirect to login which will show create-store form
       showToast(tr('okCreateStore', 'สร้างบัญชีสำเร็จ! กรุณาสร้างร้านค้าของคุณ'));
-      setTimeout(() => { window.location.href = '/login.html'; }, 1200);
+      setTimeout(() => { window.location.href = '/login'; }, 1200);
     }
   });
 }
@@ -329,7 +329,7 @@ async function bootDashboard() {
         alert.className = 'mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8';
         alert.innerHTML = '<div class="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm"></div>';
         alert.firstElementChild.textContent = `ร้านค้า/คลินิกของคุณถูกระงับ เนื่องจาก ${reason} กรุณาติดต่อทีมงาน kittencode`;
-        document.body.prepend(alert);
+        (document.getElementById('portal-alerts') || document.body).prepend(alert);
       }
     }
   }
@@ -337,10 +337,15 @@ async function bootDashboard() {
     const { storage } = await import('./utils/storage.js');
     if (access.status === 'onboarding') {
       storage.clearSession();
-      window.location.replace('/login.html');
+      window.location.replace('/login');
       return;
     }
-    document.body.innerHTML = `
+    const shell = document.getElementById('portal-shell');
+    const notice = document.getElementById('portal-access-notice');
+    shell?.classList.add('hidden');
+    if (!notice) return;
+    notice.classList.remove('hidden');
+    notice.innerHTML = `
       <main class="min-h-screen grid place-items-center bg-[#faf7f2] p-5">
         <section class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
           <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full ${access.status === 'rejected' ? 'bg-red-50' : 'bg-amber-50'} text-2xl">${access.status === 'rejected' ? '✕' : ''}</div>

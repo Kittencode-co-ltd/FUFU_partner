@@ -49,7 +49,7 @@ export default function LoginPage() {
     localStorage.setItem(KEYS.storeCategory, store.category || 'vet_clinic')
     localStorage.setItem(KEYS.role, category.role)
     localStorage.setItem(KEYS.storeActive, store.is_active === false ? 'false' : 'true')
-    window.location.assign('/dashboard.html')
+    window.location.assign('/dashboard')
   }
 
   async function submit(event) {

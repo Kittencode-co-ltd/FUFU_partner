@@ -1,27 +1,17 @@
 node_modules/
-.env
+.env*
+!.env.example
+!.env.*.example
 public/css/main.css
 *.log
+*.tsbuildinfo
 .DS_Store
 Thumbs.db
-docs/*
-!docs/MVP-ARCHITECTURE.md
-!docs/MVP-CHECKLIST.md
-!docs/MVP-SCHEMA.md
-!docs/PHASE-1-SECURITY-REPORT.md
-!docs/PHASE-P0-BASELINE.md
-!docs/PHASE-P1-SECURITY-REPORT.md
-!docs/PHASE-P2-REPORT.md
-!docs/PHASE-P3-REPORT.md
-!docs/PHASE-P4-REPORT.md
-!docs/PHASE-P5-RELEASE.md
-!docs/BACKUP-RESTORE-RUNBOOK.md
-!docs/PILOT-FEEDBACK.md
-!docs/DEFECT-TRIAGE.md
 .claude/
 
-# Next.js landing page
+# Next.js build outputs
 .next/
+.next-build/
 
 # temporary demo/test pages
 public/__*

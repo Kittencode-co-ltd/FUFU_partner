@@ -251,7 +251,7 @@ function showDone(inv, change) {
   const close = () => { wrap.remove(); S.container.querySelector('[data-pr-search]')?.focus(); };
   wrap.onclick = e => {
     if (e.target === wrap || e.target.closest('[data-next]')) return close();
-    if (e.target.closest('[data-print]')) window.open(`/receipt.html?id=${encodeURIComponent(inv.id)}&format=slip`, '_blank');
+    if (e.target.closest('[data-print]')) window.open(`/receipt?id=${encodeURIComponent(inv.id)}&format=slip`, '_blank');
   };
   wrap.querySelector('[data-next]').focus();
 }

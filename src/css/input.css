@@ -275,7 +275,7 @@ html.dark {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   Dashboard shell  (public/dashboard.html)
+   Dashboard shell  (app/dashboard/page.jsx)
    Breakpoints: ≥1024 fixed sidebar · <1024 drawer · <768 drawer + bottom tabs
    ════════════════════════════════════════════════════════════════════════════ */
 #sidebar {

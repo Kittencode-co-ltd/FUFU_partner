@@ -82,28 +82,12 @@ export function rateLimit({ scope, windowMs, max }) {
 export const authRateLimit = rateLimit({ scope: 'auth', windowMs: 15 * 60_000, max: 20 });
 export const mutationRateLimit = rateLimit({ scope: 'mutation', windowMs: 60_000, max: 60 });
 
-// Requests rendered by Next.js (see server/index.js). Everything else is the static
-// partner portal in public/ (login/register/dashboard .html + ES modules).
-const NEXT_PAGES = new Set(['/', '/login', '/register', '/onboarding']);
+// Requests rendered by the Next.js App Router (see server/index.js).
+const NEXT_PAGES = new Set(['/', '/login', '/register', '/onboarding', '/dashboard', '/receipt']);
 export function isNextRequest(path) {
   const clean = path.length > 1 ? path.replace(/\/+$/, '') : path;
   return NEXT_PAGES.has(clean) || path === '/_next' || path.startsWith('/_next/');
 }
-
-// Content-Security-Policy for the static partner portal pages (login / register / dashboard).
-// Used by securityHeaders below and by next.config.mjs when deployed on Vercel.
-export const PORTAL_CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "style-src-attr 'unsafe-inline'",
-  "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: https:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join('; ');
 
 export const BASE_SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -125,13 +109,11 @@ export function securityHeaders(req, res, next) {
     forNext
       // Next.js attaches the nonce to its own scripts; strict-dynamic lets them load chunks.
       ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ''}`
-      // Static portal pages load /js/*.js from this origin and cannot carry a per-request
-      // nonce, so 'strict-dynamic' (which ignores 'self') would block every portal script.
-      // No inline scripts or inline event handlers are allowed here.
+      // Public assets and API responses use same-origin scripts without inline code.
       : "script-src 'self'",
     forNext && !isDevelopment
       ? `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`
-      // Portal modules inject <style> blocks at runtime, which a nonce cannot cover.
+      // Existing feature modules inject some runtime styles.
       : "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "style-src-attr 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com",

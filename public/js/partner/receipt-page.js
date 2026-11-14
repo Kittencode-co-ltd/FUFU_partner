@@ -136,7 +136,7 @@ function render() {
   // Toolbar state
   document.querySelectorAll('button[data-format]').forEach(b => {
     b.classList.toggle('is-on', b.dataset.format === format);
-    b.setAttribute('aria-checked', String(b.dataset.format === format));
+    b.setAttribute('aria-pressed', String(b.dataset.format === format));
   });
   $('#rc-full-wrap').hidden = !(vatBill && format === 'a4');
   $('#rc-full').checked = fullTax;

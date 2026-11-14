@@ -12,7 +12,7 @@ export function isAuthenticated() {
 /** Redirect to login if not authenticated. Returns false if redirected. */
 export function requireAuth() {
   if (!isAuthenticated()) {
-    window.location.href = `/login.html?redirect=${encodeURIComponent(location.pathname)}`;
+    window.location.href = `/login?redirect=${encodeURIComponent(location.pathname)}`;
     return false;
   }
   return true;
@@ -76,7 +76,7 @@ export function selectStore(store) {
   storage.remove(STORAGE_KEYS.STAFF_ROLE);
   localStorage.removeItem('fufu_staff_roles');
 
-  const redirect = new URLSearchParams(location.search).get('redirect') || '/dashboard.html';
+  const redirect = new URLSearchParams(location.search).get('redirect') || '/dashboard';
   window.location.href = redirect;
 }
 
@@ -136,7 +136,7 @@ export function renderStoreList(container, stores) {
 
 export function logout() {
   storage.clearSession();
-  window.location.href = '/login.html';
+  window.location.href = '/login';
 }
 
 // ─── Getters ──────────────────────────────────────────────────────────────────

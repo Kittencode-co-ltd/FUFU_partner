@@ -4,6 +4,7 @@ import { TOKENS, CSS_VARS } from './public/js/utils/design-tokens.js';
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
+    './app/**/*.{js,jsx,ts,tsx}',
     './public/**/*.html',
     './public/js/**/*.js',
   ],

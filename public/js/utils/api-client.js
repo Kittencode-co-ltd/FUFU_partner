@@ -33,7 +33,7 @@ async function _tryRefresh() {
 
 function _clearSession() {
   storage.clearSession();
-  window.location.href = '/login.html';
+  window.location.href = '/login';
 }
 
 async function _fetchOnce(path, options) {

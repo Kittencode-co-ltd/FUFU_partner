@@ -325,6 +325,6 @@ function _showSuccess(sheet, inv, change) {
 /** Open the receipt / tax invoice document (print or save as PDF) in a new tab. */
 export function printReceipt(inv, format = 'slip') {
   if (!inv?.id) return;
-  const w = window.open(`/receipt.html?id=${encodeURIComponent(inv.id)}&format=${format === 'a4' ? 'a4' : 'slip'}`, '_blank');
+  const w = window.open(`/receipt?id=${encodeURIComponent(inv.id)}&format=${format === 'a4' ? 'a4' : 'slip'}`, '_blank');
   if (!w) showToast('กรุณาอนุญาต Pop-up เพื่อเปิดเอกสาร', 'error');
 }
