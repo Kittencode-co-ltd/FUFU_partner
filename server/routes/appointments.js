@@ -30,22 +30,16 @@ router.get('/calendar',requireRole('owner','vet','reception'),async(req,res)=>{
 });
 router.post('/',async(req,res)=>{
  const idempotency=key(req);if(!idempotency)return res.status(400).json({error:'Idempotency-Key required'});
- const {store_id,service_id,pet_id,pet_name,starts_at,customer_notes}=req.body;if(![store_id,service_id,pet_id].every(v=>UUID.test(v||''))||!pet_name||!starts_at)return res.status(400).json({error:'invalid appointment payload'});
- const {data,error}=await req.supabase.rpc('create_appointment',{p_store_id:store_id,p_service_id:service_id,p_pet_id:pet_id,p_pet_name:pet_name,p_starts_at:starts_at,p_customer_notes:customer_notes||null,p_idempotency_key:idempotency});
+ const {store_id,service_id,pet_id,pet_name,starts_at,customer_notes,category='Vet',check_in_date=null,check_out_date=null}=req.body;if(![store_id,service_id,pet_id].every(v=>UUID.test(v||''))||!pet_name||!starts_at||!['Vet','Hotel','Grooming'].includes(category))return res.status(400).json({error:'invalid appointment payload'});
+ const {data,error}=await req.supabase.rpc('create_service_booking',{p_store_id:store_id,p_service_id:service_id,p_pet_id:pet_id,p_pet_name:pet_name,p_category:category,p_starts_at:starts_at,p_customer_notes:customer_notes||null,p_idempotency_key:idempotency,p_check_in_date:check_in_date,p_check_out_date:check_out_date});
  if(error?.code==='23505'||error?.code==='23514')return res.status(409).json({error:error.message});if(error)return res.status(500).json({error:error.message});res.status(201).json({success:true,data});
 });
 router.patch('/:id/transition',resolveStoreId('appointments'),requireRole('owner','vet','reception'),async(req,res)=>{
  const to=String(req.body.status||'').toLowerCase(),idempotency=key(req),role=req.staffRole;if(!idempotency)return res.status(400).json({error:'Idempotency-Key required'});if(!actionRoles[to]?.includes(role))return res.status(403).json({error:'Role cannot perform this action'});
+ if(to==='rejected'&&(!String(req.body.reason||'').trim()||String(req.body.reason).trim().length>1000))return res.status(400).json({error:'กรุณาระบุเหตุผลการปฏิเสธ (ไม่เกิน 1,000 ตัวอักษร)'});
  const {data:current,error:readErr}=await req.supabase.from('appointments').select('status').eq('id',req.params.id).single();if(readErr)return res.status(404).json({error:'Appointment not found'});const currentStatus=legacyStatus[current.status]||current.status;if(currentStatus===to)return res.json({success:true,data:{...current,status:currentStatus},idempotent:true});if(!transitions[currentStatus]?.includes(to))return res.status(409).json({error:'Invalid appointment transition'});if(to==='reschedule_proposed'&&!req.body.proposed_starts_at)return res.status(400).json({error:'proposed_starts_at required'});
  let {data,error}=await req.supabase.rpc('transition_appointment',{p_appointment_id:req.params.id,p_to_status:to,p_reason:req.body.reason||null,p_idempotency_key:idempotency,p_proposed_starts_at:req.body.proposed_starts_at||null});
- if(error?.code==='42883'||error?.code==='PGRST202'){
-   if(to==='reschedule_proposed')return res.status(409).json({error:'คลินิกยังไม่ได้เปิดใช้การเสนอเวลาใหม่'});
-   const statusValue=Object.prototype.hasOwnProperty.call(legacyStatus,current.status)
-     ? ({confirmed:'Confirmed',rejected:'Rejected',cancelled:'Cancelled',no_show:'NoShow',completed:'Completed'}[to]||to)
-     : to;
-   const fallback=await req.supabase.from('appointments').update({status:statusValue,updated_at:new Date().toISOString()}).eq('id',req.params.id).eq('store_id',req.body.store_id).select('*').single();
-   data=fallback.data;error=fallback.error;
- }
+ if(error?.code==='42883'||error?.code==='PGRST202')return res.status(503).json({error:'ระบบ booking ยังไม่ได้อัปเดตฐานข้อมูล กรุณาติดตั้ง migration ล่าสุด'});
  if(error?.code==='23514'||error?.code==='23505')return res.status(409).json({error:error.message});if(error?.code==='42501')return res.status(403).json({error:error.message});if(error)return res.status(500).json({error:error.message});res.json({success:true,data:portalRow(data)});
 });
 router.get('/count',requireRole('owner','vet','reception'),async(req,res)=>{if(!UUID.test(req.query.store_id||''))return res.status(400).json({error:'valid store_id required'});const {count,error}=await req.supabase.from('appointments').select('*',{count:'exact',head:true}).eq('store_id',req.query.store_id).in('status',['requested','reschedule_proposed']);if(error)return res.status(500).json({error:error.message});res.json({success:true,count:count||0});});
