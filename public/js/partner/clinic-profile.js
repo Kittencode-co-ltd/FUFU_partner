@@ -10,15 +10,15 @@ export async function renderClinicProfile(container) {
   const storeId = storage.get(STORAGE_KEYS.STORE_ID);
   const role = storage.get(STORAGE_KEYS.STAFF_ROLE) || 'owner';
   const canEdit = role === 'owner';
-  if (!storeId) return renderError(container, 'ยังไม่ได้เลือกคลินิก');
-  container.innerHTML = '<div class="card p-8 text-center text-slate-400">กำลังโหลดข้อมูลคลินิก...</div>';
+  if (!storeId) return renderError(container, 'ยังไม่ได้เลือกร้านค้า');
+  container.innerHTML = '<div class="card p-8 text-center text-slate-400">กำลังโหลดการตั้งค่า...</div>';
   const [profileRes, hoursRes, holidaysRes, servicesRes] = await Promise.all([
     apiFetch(`/api/clinic/${storeId}`),
     apiFetch(`/api/clinic/${storeId}/hours`),
     apiFetch(`/api/clinic/${storeId}/holidays`),
     apiFetch(`/api/clinic/${storeId}/services`),
   ]);
-  if (!profileRes?.success) return renderError(container, profileRes?.error || 'โหลดข้อมูลคลินิกไม่สำเร็จ');
+  if (!profileRes?.success) return renderError(container, profileRes?.error || 'โหลดการตั้งค่าไม่สำเร็จ');
   render(container, { storeId, canEdit, profile: profileRes.data, hours: hoursRes?.data || [], holidays: holidaysRes?.data || [], services: servicesRes?.data || [] });
 }
 
@@ -29,7 +29,7 @@ function render(container, state) {
     <div class="space-y-5">
       <div class="card p-5 space-y-4">
         <div class="flex items-center justify-between gap-4 flex-wrap">
-          <div><h2 class="text-lg font-bold text-navy">ข้อมูลคลินิก</h2><p class="text-sm text-slate-400">ข้อมูลนี้แสดงใน FUFU Mobile</p></div>
+          <div><h2 class="text-lg font-bold text-navy">ตั้งค่า</h2><p class="text-sm text-slate-400">ข้อมูลร้านที่แสดงใน FUFU</p></div>
           <label class="flex items-center gap-2 text-sm font-semibold ${canEdit ? '' : 'opacity-60'}">
             <input id="accepting" type="checkbox" class="accent-primary" ${profile.accepting_appointments ? 'checked' : ''} ${canEdit ? '' : 'disabled'}> เปิดรับนัดหมาย
           </label>
@@ -45,7 +45,7 @@ function render(container, state) {
           </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          ${field('clinic-name','ชื่อคลินิก',profile.name,canEdit)}
+          ${field('clinic-name','ชื่อร้าน',profile.name,canEdit)}
           ${field('clinic-phone','เบอร์โทร',profile.phone,canEdit,'tel')}
           ${field('clinic-email','อีเมล',profile.email,canEdit,'email')}
           ${field('clinic-website','เว็บไซต์',profile.website,canEdit,'url')}
@@ -55,7 +55,7 @@ function render(container, state) {
         </div>
         <div><label class="input-label">รายละเอียด</label><textarea id="clinic-description" class="input-field" rows="3" ${canEdit ? '' : 'disabled'}>${escapeHtml(profile.description || '')}</textarea></div>
         <div><label class="input-label">ที่อยู่</label><textarea id="clinic-address" class="input-field" rows="2" ${canEdit ? '' : 'disabled'}>${escapeHtml(profile.address || '')}</textarea></div>
-        ${canEdit ? '<button id="save-profile" class="btn-primary px-5 py-2">บันทึกข้อมูลคลินิก</button>' : ''}
+        ${canEdit ? '<button id="save-profile" class="btn-primary px-5 py-2">บันทึกการตั้งค่า</button>' : ''}
       </div>
 
       <div class="card p-5 space-y-4">
@@ -96,7 +96,7 @@ function bind(container, state) {
   }));
   container.querySelector('#save-profile')?.addEventListener('click', async () => {
     const body = { name: value(container,'clinic-name'), phone: value(container,'clinic-phone'), email: value(container,'clinic-email'), website: value(container,'clinic-website'), latitude: nullableNumber(value(container,'clinic-latitude')), longitude: nullableNumber(value(container,'clinic-longitude')), timezone: value(container,'clinic-timezone'), description: value(container,'clinic-description'), address: value(container,'clinic-address'), accepting_appointments: container.querySelector('#accepting').checked };
-    await mutate(container, `/api/clinic/${state.storeId}`, { method:'PATCH', body:JSON.stringify(body) }, 'บันทึกข้อมูลคลินิกแล้ว');
+    await mutate(container, `/api/clinic/${state.storeId}`, { method:'PATCH', body:JSON.stringify(body) }, 'บันทึกการตั้งค่าแล้ว');
   });
   container.querySelector('#accepting')?.addEventListener('change', async event => mutate(container, `/api/clinic/${state.storeId}`, { method:'PATCH', body:JSON.stringify({ accepting_appointments:event.target.checked }) }, event.target.checked ? 'เปิดรับนัดหมายแล้ว' : 'ปิดรับนัดหมายแล้ว'));
   container.querySelector('#store-profile-file')?.addEventListener('change', async event => {

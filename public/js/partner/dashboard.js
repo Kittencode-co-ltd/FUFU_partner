@@ -115,7 +115,7 @@ const MVP_NAV = [
   { id: 'calendar',     icon: 'calendar-alt',   label: 'ปฏิทิน' },
   { id: 'patients',     icon: 'paw',            label: 'สัตว์ที่เข้ารับบริการ' },
   { id: 'summaries',    icon: 'folder-open',    label: 'สรุปการเข้ารับบริการ' },
-  { id: 'clinic',       icon: 'hospital-alt',   label: 'ข้อมูลคลินิก' },
+  { id: 'clinic',       icon: 'hospital-alt',   label: 'ตั้งค่า' },
   { id: 'users',        icon: 'users',          label: 'ผู้ใช้งาน' },
 ];
 
@@ -138,7 +138,7 @@ const BUSINESS_NAV = {
     { id: 'medical', icon: 'folder-open', label: 'ประวัติการรักษา', group: 'records' },
     { id: 'summaries', icon: 'file-alt', label: 'สรุปการเข้ารับบริการ', group: 'records' },
     { id: 'inventory', icon: 'box', label: 'คลังยาและเวชภัณฑ์', group: 'stock' },
-    { id: 'clinic', icon: 'hospital-alt', label: 'ข้อมูลคลินิก' },
+    { id: 'clinic', icon: 'hospital-alt', label: 'ตั้งค่า' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
   ],
   shop: [
@@ -149,7 +149,7 @@ const BUSINESS_NAV = {
     { id: 'inventory', icon: 'box', label: 'คลังสินค้า', group: 'stock' },
     { id: 'income', icon: 'coins', label: 'ยอดขายและรายได้', group: 'money' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
-    { id: 'settings', icon: 'cog', label: 'ตั้งค่าร้าน' },
+    { id: 'settings', icon: 'cog', label: 'ตั้งค่า' },
   ],
   hotel: [
     { id: 'home', icon: 'chart-bar', label: 'ภาพรวมโรงแรม', group: 'today' },
@@ -161,7 +161,7 @@ const BUSINESS_NAV = {
     { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ', group: 'records' },
     { id: 'income', icon: 'coins', label: 'รายได้', group: 'records' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
-    { id: 'settings', icon: 'cog', label: 'ตั้งค่าโรงแรม' },
+    { id: 'settings', icon: 'cog', label: 'ตั้งค่า' },
   ],
   grooming: [
     { id: 'home', icon: 'chart-bar', label: 'ภาพรวมร้าน', group: 'today' },
@@ -173,7 +173,7 @@ const BUSINESS_NAV = {
     { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ', group: 'records' },
     { id: 'income', icon: 'coins', label: 'รายได้', group: 'records' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
-    { id: 'settings', icon: 'cog', label: 'ตั้งค่าร้าน' },
+    { id: 'settings', icon: 'cog', label: 'ตั้งค่า' },
   ],
 };
 
@@ -239,7 +239,7 @@ const PAGE_TITLES = {
   calendar:     'ปฏิทิน',
   patients:     'สัตว์ที่เข้ารับบริการ',
   summaries:    'สรุปการเข้ารับบริการ',
-  clinic:       'ข้อมูลคลินิก',
+  clinic:       'ตั้งค่า',
   users:        'ผู้ใช้งาน',
   orders:       'คำสั่งซื้อออนไลน์',
   delivery:     'จัดส่ง',
@@ -671,6 +671,7 @@ function _renderFlowSteps(pageId) {
 
 // Pages reached from the profile menu (top-right avatar) instead of the sidebar
 const ACCOUNT_PAGES = new Set(['clinic', 'users', 'settings', 'staff']);
+const ACCOUNT_PAGE_ORDER = ['users', 'staff', 'clinic', 'settings'];
 
 function _buildNav(role) {
   const allItems = FEATURE_FLAGS.MVP_MODE ? (BUSINESS_NAV[role] || BUSINESS_NAV.vet) : (NAV[role] || NAV.vet);
@@ -691,7 +692,7 @@ function _buildNav(role) {
   if (!FEATURE_FLAGS.MVP_MODE && !canHome) items = items.filter(i => i.id !== 'home');
 
   // Store settings, team and account pages live in the profile menu, not the sidebar
-  setProfileMenuItems(items.filter(item => ACCOUNT_PAGES.has(item.id)));
+  setProfileMenuItems(items.filter(item => ACCOUNT_PAGES.has(item.id)).sort((a, b) => ACCOUNT_PAGE_ORDER.indexOf(a.id) - ACCOUNT_PAGE_ORDER.indexOf(b.id)));
   items = items.filter(item => !ACCOUNT_PAGES.has(item.id));
 
   const nav = document.getElementById('sidebar-nav');

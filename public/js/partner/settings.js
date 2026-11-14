@@ -51,44 +51,26 @@ export async function renderSettings(container) {
       <div class="card p-5 space-y-4">
         <div>
           <h3 class="font-bold text-navy text-lg flex items-center gap-2"><span class="text-primary opacity-70">${icon('hospital-alt','w-5 h-5')}</span> ข้อมูลร้านค้า</h3>
-          <p class="text-sm text-slate-400 font-body mt-0.5">ข้อมูลคลินิกที่ใช้ใน Partner และแสดงแก่ลูกค้า</p>
+          <p class="text-sm text-slate-400 font-body mt-0.5">ข้อมูลร้านค้าที่ใช้ใน Partner และแสดงแก่ลูกค้า</p>
         </div>
         <div class="space-y-3">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="input-label">ชื่อร้าน / คลินิก *</label>
-              <input id="si-name" class="input-field" value="${store.name || ''}" placeholder="FUFU Vet Clinic">
-            </div>
-            <div>
-              <label class="input-label">สาขา</label>
-              <input id="si-branch" class="input-field" value="${store.branch_name || ''}" placeholder="สาขาหลัก">
-            </div>
+            <div><label class="input-label">ชื่อร้าน *</label><input id="si-name" class="input-field" value="${store.name || ''}" placeholder="ชื่อร้าน"></div>
+            <div><label class="input-label">เบอร์โทรศัพท์</label><input id="si-phone" class="input-field" type="tel" value="${store.phone || ''}" placeholder="02-xxx-xxxx"></div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="input-label">เบอร์โทรศัพท์</label>
-              <input id="si-phone" class="input-field" value="${store.phone || ''}" placeholder="02-xxx-xxxx">
-            </div>
-            ${!FEATURE_FLAGS.MVP_MODE ? `<div>
-              <label class="input-label">เลขประจำตัวผู้เสียภาษี (Tax ID)</label>
-              <input id="si-taxid" class="input-field" value="${store.tax_id || ''}" placeholder="0000000000000">
-            </div>` : ''}
-          </div>
-          <div>
-            <label class="input-label">ที่อยู่</label>
-            <textarea id="si-address" rows="2" class="input-field resize-none"
-              placeholder="123 ถ.พระราม 9 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพฯ 10310">${store.address || ''}</textarea>
+            <div><label class="input-label">อีเมล</label><input id="si-email" type="email" class="input-field" value="${store.email || ''}" placeholder="shop@example.com"></div>
+            <div><label class="input-label">เว็บไซต์ / Line</label><input id="si-website" class="input-field" value="${store.website || ''}" placeholder="@ร้าน หรือ https://example.com"></div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="input-label">เว็บไซต์ / Line</label>
-              <input id="si-website" class="input-field" value="${store.website || ''}" placeholder="@fufuvet หรือ fufuvet.com">
-            </div>
-            ${!FEATURE_FLAGS.MVP_MODE ? `<div>
-              <label class="input-label">หมายเหตุบนใบเสร็จ</label>
-              <input id="si-note" class="input-field" value="${store.receipt_header_note || ''}" placeholder="เช่น ขอบคุณที่ไว้วางใจ">
-            </div>` : ''}
+            <div><label class="input-label">ละติจูด</label><input id="si-latitude" type="number" step="any" class="input-field" value="${store.location_lat ?? ''}" placeholder="13.7563"></div>
+            <div><label class="input-label">ลองจิจูด</label><input id="si-longitude" type="number" step="any" class="input-field" value="${store.location_lng ?? ''}" placeholder="100.5018"></div>
           </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><label class="input-label">Timezone</label><input id="si-timezone" class="input-field" value="${store.timezone || 'Asia/Bangkok'}" placeholder="Asia/Bangkok"></div>
+          </div>
+          <div><label class="input-label">รายละเอียด</label><textarea id="si-description" rows="3" class="input-field resize-none">${store.description || ''}</textarea></div>
+          <div><label class="input-label">ที่อยู่</label><textarea id="si-address" rows="2" class="input-field resize-none">${store.address || ''}</textarea></div>
         </div>
         <button id="save-store-info" class="btn-primary px-6 py-2">บันทึกข้อมูลร้านค้า</button>
       </div>` : ''}
@@ -215,12 +197,14 @@ export async function renderSettings(container) {
 
     const payload = {
       name,
-      branch_name:          container.querySelector('#si-branch')?.value.trim()  || null,
       phone:                container.querySelector('#si-phone')?.value.trim()   || null,
-      tax_id:               container.querySelector('#si-taxid')?.value.trim()   || null,
+      email:                container.querySelector('#si-email')?.value.trim()   || null,
+      latitude:             _nullableNumber(container.querySelector('#si-latitude')?.value),
+      longitude:            _nullableNumber(container.querySelector('#si-longitude')?.value),
+      timezone:             container.querySelector('#si-timezone')?.value.trim() || 'Asia/Bangkok',
+      description:          container.querySelector('#si-description')?.value.trim() || null,
       address:              container.querySelector('#si-address')?.value.trim() || null,
       website:              container.querySelector('#si-website')?.value.trim() || null,
-      receipt_header_note:  container.querySelector('#si-note')?.value.trim()    || null,
     };
 
     const res = await apiFetch(`/api/stores/${storeId}`, {
@@ -231,10 +215,12 @@ export async function renderSettings(container) {
     btn.disabled = false; btn.textContent = 'บันทึกข้อมูลร้านค้า';
 
     if (res?.success) {
-      // Update localStorage cache so documents pick it up immediately
-      const updated = { ...store, ...payload };
+      // Keep cached coordinates in the same shape used by maps and clinic profile.
+      const { latitude, longitude, ...fields } = payload;
+      const updated = { ...store, ...fields, location_lat: latitude, location_lng: longitude };
       localStorage.setItem(STORAGE_KEYS.STORE_INFO, JSON.stringify(updated));
       localStorage.setItem(STORAGE_KEYS.STORE_NAME, name);
+      Object.assign(store, updated);
       showToast('บันทึกข้อมูลร้านค้าแล้ว ✓');
     } else {
       showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
@@ -460,6 +446,12 @@ function _pwScore(pw) {
   if (/[0-9]/.test(pw))         s++;
   if (/[^A-Za-z0-9]/.test(pw))  s++;
   return Math.max(1, s);
+}
+
+function _nullableNumber(value) {
+  if (value == null || value.trim() === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function _prepareStoreProfileImage(file) {

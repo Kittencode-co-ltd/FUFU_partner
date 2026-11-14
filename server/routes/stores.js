@@ -1,13 +1,14 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole, useStoreIdParam } from '../middleware/rbac.js';
+import { isTimezone } from '../utils/validation.js';
 
 const router = Router();
 router.use(requireAuth);
 
-const STORE_FIELDS = 'id, name, category, branch_name, phone, address, tax_id, website, receipt_header_note, business_hours, default_service_rates, store_profile_image_url';
+const STORE_FIELDS = 'id, name, category, branch_name, phone, email, address, description, location_lat, location_lng, timezone, tax_id, website, receipt_header_note, business_hours, default_service_rates, store_profile_image_url';
 const BASE_STORE_FIELDS = 'id, name, category';
-const OPTIONAL_STORE_FIELDS = ['branch_name','phone','address','tax_id','website','receipt_header_note','business_hours','default_service_rates','store_profile_image_url'];
+const OPTIONAL_STORE_FIELDS = ['branch_name','phone','email','address','description','location_lat','location_lng','timezone','tax_id','website','receipt_header_note','business_hours','default_service_rates','store_profile_image_url'];
 
 function isMissingOptionalStoreField(error) {
   const message = String(error?.message || '').toLowerCase();
@@ -78,11 +79,22 @@ router.post('/', async (req, res) => {
 
 // PATCH /api/stores/:id — update store settings (business_hours, default_service_rates, etc.)
 router.patch('/:id', useStoreIdParam('id'), requireRole('owner'), async (req, res) => {
-  const ALLOWED = new Set(['name', 'branch_name', 'phone', 'address', 'tax_id', 'website', 'receipt_header_note', 'business_hours', 'default_service_rates']);
+  const ALLOWED = new Set(['name', 'branch_name', 'phone', 'email', 'address', 'description', 'timezone', 'tax_id', 'website', 'receipt_header_note', 'business_hours', 'default_service_rates']);
   const updates = {};
   for (const [k, v] of Object.entries(req.body)) {
     if (ALLOWED.has(k)) updates[k] = v;
   }
+  if (req.body.latitude !== undefined) updates.location_lat = req.body.latitude;
+  if (req.body.longitude !== undefined) updates.location_lng = req.body.longitude;
+  if (updates.location_lat != null && (!Number.isFinite(Number(updates.location_lat)) || Number(updates.location_lat) < -90 || Number(updates.location_lat) > 90)) {
+    return res.status(400).json({ error: 'Invalid latitude' });
+  }
+  if (updates.location_lng != null && (!Number.isFinite(Number(updates.location_lng)) || Number(updates.location_lng) < -180 || Number(updates.location_lng) > 180)) {
+    return res.status(400).json({ error: 'Invalid longitude' });
+  }
+  if (updates.location_lat != null) updates.location_lat = Number(updates.location_lat);
+  if (updates.location_lng != null) updates.location_lng = Number(updates.location_lng);
+  if (updates.timezone !== undefined && !isTimezone(updates.timezone)) return res.status(400).json({ error: 'Invalid timezone' });
   if (!Object.keys(updates).length) return res.status(400).json({ error: 'no valid fields' });
 
   const { data, error } = await req.supabase
