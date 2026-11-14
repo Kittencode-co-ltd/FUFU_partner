@@ -1,4 +1,4 @@
-const CACHE = 'fufu-v13';
+const CACHE = 'fufu-v14';
 
 // App shell — all files needed to render the dashboard while offline
 const SHELL = [
@@ -40,6 +40,7 @@ const SHELL = [
   '/js/partner/documents.js',
   '/js/partner/staff.js',
   '/js/partner/audit.js',
+  '/js/partner/reviews.js',
   '/js/partner/rbac.js',
   '/js/partner/data-masking.js',
   '/js/partner/invoice.js',

@@ -7,7 +7,7 @@ const pages = [
   'home', 'screenings', 'appointments', 'calendar', 'patients', 'summaries',
   'clinic', 'users', 'queue', 'cashier', 'opd', 'pets', 'pet-profile', 'medical',
   'income', 'orders', 'delivery', 'inventory', 'pos', 'hotel', 'grooming', 'ipd',
-  'documents', 'kanban', 'staff', 'settings',
+  'documents', 'kanban', 'staff', 'settings', 'reviews',
 ]
 
 export default function DashboardPage() {

@@ -196,32 +196,33 @@ const FLOW_STEPS = {
 const MVP_NAV_PAGES = new Set([
   ...MVP_NAV.map(item => item.id),
   ...Object.values(BUSINESS_NAV).flat().map(item => item.id),
-  'pet-profile',
+  'pet-profile', 'reviews',
 ]);
 const MVP_ROLE_PAGES = {
   owner: new Set([...MVP_NAV_PAGES]),
-  reception: new Set(['screenings', 'home', 'queue', 'cashier', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
-  vet: new Set(['screenings', 'home', 'queue', 'cashier', 'opd', 'appointments', 'calendar', 'patients', 'summaries', 'clinic']),
+  reception: new Set(['screenings', 'home', 'queue', 'cashier', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews']),
+  vet: new Set(['screenings', 'home', 'queue', 'cashier', 'opd', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews']),
 };
 const BUSINESS_ROLE_PAGES = {
   shop: {
-    reception: new Set(['home', 'inventory', 'pos', 'orders', 'delivery']),
-    vet: new Set(['home', 'inventory', 'pos', 'orders', 'delivery']),
+    reception: new Set(['home', 'inventory', 'pos', 'orders', 'delivery', 'reviews']),
+    vet: new Set(['home', 'inventory', 'pos', 'orders', 'delivery', 'reviews']),
   },
   hotel: {
-    reception: new Set(['home', 'hotel', 'queue', 'cashier', 'appointments', 'calendar', 'pets']),
-    vet: new Set(['home', 'hotel', 'queue', 'cashier', 'appointments', 'calendar', 'pets']),
+    reception: new Set(['home', 'hotel', 'queue', 'cashier', 'appointments', 'calendar', 'pets', 'reviews']),
+    vet: new Set(['home', 'hotel', 'queue', 'cashier', 'appointments', 'calendar', 'pets', 'reviews']),
   },
   grooming: {
-    reception: new Set(['home', 'queue', 'cashier', 'appointments', 'calendar', 'grooming', 'pets']),
-    vet: new Set(['home', 'queue', 'cashier', 'appointments', 'calendar', 'grooming', 'pets']),
+    reception: new Set(['home', 'queue', 'cashier', 'appointments', 'calendar', 'grooming', 'pets', 'reviews']),
+    vet: new Set(['home', 'queue', 'cashier', 'appointments', 'calendar', 'grooming', 'pets', 'reviews']),
   },
 };
 
 function _navItemsForRole(role) {
-  const items = FEATURE_FLAGS.MVP_MODE
+  const baseItems = FEATURE_FLAGS.MVP_MODE
     ? (BUSINESS_NAV[role] || BUSINESS_NAV.vet)
     : (NAV[role] || NAV.vet);
+  const items = [...baseItems, { id:'reviews', icon:'star', label:'รีวิวจากลูกค้า' }];
   if (!FEATURE_FLAGS.MVP_MODE) return items;
 
   const staffRole = storage.get(STORAGE_KEYS.STAFF_ROLE) || 'owner';
@@ -240,6 +241,7 @@ const PAGE_TITLES = {
   patients:     'สัตว์ที่เข้ารับบริการ',
   summaries:    'สรุปการเข้ารับบริการ',
   clinic:       'ตั้งค่า',
+  reviews:      'รีวิวจากลูกค้า',
   users:        'ผู้ใช้งาน',
   orders:       'คำสั่งซื้อออนไลน์',
   delivery:     'จัดส่ง',
@@ -674,7 +676,7 @@ const ACCOUNT_PAGES = new Set(['clinic', 'users', 'settings', 'staff']);
 const ACCOUNT_PAGE_ORDER = ['users', 'staff', 'clinic', 'settings'];
 
 function _buildNav(role) {
-  const allItems = FEATURE_FLAGS.MVP_MODE ? (BUSINESS_NAV[role] || BUSINESS_NAV.vet) : (NAV[role] || NAV.vet);
+  const allItems = [...(FEATURE_FLAGS.MVP_MODE ? (BUSINESS_NAV[role] || BUSINESS_NAV.vet) : (NAV[role] || NAV.vet)), { id:'reviews', icon:'star', label:'รีวิวจากลูกค้า' }];
   const modeCfg = FEATURE_FLAGS.MVP_MODE ? null : MODES[_currentMode];
   const staffRoles  = storage.getJSON('fufu_staff_roles'); // null = owner
   const canHome     = !staffRoles || staffRoles.includes('home') || staffRoles.includes('all');
@@ -814,6 +816,11 @@ async function _renderPage(pageId, detail = null) {
   if (pageId === 'home') {
     const { renderHome } = await import('./home.js');
     await renderHome(document.getElementById('page-home'));
+    return;
+  }
+  if (pageId === 'reviews') {
+    const { renderStoreReviews } = await import('./reviews.js');
+    await renderStoreReviews(document.getElementById('page-reviews'));
     return;
   }
   if (pageId === 'screenings') {

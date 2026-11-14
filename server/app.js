@@ -28,6 +28,7 @@ import expensesRoutes       from './routes/expenses.js';
 import soapTemplatesRoutes  from './routes/soap-templates.js';
 import rewardsRoutes        from './routes/rewards.js';
 import clinicRoutes         from './routes/clinic.js';
+import reviewRoutes         from './routes/reviews.js';
 import publicClinicRoutes   from './routes/public-clinics.js';
 import visitsRoutes         from './routes/visits.js';
 import screeningsRoutes     from './routes/screenings.js';
@@ -56,6 +57,7 @@ export function createApiApp({ withFallback = true } = {}) {
   app.use('/api/public/clinics',  publicClinicRoutes);
   app.use('/api', guardInactiveStoreMutations);
   app.use('/api/clinic',          clinicRoutes);
+  app.use('/api/reviews',         reviewRoutes);
   app.use('/api/queue',           queueRoutes);
   app.use('/api/medical-records', medicalRoutes);
   app.use('/api/finance',         financeRoutes);
