@@ -91,6 +91,8 @@ router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
   }
   const ownedForReview = stores || [];
   let hasPartnerStore = Boolean(stores?.length);
+  // Activation is independent from approval: suspended stores remain selectable
+  // so owners can review their data and see the suspension notice in the portal.
   stores = (stores || []).filter(store => (store.verification_status || (store.is_verified ? 'accept' : 'pending')) === 'accept');
 
   // 2. If not owner → check staff membership

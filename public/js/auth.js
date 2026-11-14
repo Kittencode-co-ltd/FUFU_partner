@@ -110,7 +110,7 @@ export function renderStoreList(container, stores) {
         <div class="flex-1 min-w-0">
           <div class="font-semibold text-navy truncate">${store.name}</div>
           <div class="text-xs text-slate-500 font-body mt-0.5">
-            ${cat.label}${store.is_staff ? ` · <span class="text-primary">พนักงาน: ${(store.staff_roles||[]).join(', ')}</span>` : ''}
+            ${cat.label}${store.is_active === false ? ' · <span class="text-red-600 font-semibold">ถูกระงับ</span>' : ''}${store.is_staff ? ` · <span class="text-primary">พนักงาน: ${(store.staff_roles||[]).join(', ')}</span>` : ''}
           </div>
         </div>
         <svg class="w-4 h-4 text-slate-400 group-hover:text-primary flex-shrink-0 transition-colors"

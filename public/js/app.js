@@ -320,7 +320,18 @@ async function bootDashboard() {
     ]);
     const selectedId = storage.get(STORAGE_KEYS.STORE_ID);
     const selected = access.stores.find(store => store.id === selectedId);
-    if (selected) storage.set(STORAGE_KEYS.STORE_ACTIVE, selected.is_active === false ? 'false' : 'true');
+    if (selected) {
+      storage.set(STORAGE_KEYS.STORE_ACTIVE, selected.is_active === false ? 'false' : 'true');
+      if (selected.is_active === false) {
+        const reason = selected.suspension_reason || selected.suspend_reason || selected.inactive_reason || selected.reject_reason || 'ไม่ระบุรายละเอียด';
+        const alert = document.createElement('div');
+        alert.setAttribute('role', 'alert');
+        alert.className = 'mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8';
+        alert.innerHTML = '<div class="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm"></div>';
+        alert.firstElementChild.textContent = `ร้านค้า/คลินิกของคุณถูกระงับ เนื่องจาก ${reason} กรุณาติดต่อทีมงาน kittencode`;
+        document.body.prepend(alert);
+      }
+    }
   }
   if (access.status !== 'approved') {
     const { storage } = await import('./utils/storage.js');
