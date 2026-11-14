@@ -1,7 +1,20 @@
 -- Phase P2: canonical clinic profile, hours, holidays and services.
 
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 alter table public.stores
   add column if not exists email text,
+  add column if not exists province text,
+  add column if not exists district text,
   add column if not exists timezone text not null default 'Asia/Bangkok',
   add column if not exists accepting_appointments boolean not null default true;
 
@@ -52,6 +65,16 @@ alter table public.store_services enable row level security;
 alter table public.store_business_hours force row level security;
 alter table public.store_holidays force row level security;
 alter table public.store_services force row level security;
+
+drop policy if exists business_hours_public_read on public.store_business_hours;
+drop policy if exists business_hours_owner_all on public.store_business_hours;
+drop policy if exists business_hours_member_read on public.store_business_hours;
+drop policy if exists holidays_public_read on public.store_holidays;
+drop policy if exists holidays_owner_all on public.store_holidays;
+drop policy if exists holidays_member_read on public.store_holidays;
+drop policy if exists services_public_read on public.store_services;
+drop policy if exists services_member_read on public.store_services;
+drop policy if exists services_owner_all on public.store_services;
 
 create policy business_hours_public_read on public.store_business_hours for select to anon, authenticated
   using (exists (select 1 from public.stores s where s.id=store_id and s.is_active and s.is_verified));
@@ -105,6 +128,11 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('clinic-logos','clinic-logos',true,2097152,array['image/jpeg','image/png','image/webp'])
 on conflict (id) do update set public=excluded.public, file_size_limit=excluded.file_size_limit,
   allowed_mime_types=excluded.allowed_mime_types;
+
+drop policy if exists mvp_clinic_logo_read on storage.objects;
+drop policy if exists mvp_clinic_logo_owner_insert on storage.objects;
+drop policy if exists mvp_clinic_logo_owner_update on storage.objects;
+drop policy if exists mvp_clinic_logo_owner_delete on storage.objects;
 
 create policy mvp_clinic_logo_read on storage.objects for select to anon, authenticated
   using (bucket_id='clinic-logos');

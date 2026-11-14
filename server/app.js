@@ -45,7 +45,8 @@ export function createApiApp({ withFallback = true } = {}) {
   app.use(requestContext);
   app.use(securityHeaders);
   app.use(cors(corsOptions()));
-  app.use(express.json({ limit: '100kb' }));
+  // Partner image uploads are sent as compact data URLs (max 2 MB binary).
+  app.use(express.json({ limit: '3mb' }));
   app.use('/api', (req, res, next) => {
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return mutationRateLimit(req, res, next);
     next();

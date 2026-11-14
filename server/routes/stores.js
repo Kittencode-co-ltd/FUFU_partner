@@ -5,17 +5,18 @@ import { requireRole, useStoreIdParam } from '../middleware/rbac.js';
 const router = Router();
 router.use(requireAuth);
 
-const STORE_FIELDS = 'id, name, category, branch_name, phone, address, tax_id, website, receipt_header_note, business_hours, default_service_rates';
+const STORE_FIELDS = 'id, name, category, branch_name, phone, address, tax_id, website, receipt_header_note, business_hours, default_service_rates, store_profile_image_url';
 const BASE_STORE_FIELDS = 'id, name, category';
 
-function isMissingBranchName(error) {
+function isMissingOptionalStoreField(error) {
   const message = String(error?.message || '').toLowerCase();
-  return message.includes('branch_name') && (message.includes('schema cache') || error?.code === 'PGRST204' || error?.code === '42703');
+  const isOptionalField = message.includes('branch_name') || message.includes('store_profile_image_url');
+  return isOptionalField && (message.includes('schema cache') || error?.code === 'PGRST204' || error?.code === '42703');
 }
 
 async function listStores(makeQuery) {
   const result = await makeQuery(STORE_FIELDS);
-  if (!isMissingBranchName(result.error)) return result;
+  if (!isMissingOptionalStoreField(result.error)) return result;
   return makeQuery(BASE_STORE_FIELDS);
 }
 
@@ -53,7 +54,7 @@ router.post('/', async (req, res) => {
 
   // Older production schemas do not have branch_name. Retry without that
   // optional field so store onboarding remains available during migrations.
-  if (isMissingBranchName(error) && Object.hasOwn(store, 'branch_name')) {
+  if (isMissingOptionalStoreField(error) && Object.hasOwn(store, 'branch_name')) {
     delete store.branch_name;
     ({ data, error } = await req.supabase
       .from('stores')
