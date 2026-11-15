@@ -9,6 +9,10 @@ import { startSyncEngine } from '../utils/sync-engine.js';
 import { escapeHtml } from '../utils/formatters.js';
 import { icon } from '../utils/icons.js';
 import { initResponsiveEnhancements } from '../utils/responsive.js';
+import { disablePushQuietly, listenForPushNavigation } from './push-notifications.js';
+import { buildPortalGuideSteps, maybeShowGuide, openGuide } from './welcome-guide.js';
+
+const PUSH_PAGES = new Set(['appointments', 'reviews']);
 
 // ─── Staff Mode config ────────────────────────────────────────────────────────
 
@@ -71,6 +75,7 @@ const NAV = {
     { id: 'ipd',       icon: 'hospital',       label: 'IPD Ward' },
     { id: 'medical',   icon: 'folder-open',    label: 'ประวัติการรักษา' },
     { id: 'inventory', icon: 'box',            label: 'สต็อก / ยา' },
+    { id: 'pos',       icon: 'credit-card',    label: 'ขายหน้าร้าน · POS' },
     { id: 'income',    icon: 'coins',          label: 'รายได้' },
     { id: 'documents', icon: 'file-alt',       label: 'เอกสาร' },
     { id: 'kanban',    icon: 'tasks',          label: 'Task Board' },
@@ -92,6 +97,7 @@ const NAV = {
     { id: 'queue',    icon: 'clipboard-list', label: 'คิว' },
     { id: 'pets',     icon: 'paw',            label: 'สัตว์เลี้ยง / นัดหมาย' },
     { id: 'hotel',    icon: 'bed',            label: 'ห้องพัก' },
+    { id: 'pos',      icon: 'credit-card',    label: 'ขายหน้าร้าน · POS' },
     { id: 'income',   icon: 'coins',          label: 'รายได้' },
     { id: 'settings', icon: 'cog',            label: 'ตั้งค่า' },
   ],
@@ -99,6 +105,7 @@ const NAV = {
     { id: 'home',     icon: 'chart-bar',      label: 'ภาพรวม' },
     { id: 'grooming', icon: 'cut',            label: 'คิว Grooming' },
     { id: 'pets',     icon: 'paw',            label: 'สัตว์เลี้ยง / นัดหมาย' },
+    { id: 'pos',      icon: 'credit-card',    label: 'ขายหน้าร้าน · POS' },
     { id: 'income',   icon: 'coins',          label: 'รายได้' },
     { id: 'settings', icon: 'cog',            label: 'ตั้งค่า' },
   ],
@@ -115,7 +122,7 @@ const MVP_NAV = [
   { id: 'calendar',     icon: 'calendar-alt',   label: 'ปฏิทิน' },
   { id: 'patients',     icon: 'paw',            label: 'สัตว์ที่เข้ารับบริการ' },
   { id: 'summaries',    icon: 'folder-open',    label: 'สรุปการเข้ารับบริการ' },
-  { id: 'clinic',       icon: 'hospital-alt',   label: 'ตั้งค่า' },
+  { id: 'clinic',       icon: 'hospital-alt',   label: 'ร้านและการรับจอง' },
   { id: 'users',        icon: 'users',          label: 'ผู้ใช้งาน' },
 ];
 
@@ -134,11 +141,12 @@ const BUSINESS_NAV = {
     { id: 'opd', icon: 'stethoscope', label: 'OPD · ห้องตรวจ', group: 'care' },
     { id: 'ipd', icon: 'hospital', label: 'IPD · ผู้ป่วยใน', group: 'care' },
     { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
+    { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS', group: 'payment' },
     { id: 'patients', icon: 'paw', label: 'สัตว์ที่เข้ารับบริการ', group: 'records' },
     { id: 'medical', icon: 'folder-open', label: 'ประวัติการรักษา', group: 'records' },
     { id: 'summaries', icon: 'file-alt', label: 'สรุปการเข้ารับบริการ', group: 'records' },
     { id: 'inventory', icon: 'box', label: 'คลังยาและเวชภัณฑ์', group: 'stock' },
-    { id: 'clinic', icon: 'hospital-alt', label: 'ตั้งค่า' },
+    { id: 'clinic', icon: 'hospital-alt', label: 'ร้านและการรับจอง' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
   ],
   shop: [
@@ -158,8 +166,10 @@ const BUSINESS_NAV = {
     { id: 'queue', icon: 'clipboard-list', label: 'คิวเช็กอิน / เช็กเอาต์', group: 'stay' },
     { id: 'hotel', icon: 'bed', label: 'ห้องพักและการดูแล', group: 'stay' },
     { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
+    { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS', group: 'payment' },
     { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ', group: 'records' },
     { id: 'income', icon: 'coins', label: 'รายได้', group: 'records' },
+    { id: 'clinic', icon: 'hospital-alt', label: 'ร้านและการรับจอง' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
     { id: 'settings', icon: 'cog', label: 'ตั้งค่า' },
   ],
@@ -170,8 +180,10 @@ const BUSINESS_NAV = {
     { id: 'queue', icon: 'clipboard-list', label: 'คิวบริการ', group: 'service' },
     { id: 'grooming', icon: 'cut', label: 'งานอาบน้ำตัดขน', group: 'service' },
     { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
+    { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS', group: 'payment' },
     { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ', group: 'records' },
     { id: 'income', icon: 'coins', label: 'รายได้', group: 'records' },
+    { id: 'clinic', icon: 'hospital-alt', label: 'ร้านและการรับจอง' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
     { id: 'settings', icon: 'cog', label: 'ตั้งค่า' },
   ],
@@ -200,8 +212,8 @@ const MVP_NAV_PAGES = new Set([
 ]);
 const MVP_ROLE_PAGES = {
   owner: new Set([...MVP_NAV_PAGES]),
-  reception: new Set(['screenings', 'home', 'queue', 'cashier', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews']),
-  vet: new Set(['screenings', 'home', 'queue', 'cashier', 'opd', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews']),
+  reception: new Set(['screenings', 'home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews']),
+  vet: new Set(['screenings', 'home', 'queue', 'cashier', 'pos', 'opd', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews']),
 };
 const BUSINESS_ROLE_PAGES = {
   shop: {
@@ -209,12 +221,12 @@ const BUSINESS_ROLE_PAGES = {
     vet: new Set(['home', 'inventory', 'pos', 'orders', 'delivery', 'reviews']),
   },
   hotel: {
-    reception: new Set(['home', 'hotel', 'queue', 'cashier', 'appointments', 'calendar', 'pets', 'reviews']),
-    vet: new Set(['home', 'hotel', 'queue', 'cashier', 'appointments', 'calendar', 'pets', 'reviews']),
+    reception: new Set(['home', 'hotel', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'pets', 'reviews']),
+    vet: new Set(['home', 'hotel', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'pets', 'reviews']),
   },
   grooming: {
-    reception: new Set(['home', 'queue', 'cashier', 'appointments', 'calendar', 'grooming', 'pets', 'reviews']),
-    vet: new Set(['home', 'queue', 'cashier', 'appointments', 'calendar', 'grooming', 'pets', 'reviews']),
+    reception: new Set(['home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'grooming', 'pets', 'reviews']),
+    vet: new Set(['home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'grooming', 'pets', 'reviews']),
   },
 };
 
@@ -240,7 +252,7 @@ const PAGE_TITLES = {
   calendar:     'ปฏิทิน',
   patients:     'สัตว์ที่เข้ารับบริการ',
   summaries:    'สรุปการเข้ารับบริการ',
-  clinic:       'ตั้งค่า',
+  clinic:       'ร้านและการรับจอง',
   reviews:      'รีวิวจากลูกค้า',
   users:        'ผู้ใช้งาน',
   orders:       'คำสั่งซื้อออนไลน์',
@@ -460,7 +472,9 @@ export async function initDashboard() {
     role: 'owner',
     storeName: store.name || '',
     onNavigate: navigate,
-    onLogout: logout,
+    // Unsubscribe this browser first so the next account here does not get this account's alerts.
+    onLogout: () => disablePushQuietly().finally(logout),
+    onGuide: () => openGuide(_guideOptions()),
   });
 
   _initStoreSwitcher();
@@ -562,10 +576,34 @@ export async function initDashboard() {
   const canRestore = lastPage && _RESTORABLE_PAGES.has(lastPage) &&
     (!FEATURE_FLAGS.MVP_MODE || (MVP_NAV_PAGES.has(lastPage) && (_navItemsForRole(role).some(item => item.id === lastPage) || (lastPage === 'pet-profile' && _navItemsForRole(role).some(item => ['pets', 'patients'].includes(item.id)))))) &&
     (lastPage !== 'home' || canHomeInit);
-  navigate(canRestore ? lastPage : defaultPage);
+
+  // A push notification opens /dashboard?page=appointments|reviews (see public/sw.js).
+  const pushPage = page => PUSH_PAGES.has(page) && _navItemsForRole(role).some(item => item.id === page);
+  const linkedPage = new URLSearchParams(location.search).get('page');
+  if (linkedPage) history.replaceState(null, '', location.pathname);
+  listenForPushNavigation(page => { if (pushPage(page)) navigate(page); });
+  navigate(pushPage(linkedPage) ? linkedPage : canRestore ? lastPage : defaultPage);
 
   _initOfflineBadge();
   if (isStoreActive) startSyncEngine();
+  maybeShowGuide(_guideOptions());
+}
+
+// First-run guide: slides follow the menu this user actually sees (store type + staff role)
+function _guideOptions() {
+  const user = getCurrentUser();
+  return {
+    userId: user.id || user.email || 'anon',
+    getSteps: () => buildPortalGuideSteps({
+      role: _navRole,
+      navItems: _navItems,
+      accountItems: _accountItems,
+      bottomTabs: _bottomTabs.map(item => ({ ...item, label: shortLabel(item) })),
+      drawer: DRAWER_QUERY.matches,
+      label: item => pageLabel(item.id, item.label),
+      menuLabel: tr('menu'),
+    }),
+  };
 }
 
 // ─── Offline badge ────────────────────────────────────────────────────────────
@@ -653,6 +691,8 @@ function _initSidebarToggle() {
 
 let _navItems = [];
 let _navRole = 'vet';
+let _accountItems = [];
+let _bottomTabs = [];
 
 // Step bar (นัด → คิว → ตรวจ → ชำระเงิน) above pages that are part of the visit journey.
 // Only steps this user can open are shown; it hides itself on every other page.
@@ -694,7 +734,8 @@ function _buildNav(role) {
   if (!FEATURE_FLAGS.MVP_MODE && !canHome) items = items.filter(i => i.id !== 'home');
 
   // Store settings, team and account pages live in the profile menu, not the sidebar
-  setProfileMenuItems(items.filter(item => ACCOUNT_PAGES.has(item.id)).sort((a, b) => ACCOUNT_PAGE_ORDER.indexOf(a.id) - ACCOUNT_PAGE_ORDER.indexOf(b.id)));
+  _accountItems = items.filter(item => ACCOUNT_PAGES.has(item.id)).sort((a, b) => ACCOUNT_PAGE_ORDER.indexOf(a.id) - ACCOUNT_PAGE_ORDER.indexOf(b.id));
+  setProfileMenuItems(_accountItems);
   items = items.filter(item => !ACCOUNT_PAGES.has(item.id));
 
   const nav = document.getElementById('sidebar-nav');
@@ -740,6 +781,7 @@ function _buildBottomNav(items, role) {
   const preferred = (FEATURE_FLAGS.MVP_MODE ? BOTTOM_TABS[role] : null) || [];
   let tabs = preferred.map(id => items.find(item => item.id === id)).filter(Boolean);
   if (tabs.length < 4) tabs = [...tabs, ...items.filter(item => !tabs.includes(item))].slice(0, 4);
+  _bottomTabs = tabs;
   bar.innerHTML = `
     ${tabs.map(item => `
       <button type="button" data-nav="${item.id}" class="tab-item">
@@ -757,14 +799,26 @@ function _buildBottomNav(items, role) {
   };
 }
 
+// New booking requests from the FUFU app: badge on the bookings menu, re-checked every minute
+// while the tab is visible, with a toast when the number of waiting requests goes up.
+let _apptCount = null;
+let _apptTimer = null;
 async function _loadApptBadge() {
   const storeId = storage.get(STORAGE_KEYS.STORE_ID);
   if (!storeId) return;
+  if (!_apptTimer) {
+    _apptTimer = setInterval(() => { if (!document.hidden) _loadApptBadge(); }, 60_000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) _loadApptBadge(); });
+  }
   try {
     const res = await apiFetch(`/api/appointments/count?store_id=${storeId}`);
+    const count = res?.count || 0;
+    if (_apptCount !== null && count > _apptCount) {
+      showToast(count - _apptCount === 1 ? 'มีคำขอจองใหม่ 1 รายการ รอยืนยัน' : `มีคำขอจองใหม่ ${count - _apptCount} รายการ รอยืนยัน`);
+    }
+    _apptCount = count;
     const badge = document.getElementById('appt-nav-badge');
     if (!badge) return;
-    const count = res?.count || 0;
     badge.textContent = count > 99 ? '99+' : count;
     badge.hidden = count <= 0;
   } catch { /* silent */ }

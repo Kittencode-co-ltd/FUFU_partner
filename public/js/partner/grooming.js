@@ -4,7 +4,8 @@ import { showToast } from '../utils/toast.js';
 import { bindPrintButton } from '../utils/print-docs.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 
-const SERVICES = [
+// Also used by the POS (pos-retail.js) as the grooming menu when the store has no grooming service items yet
+export const SERVICES = [
   { id: 'bath',       name: 'อาบน้ำ',             icon: '', price: 200 },
   { id: 'nail',       name: 'ตัดเล็บ',             icon: '', price: 80  },
   { id: 'ear',        name: 'ทำความสะอาดหู',       icon: '', price: 100 },

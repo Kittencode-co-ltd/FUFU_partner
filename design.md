@@ -27,6 +27,7 @@
 15. [Checklist ก่อนส่งงาน UI](#15-checklist-ก่อนส่งงาน-ui)
 16. [ข้อห้าม](#16-ข้อห้าม)
 17. [เรื่องที่ยังต้องตัดสินใจ](#17-เรื่องที่ยังต้องตัดสินใจ)
+18. [การแจ้งเตือนแบบ Push (Web Push)](#18-การแจ้งเตือนแบบ-push-web-push)
 
 ---
 
@@ -525,7 +526,7 @@ html { font-size: calc(100% * var(--fs-user, 1)); }                             
 | แถบขั้นตอน | `#flow-steps` (`_renderFlowSteps`) | แสดงเฉพาะหน้าที่อยู่ใน `FLOW_STEPS` |
 | เมนูโปรไฟล์ | `profile-menu.js` | บัญชี, การตั้งค่าร้าน, ธีม, ขนาดตัวอักษร, ภาษา, ออกจากระบบ |
 | แคชเชียร์ | `.cx-*` | |
-| POS ขายหน้าร้าน | `.pr-*` (`pos-retail.js`) | iPad: สินค้าซ้าย ตะกร้าขวา มือถือ: ตะกร้าเป็นแถบลอย |
+| POS ขายหน้าร้าน | `.pr-*` (`pos-retail.js`) | ใช้ได้ทุกประเภทร้าน (คลินิก ร้านค้า โรงแรม อาบน้ำตัดขน) รายการมาจากคลังสินค้า, service items, ราคาห้องพัก และเมนู grooming แต่ละประเภทร้านเห็นหมวดของตัวเองก่อน มีปุ่ม "รายการอื่น" สำหรับขายรายการที่ไม่มีในระบบ iPad: สินค้าซ้าย ตะกร้าขวา มือถือ: ตะกร้าเป็นแถบลอย |
 | กระดานคิว | `.qk-jump`, `.qk-board`, `.qk-col` | น้อยกว่า 1280px ปัดซ้ายขวาได้ |
 | Toast | `showToast(msg, type, ms)` (`utils/toast.js`) | |
 
@@ -685,3 +686,47 @@ L({ th: 'บริการ', en: 'Services', zh: '服务', ja: 'サービス', 
 ตัดสินใจแล้ว:
 
 - **15 พ.ย. 2026 — สีหลักของทั้งสองระบบคือ teal ของโลโก้ `#2A6374`** (เดิม App ใช้ `#00897B` และ Portal ใช้ `#0F9D8A`) ดู [ข้อ 4.2](#42-สีหลัก-accent)
+
+---
+
+## 18. การแจ้งเตือนแบบ Push (Web Push)
+
+ระบบ App, Portal และ Admin แจ้งเตือนได้แม้ผู้ใช้ปิดหน้าเว็บไปแล้ว ใช้มาตรฐาน Web Push กับคีย์ VAPID ชุดเดียวกันทั้งสามระบบ
+
+### เหตุการณ์ที่แจ้งเตือน
+
+| ระบบ | ผู้รับ | เหตุการณ์ | กดแล้วไปที่ |
+| --- | --- | --- | --- |
+| App (`system = app`) | ลูกค้าเจ้าของการจอง | ร้านยืนยัน ปฏิเสธ เสนอเวลาใหม่ ยกเลิก หรือเปลี่ยนสถานะการจอง (แถวใหม่ใน `notifications` จาก `transition_appointment`) | `/appointments` |
+| Portal (`system = portal`) | เจ้าของร้านและพนักงานที่ active | คำขอจองใหม่ (`create_service_booking`) และรีวิวใหม่ | `/dashboard?page=appointments` หรือ `?page=reviews` |
+| Admin (`system = admin`) | บัญชีใน `ADMIN_EMAILS` | ร้านใหม่รอการอนุมัติ (`verification_status = 'pending'`) | `/partners` |
+
+ลูกค้าที่ยกเลิกการจองเองจะไม่ได้รับ push ของการยกเลิกนั้น ข้อความ push แปลเป็น th/en/zh/ja/ko ตามภาษาที่ผู้ใช้เลือกตอนเปิดการแจ้งเตือน
+
+### ส่วนประกอบ
+
+- **ตาราง** `push_subscriptions` (migration `20261115130000_web_push_subscriptions.sql`) เก็บหนึ่งแถวต่อผู้ใช้ × endpoint ของเบราว์เซอร์ × ระบบ เปิด RLS ให้ผู้ใช้จัดการได้เฉพาะแถวของตัวเอง เบราว์เซอร์สร้างแถว `admin` ไม่ได้ ต้องผ่าน API ของ Admin ที่ตรวจ `ADMIN_EMAILS` ก่อน
+- **Trigger** บน `notifications`, `appointments`, `store_reviews` และ `stores` เรียก edge function `send-web-push` ผ่าน `pg_net` แบบไม่รอผล ถ้าส่งไม่สำเร็จก็ไม่ทำให้การจองหรือรีวิวล้ม
+- **Edge function** `supabase/functions/send-web-push` หาผู้รับ ส่ง push และลบ subscription ที่ push service ตอบ 404 หรือ 410
+- **Service worker**: Portal ใช้ `public/sw.js` เดิม (มี push + notificationclick), App และ Admin มี `public/sw.js` ที่ทำแค่ push ไม่ cache ไฟล์
+- **ปุ่มเปิด/ปิด**: App อยู่ในหน้า `/notifications` และใน popup กระดิ่ง, Portal อยู่ในเมนูโปรไฟล์, Admin อยู่ในเมนูบัญชี
+
+### กติกา UX
+
+- ห้ามขอสิทธิ์แจ้งเตือนตอนโหลดหน้า ต้องขอหลังผู้ใช้กดปุ่ม "เปิด" เท่านั้น
+- ถ้าเบราว์เซอร์บล็อกไว้ ให้บอกวิธีเปิดในการตั้งค่าเบราว์เซอร์ ไม่ต้องแสดงปุ่ม
+- ตอนออกจากระบบ ให้ยกเลิก subscription ของเบราว์เซอร์นั้นก่อน คนที่เข้าระบบต่อจะได้ไม่เห็นแจ้งเตือนของบัญชีเดิม
+- **iOS / iPadOS:** push ใช้ได้เฉพาะ **iOS 16.4 ขึ้นไป** และต้อง **เพิ่มเว็บไปยังหน้าจอโฮม (PWA) แล้วเปิดจากไอคอน** เท่านั้น ใน Safari แบบปกติจะขึ้นคำแนะนำให้เพิ่มไปยังหน้าจอโฮมแทนปุ่ม
+
+### ตัวแปรและ secret ที่ต้องตั้ง (ชื่อเท่านั้น ห้ามใส่ค่าในเอกสารหรือ commit)
+
+| ที่ตั้ง | ชื่อ | หมายเหตุ |
+| --- | --- | --- |
+| Supabase Edge Function secrets | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | `VAPID_SUBJECT` เป็น `mailto:` หรือ URL ของทีม; private key อยู่ที่นี่ที่เดียว |
+| Supabase Edge Function secrets | `WEB_PUSH_WEBHOOK_SECRET` | ค่าเดียวกับ Vault `web_push_webhook_secret` |
+| Supabase Edge Function secrets | `ADMIN_EMAILS` | รายชื่อเดียวกับ env ของ Admin ใช้ตรวจซ้ำก่อนส่งถึง Admin |
+| Supabase Vault | `web_push_function_url`, `web_push_webhook_secret` | URL ของ function `send-web-push` และ secret ที่ trigger ส่งไปใน header `x-push-secret` |
+| Portal (Express env) | `VAPID_PUBLIC_KEY` | public key ส่งให้หน้าเว็บผ่าน `GET /api/push/config` |
+| App และ Admin (Next env) | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | public key เท่านั้น ห้ามมี private key ฝั่งนี้ |
+
+ลำดับการเปิดใช้: apply migration → ตั้ง secret ของ function → deploy `send-web-push` ด้วย `--no-verify-jwt` (function ตรวจ `x-push-secret` เอง) → ใส่ค่าใน Vault → ตั้ง public key ในทั้งสามระบบแล้ว restart ถ้ายังไม่ได้ใส่ Vault ระบบจะไม่ส่ง push แต่ทุกอย่างอื่นทำงานปกติ

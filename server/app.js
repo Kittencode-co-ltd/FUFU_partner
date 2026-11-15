@@ -33,6 +33,7 @@ import publicClinicRoutes   from './routes/public-clinics.js';
 import visitsRoutes         from './routes/visits.js';
 import screeningsRoutes     from './routes/screenings.js';
 import cashierRoutes        from './routes/cashier.js';
+import pushRoutes           from './routes/push.js';
 import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
 import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
 import { validateEnvironment } from './config/env.js';
@@ -55,6 +56,7 @@ export function createApiApp({ withFallback = true } = {}) {
 
   app.use('/api/auth',            authRoutes);
   app.use('/api/public/clinics',  publicClinicRoutes);
+  app.use('/api/push',            pushRoutes);
   app.use('/api', guardInactiveStoreMutations);
   app.use('/api/clinic',          clinicRoutes);
   app.use('/api/reviews',         reviewRoutes);

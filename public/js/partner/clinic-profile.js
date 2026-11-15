@@ -25,13 +25,16 @@ export async function renderClinicProfile(container) {
 function render(container, state) {
   const { profile, hours, holidays, services, canEdit } = state;
   const hoursByDay = new Map(hours.map(item => [Number(item.day_of_week), item]));
+  const category = storage.get(STORAGE_KEYS.STORE_CATEGORY) || '';
+  const isHotel = category === 'pet_hotel';
   container.innerHTML = `
     <div class="space-y-5">
+      ${readinessCard(profile, hours, services, category)}
       <div class="card p-5 space-y-4">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <div><h2 class="text-lg font-bold text-navy">ตั้งค่า</h2><p class="text-sm text-slate-400">ข้อมูลร้านที่แสดงใน FUFU</p></div>
           <label class="flex items-center gap-2 text-sm font-semibold ${canEdit ? '' : 'opacity-60'}">
-            <input id="accepting" type="checkbox" class="accent-primary" ${profile.accepting_appointments ? 'checked' : ''} ${canEdit ? '' : 'disabled'}> เปิดรับนัดหมาย
+            <input id="accepting" type="checkbox" class="accent-primary" ${profile.accepting_appointments ? 'checked' : ''} ${canEdit ? '' : 'disabled'}> เปิดรับจองผ่านแอป FUFU
           </label>
         </div>
         <div class="flex items-center gap-4">
@@ -71,13 +74,37 @@ function render(container, state) {
           <div id="holiday-list">${holidays.length ? holidays.map(item => `<div class="flex justify-between gap-3 py-2 border-b"><div><div class="font-semibold text-sm">${escapeHtml(item.date)}</div><div class="text-xs text-slate-400">${escapeHtml(item.reason || 'ปิดทำการ')}</div></div>${canEdit ? `<button data-delete-holiday="${item.id}" class="text-red-500 text-sm">ลบ</button>` : ''}</div>`).join('') : '<div class="text-sm text-slate-400 py-4">ไม่มีวันหยุดที่กำหนด</div>'}</div>
         </div>
         <div class="card p-5 space-y-4">
-          <h2 class="text-lg font-bold text-navy">บริการ</h2>
-          ${canEdit ? `<div class="grid grid-cols-2 gap-2"><input id="service-name" class="input-field col-span-2" placeholder="ชื่อบริการ"><input id="service-duration" type="number" min="5" max="480" value="30" class="input-field" placeholder="นาที"><input id="service-capacity" type="number" min="1" max="50" value="1" class="input-field" placeholder="ความจุ"><button id="add-service" class="btn-primary col-span-2">เพิ่มบริการ</button></div>` : ''}
-          <div>${services.length ? services.map(item => `<div class="flex items-center justify-between gap-3 py-2 border-b"><div><div class="font-semibold text-sm">${escapeHtml(item.name)}</div><div class="text-xs text-slate-400">${item.duration_minutes} นาที · ${item.capacity_per_slot} นัด/ช่วง</div></div>${canEdit ? `<button data-toggle-service="${item.id}" data-active="${item.is_active}" class="text-sm ${item.is_active ? 'text-red-500' : 'text-primary'}">${item.is_active ? 'ปิด' : 'เปิด'}</button>` : ''}</div>`).join('') : '<div class="text-sm text-slate-400 py-4">ยังไม่มีบริการ</div>'}</div>
+          <div><h2 class="text-lg font-bold text-navy">${isHotel ? 'ห้องพักที่เปิดให้จอง' : 'บริการที่เปิดให้จอง'}</h2><p class="text-xs text-slate-400">ลูกค้าเลือกรายการเหล่านี้ตอนจองในแอป FUFU</p></div>
+          ${canEdit ? (isHotel
+            ? `<div class="grid grid-cols-2 gap-2"><label class="col-span-2"><span class="input-label">ประเภทห้อง</span><input id="service-name" class="input-field" placeholder="เช่น ห้องมาตรฐาน (แมว)"></label><input id="service-duration" type="hidden" value="60"><label class="col-span-2"><span class="input-label">จำนวนห้องที่รับได้ต่อคืน</span><input id="service-capacity" type="number" min="1" max="50" value="1" class="input-field"></label><button id="add-service" class="btn-primary col-span-2">เพิ่มประเภทห้อง</button></div>`
+            : `<div class="grid grid-cols-2 gap-2"><label class="col-span-2"><span class="input-label">ชื่อบริการ</span><input id="service-name" class="input-field" placeholder="${category === 'pet_grooming' ? 'เช่น อาบน้ำ + ตัดเล็บ' : 'เช่น ตรวจสุขภาพทั่วไป'}"></label><label><span class="input-label">ใช้เวลา (นาที)</span><input id="service-duration" type="number" min="5" max="480" value="30" class="input-field"></label><label><span class="input-label">รับได้กี่ตัวต่อช่วงเวลา</span><input id="service-capacity" type="number" min="1" max="50" value="1" class="input-field"></label><button id="add-service" class="btn-primary col-span-2">เพิ่มบริการ</button></div>`) : ''}
+          <div>${services.length ? services.map(item => `<div class="flex items-center justify-between gap-3 py-2 border-b"><div><div class="font-semibold text-sm">${escapeHtml(item.name)}</div><div class="text-xs text-slate-400">${isHotel ? `${item.capacity_per_slot} ห้อง/คืน` : `${item.duration_minutes} นาที · ${item.capacity_per_slot} ตัว/ช่วง`}</div></div>${canEdit ? `<button data-toggle-service="${item.id}" data-active="${item.is_active}" class="text-sm ${item.is_active ? 'text-red-500' : 'text-primary'}">${item.is_active ? 'ปิด' : 'เปิด'}</button>` : ''}</div>`).join('') : '<div class="text-sm text-slate-400 py-4">ยังไม่มีบริการ</div>'}</div>
         </div>
       </div>
     </div>`;
   bind(container, state);
+}
+
+// What a store still needs before customers can book it in the FUFU app (mirrors create_service_booking checks)
+function readinessCard(profile, hours, services, category) {
+  if (!['vet_clinic', 'vet_hospital', 'pet_hotel', 'pet_grooming'].includes(category)) return '';
+  const steps = [
+    { ok: Boolean(profile.is_verified), label: 'ร้านผ่านการตรวจสอบจาก FUFU', todo: 'รอทีมงาน FUFU ตรวจสอบร้าน' },
+    { ok: Boolean(profile.accepting_appointments), label: 'เปิดรับจองผ่านแอป FUFU', todo: 'เปิดสวิตช์ "เปิดรับจองผ่านแอป FUFU" ด้านล่าง' },
+    ...(category === 'pet_hotel' ? [] : [{ ok: hours.some(h => !h.is_closed), label: 'ตั้งเวลาทำการแล้ว', todo: 'ตั้งเวลาทำการอย่างน้อย 1 วัน (ลูกค้าจองได้เฉพาะช่วงเวลาทำการ)' }]),
+    { ok: services.some(s => s.is_active), label: category === 'pet_hotel' ? 'มีห้องพักที่เปิดให้จอง' : 'มีบริการที่เปิดให้จอง', todo: category === 'pet_hotel' ? 'เพิ่มประเภทห้องอย่างน้อย 1 รายการ' : 'เพิ่มบริการอย่างน้อย 1 รายการ' },
+  ];
+  const ready = steps.every(s => s.ok);
+  return `<div class="card p-5">
+    <div class="flex items-start gap-3">
+      <span class="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full ${ready ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">${ready ? '✓' : '!'}</span>
+      <div class="min-w-0 flex-1">
+        <h2 class="font-bold text-navy">${ready ? 'พร้อมรับจองผ่านแอปแล้ว' : 'ยังรับจองผ่านแอปไม่ได้'}</h2>
+        <p class="text-sm text-slate-500">${ready ? 'ลูกค้าเห็นปุ่ม "จองบริการ" ในหน้าร้านของคุณ คำขอจองใหม่จะแสดงในเมนูการจองให้กดยืนยันหรือปฏิเสธ' : 'ทำรายการที่เหลือให้ครบ แล้วปุ่ม "จองบริการ" จะแสดงในหน้าร้านบนแอป FUFU'}</p>
+        <ul class="mt-3 space-y-1.5">${steps.map(s => `<li class="flex items-start gap-2 text-sm"><span class="${s.ok ? 'text-emerald-600' : 'text-slate-300'}">${s.ok ? '●' : '○'}</span><span class="${s.ok ? 'text-slate-600' : 'text-navy font-semibold'}">${s.ok ? s.label : s.todo}</span></li>`).join('')}</ul>
+      </div>
+    </div>
+  </div>`;
 }
 
 function field(id, label, value, enabled, type = 'text', extra = '') {
@@ -98,7 +125,7 @@ function bind(container, state) {
     const body = { name: value(container,'clinic-name'), phone: value(container,'clinic-phone'), email: value(container,'clinic-email'), website: value(container,'clinic-website'), latitude: nullableNumber(value(container,'clinic-latitude')), longitude: nullableNumber(value(container,'clinic-longitude')), timezone: value(container,'clinic-timezone'), description: value(container,'clinic-description'), address: value(container,'clinic-address'), accepting_appointments: container.querySelector('#accepting').checked };
     await mutate(container, `/api/clinic/${state.storeId}`, { method:'PATCH', body:JSON.stringify(body) }, 'บันทึกการตั้งค่าแล้ว');
   });
-  container.querySelector('#accepting')?.addEventListener('change', async event => mutate(container, `/api/clinic/${state.storeId}`, { method:'PATCH', body:JSON.stringify({ accepting_appointments:event.target.checked }) }, event.target.checked ? 'เปิดรับนัดหมายแล้ว' : 'ปิดรับนัดหมายแล้ว'));
+  container.querySelector('#accepting')?.addEventListener('change', async event => mutate(container, `/api/clinic/${state.storeId}`, { method:'PATCH', body:JSON.stringify({ accepting_appointments:event.target.checked }) }, event.target.checked ? 'เปิดรับจองแล้ว' : 'ปิดรับจองแล้ว', true));
   container.querySelector('#store-profile-file')?.addEventListener('change', async event => {
     const file = event.target.files?.[0]; if (!file) return;
     if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { showToast('กรุณาเลือกรูป JPEG, PNG หรือ WebP','error'); event.target.value = ''; return; }
@@ -116,7 +143,7 @@ function bind(container, state) {
   });
   container.querySelector('#save-hours')?.addEventListener('click', async () => {
     const hours = [...container.querySelectorAll('[data-hours-day]')].map(row => ({ day_of_week:Number(row.dataset.hoursDay), is_closed:row.querySelector('.hours-closed').checked, opens_at:row.querySelector('.hours-open').value, closes_at:row.querySelector('.hours-close').value }));
-    await mutate(container, `/api/clinic/${state.storeId}/hours`, { method:'PUT', body:JSON.stringify({ hours }) }, 'บันทึกเวลาทำการแล้ว');
+    await mutate(container, `/api/clinic/${state.storeId}/hours`, { method:'PUT', body:JSON.stringify({ hours }) }, 'บันทึกเวลาทำการแล้ว', true);
   });
   container.querySelector('#add-holiday')?.addEventListener('click', async () => mutate(container, `/api/clinic/${state.storeId}/holidays`, { method:'POST', body:JSON.stringify({ date:value(container,'holiday-date'), reason:value(container,'holiday-reason'), is_closed:true }) }, 'เพิ่มวันหยุดแล้ว', true));
   container.querySelectorAll('[data-delete-holiday]').forEach(button => button.addEventListener('click', async () => mutate(container, `/api/clinic/holidays/${button.dataset.deleteHoliday}`, { method:'DELETE' }, 'ลบวันหยุดแล้ว', true)));

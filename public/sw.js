@@ -1,4 +1,4 @@
-const CACHE = 'fufu-v14';
+const CACHE = 'fufu-v15';
 
 // App shell — all files needed to render the dashboard while offline
 const SHELL = [
@@ -32,6 +32,7 @@ const SHELL = [
   '/js/partner/send-to-cashier.js',
   '/js/partner/sheet.js',
   '/js/partner/profile-menu.js',
+  '/js/partner/push-notifications.js',
   '/js/partner/portal-i18n.js',
   '/js/partner/grooming.js',
   '/js/partner/hotel.js',
@@ -109,4 +110,40 @@ self.addEventListener('sync', e => {
       })
     );
   }
+});
+
+// ── Web Push: show booking/review alerts even when no Portal tab is open ─────
+// Payload (from the send-web-push edge function): { title, body, url, tag, system }
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data ? e.data.text() : '' }; }
+  const tag = typeof data.tag === 'string' ? data.tag : undefined;
+  e.waitUntil(self.registration.showNotification(data.title || 'FUFU Partner', {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag,
+    renotify: Boolean(tag),
+    data: { url: typeof data.url === 'string' ? data.url : '/dashboard' },
+  }));
+});
+
+// Focus an open Portal tab (and let it switch page) or open a new one. Same-origin URLs only.
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  let target = new URL('/dashboard', self.location.origin);
+  try {
+    const url = new URL(e.notification.data?.url || '/dashboard', self.location.origin);
+    if (url.origin === self.location.origin) target = url;
+  } catch { /* keep /dashboard */ }
+  e.waitUntil((async () => {
+    const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = tabs.find(c => new URL(c.url).pathname === target.pathname);
+    if (open) {
+      await open.focus();
+      open.postMessage({ type: 'fufu-push-open', url: target.pathname + target.search });
+      return;
+    }
+    await self.clients.openWindow(target.href);
+  })());
 });
