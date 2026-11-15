@@ -45,3 +45,7 @@
     setFontScale: function (s) { if (SCALES[s]) { write(SCALE_KEY, s); applyFontScale(); } },
   };
 })();
+
+// Keep the browser's install prompt for the "Install on home screen" button (install-app.js).
+// It can fire before the dashboard modules load, so it is caught here, as early as possible.
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__fufuInstallPrompt = e; });

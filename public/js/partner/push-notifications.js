@@ -2,13 +2,14 @@
 // Permission is only ever requested from a click on the profile-menu toggle, never on load.
 import { apiFetch } from '../utils/api-client.js';
 import { getLang } from './portal-i18n.js';
+import { isInAppBrowser } from '../utils/in-app-browser.js';
 
 const TEXT = {
-  th: { title: 'แจ้งเตือนบนอุปกรณ์นี้', desc: 'รับแจ้งเตือนคำขอจองใหม่และรีวิวใหม่ แม้ปิดหน้าเว็บอยู่ · การแจ้งเตือนในระบบยังทำงานตามปกติ', on: 'เปิดอยู่', enable: 'เปิด', disable: 'ปิด', blocked: 'ถูกบล็อกในการตั้งค่าเบราว์เซอร์ — กดไอคอนข้างช่อง URL แล้วอนุญาตการแจ้งเตือน', ios: 'บน iPhone/iPad ให้กด แชร์ → เพิ่มไปยังหน้าจอโฮม แล้วเปิด FUFU Partner จากไอคอนก่อน (iOS 16.4 ขึ้นไป)', unsupported: 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน', notReady: 'ระบบแจ้งเตือนยังไม่ได้ตั้งค่าบนเซิร์ฟเวอร์', enabled: 'เปิดการแจ้งเตือนแล้ว', disabled: 'ปิดการแจ้งเตือนแล้ว', failed: 'ตั้งค่าการแจ้งเตือนไม่สำเร็จ ลองอีกครั้ง' },
-  en: { title: 'Notifications on this device', desc: 'Get new booking requests and reviews, even when this page is closed · In-app alerts keep working either way', on: 'On', enable: 'Turn on', disable: 'Turn off', blocked: 'Notifications are blocked. Allow them in your browser’s site settings.', ios: 'On iPhone/iPad, tap Share → Add to Home Screen, then open FUFU Partner from the icon (iOS 16.4 or later).', unsupported: 'This browser does not support notifications', notReady: 'Notifications are not set up on the server yet', enabled: 'Notifications turned on', disabled: 'Notifications turned off', failed: 'Could not update notifications. Please try again.' },
-  zh: { title: '此设备上的通知', desc: '即使关闭页面，也能收到新预约请求和新评价 · 系统内通知不受影响', on: '已开启', enable: '开启', disable: '关闭', blocked: '浏览器已阻止通知，请在浏览器的网站设置中允许。', ios: '在 iPhone/iPad 上，点按“分享”→“添加到主屏幕”，然后从图标打开 FUFU Partner（需 iOS 16.4 或更高版本）。', unsupported: '此浏览器不支持通知', notReady: '服务器尚未设置通知', enabled: '通知已开启', disabled: '通知已关闭', failed: '无法更新通知设置，请重试。' },
-  ja: { title: 'この端末への通知', desc: 'ページを閉じていても、新しい予約リクエストとレビューをお知らせします · 画面内の通知はそのまま届きます', on: 'オン', enable: 'オンにする', disable: 'オフにする', blocked: '通知がブロックされています。ブラウザのサイト設定で許可してください。', ios: 'iPhone/iPad では「共有」→「ホーム画面に追加」を選び、アイコンから FUFU Partner を開いてください（iOS 16.4 以降）。', unsupported: 'このブラウザは通知に対応していません', notReady: 'サーバーで通知がまだ設定されていません', enabled: '通知をオンにしました', disabled: '通知をオフにしました', failed: '通知の設定を変更できませんでした。もう一度お試しください。' },
-  ko: { title: '이 기기 알림', desc: '페이지를 닫아도 새 예약 요청과 새 리뷰를 알려 드려요 · 화면 안 알림은 그대로 받아요', on: '켜짐', enable: '켜기', disable: '끄기', blocked: '알림이 차단되어 있어요. 브라우저의 사이트 설정에서 허용해 주세요.', ios: 'iPhone/iPad에서는 공유 → 홈 화면에 추가를 누른 뒤 아이콘으로 FUFU Partner를 열어 주세요(iOS 16.4 이상).', unsupported: '이 브라우저는 알림을 지원하지 않아요', notReady: '서버에 알림이 아직 설정되지 않았어요', enabled: '알림을 켰어요', disabled: '알림을 껐어요', failed: '알림 설정을 바꾸지 못했어요. 다시 시도해 주세요.' },
+  th: { title: 'แจ้งเตือนบนอุปกรณ์นี้', desc: 'รับแจ้งเตือนคำขอจองใหม่และรีวิวใหม่ แม้ปิดหน้าเว็บอยู่ · การแจ้งเตือนในระบบยังทำงานตามปกติ', on: 'เปิดอยู่', enable: 'เปิด', disable: 'ปิด', blocked: 'ถูกบล็อกในการตั้งค่าเบราว์เซอร์ — กดไอคอนข้างช่อง URL แล้วอนุญาตการแจ้งเตือน', ios: 'บน iPhone/iPad ให้กด แชร์ → เพิ่มไปยังหน้าจอโฮม แล้วเปิด FUFU Partner จากไอคอนก่อน (iOS 16.4 ขึ้นไป)', inApp: 'เปิดอยู่ในแอป เช่น LINE หรือ Facebook — กดเมนู ⋯ แล้วเลือก “เปิดในเบราว์เซอร์” (Chrome หรือ Safari) เพื่อเปิดการแจ้งเตือน', unsupported: 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน', notReady: 'ระบบแจ้งเตือนยังไม่ได้ตั้งค่าบนเซิร์ฟเวอร์', enabled: 'เปิดการแจ้งเตือนแล้ว', disabled: 'ปิดการแจ้งเตือนแล้ว', failed: 'ตั้งค่าการแจ้งเตือนไม่สำเร็จ ลองอีกครั้ง' },
+  en: { title: 'Notifications on this device', desc: 'Get new booking requests and reviews, even when this page is closed · In-app alerts keep working either way', on: 'On', enable: 'Turn on', disable: 'Turn off', blocked: 'Notifications are blocked. Allow them in your browser’s site settings.', ios: 'On iPhone/iPad, tap Share → Add to Home Screen, then open FUFU Partner from the icon (iOS 16.4 or later).', inApp: 'You’re inside an app like LINE or Facebook. Tap ⋯ → “Open in browser” (Chrome or Safari) to turn on notifications.', unsupported: 'This browser does not support notifications', notReady: 'Notifications are not set up on the server yet', enabled: 'Notifications turned on', disabled: 'Notifications turned off', failed: 'Could not update notifications. Please try again.' },
+  zh: { title: '此设备上的通知', desc: '即使关闭页面，也能收到新预约请求和新评价 · 系统内通知不受影响', on: '已开启', enable: '开启', disable: '关闭', blocked: '浏览器已阻止通知，请在浏览器的网站设置中允许。', ios: '在 iPhone/iPad 上，点按“分享”→“添加到主屏幕”，然后从图标打开 FUFU Partner（需 iOS 16.4 或更高版本）。', inApp: '当前在 LINE、Facebook 等应用内打开。点按 ⋯ →“在浏览器中打开”（Chrome 或 Safari）即可开启通知。', unsupported: '此浏览器不支持通知', notReady: '服务器尚未设置通知', enabled: '通知已开启', disabled: '通知已关闭', failed: '无法更新通知设置，请重试。' },
+  ja: { title: 'この端末への通知', desc: 'ページを閉じていても、新しい予約リクエストとレビューをお知らせします · 画面内の通知はそのまま届きます', on: 'オン', enable: 'オンにする', disable: 'オフにする', blocked: '通知がブロックされています。ブラウザのサイト設定で許可してください。', ios: 'iPhone/iPad では「共有」→「ホーム画面に追加」を選び、アイコンから FUFU Partner を開いてください（iOS 16.4 以降）。', inApp: 'LINE や Facebook などのアプリ内で開いています。⋯ →「ブラウザで開く」（Chrome または Safari）を選ぶと通知をオンにできます。', unsupported: 'このブラウザは通知に対応していません', notReady: 'サーバーで通知がまだ設定されていません', enabled: '通知をオンにしました', disabled: '通知をオフにしました', failed: '通知の設定を変更できませんでした。もう一度お試しください。' },
+  ko: { title: '이 기기 알림', desc: '페이지를 닫아도 새 예약 요청과 새 리뷰를 알려 드려요 · 화면 안 알림은 그대로 받아요', on: '켜짐', enable: '켜기', disable: '끄기', blocked: '알림이 차단되어 있어요. 브라우저의 사이트 설정에서 허용해 주세요.', ios: 'iPhone/iPad에서는 공유 → 홈 화면에 추가를 누른 뒤 아이콘으로 FUFU Partner를 열어 주세요(iOS 16.4 이상).', inApp: 'LINE·Facebook 같은 앱 안에서 열려 있어요. ⋯ → ‘브라우저에서 열기’(Chrome 또는 Safari)를 누르면 알림을 켤 수 있어요.', unsupported: '이 브라우저는 알림을 지원하지 않아요', notReady: '서버에 알림이 아직 설정되지 않았어요', enabled: '알림을 켰어요', disabled: '알림을 껐어요', failed: '알림 설정을 바꾸지 못했어요. 다시 시도해 주세요.' },
 };
 export const pushText = key => (TEXT[getLang()] || TEXT.th)[key] ?? TEXT.th[key];
 
@@ -38,9 +39,10 @@ async function _currentSubscription() {
 }
 
 /**
- * 'unsupported' | 'ios-install' | 'not-configured' | 'denied' | 'on' | 'off'
+ * 'unsupported' | 'in-app' | 'ios-install' | 'not-configured' | 'denied' | 'on' | 'off'
  */
 export async function getPushState() {
+  if (isInAppBrowser()) return 'in-app';
   if (!supported()) return isIOS() && !isStandalone() ? 'ios-install' : 'unsupported';
   const config = await _getConfig();
   if (!config.enabled) return 'not-configured';

@@ -852,6 +852,42 @@ html.dark .wg-flow__n { animation-name: wg-fill-dark; }
   html.dark .wg-flow__n { color: #0B1416; }
 }
 
+/* ── Install on home screen (public/js/partner/install-app.js) ── */
+.pm-row__trail { font-size: 0.75rem; font-weight: 600; color: var(--pt-muted); }
+.ia-hero { display: flex; align-items: center; gap: 14px; padding: 4px 0 14px; }
+.ia-icon { flex-shrink: 0; width: 56px; height: 56px; border-radius: 14px; box-shadow: 0 0 0 1px var(--pt-line), 0 6px 16px rgba(15,23,42,.10); animation: wg-bounce 560ms var(--ease-spring) both; }
+.ia-why { font-size: 0.875rem; line-height: 1.55; color: var(--pt-text-2); }
+.ia-steps { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ia-steps li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--pt-sunken); font-size: 0.875rem; line-height: 1.5; color: var(--pt-text); animation: wg-rise 420ms var(--ease-spring) both; animation-delay: calc(var(--i, 0) * 90ms + 120ms); }
+.ia-n { flex-shrink: 0; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; background: var(--pt-accent); color: #fff; font-size: 0.75rem; font-weight: 700; }
+html.dark .ia-n { color: #0B1416; }
+.ia-note { padding: 12px 14px; border-radius: 16px; background: var(--pt-tint); font-size: 0.875rem; line-height: 1.55; color: var(--pt-text); }
+.ia-note.is-warn { background: rgba(217,119,6,.10); color: #92400E; }
+html.dark .ia-note.is-warn { background: rgba(251,191,36,.12); color: #FBBF24; }
+.ia-go { width: 100%; }
+.ia-banner {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 12px 14px;
+  border: 1px solid var(--pt-line); border-radius: 18px; background: var(--pt-surface);
+  animation: wg-rise 420ms var(--ease-out) both; transition: opacity var(--dur-base), transform var(--dur-base) var(--ease-out);
+}
+.ia-banner[hidden] { display: none; }
+.ia-banner.is-leaving { opacity: 0; transform: translateY(-6px); }
+.ia-banner__icon { flex-shrink: 0; width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 0 0 1px var(--pt-line); }
+.ia-banner__text { flex: 1; min-width: 0; }
+.ia-banner__text b { display: block; font-size: 0.875rem; font-weight: 700; color: var(--pt-text); }
+.ia-banner__text span { display: block; margin-top: 1px; font-size: 0.75rem; color: var(--pt-muted); }
+.ia-banner__actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.ia-banner__later { min-height: 40px; padding: 0 12px; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; color: var(--pt-muted); }
+.ia-banner__later:hover { background: var(--pt-sunken); color: var(--pt-text); }
+.ia-banner__go { min-height: 40px; padding: 0 16px; border-radius: 999px; background: var(--pt-accent); color: #fff; font-size: 0.8125rem; font-weight: 700; }
+html.dark .ia-banner__go { color: #0B1416; }
+.ia-banner__later:focus-visible, .ia-banner__go:focus-visible { outline: 2px solid var(--pt-accent); outline-offset: 2px; }
+@media (max-width: 479px) {
+  .ia-banner { flex-wrap: wrap; }
+  .ia-banner__actions { width: 100%; justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) { .ia-icon, .ia-steps li, .ia-banner { animation: none; transition: none; } }
+
 /* ── Cashier + send-to-cashier ── */
 .cx-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--pt-line); }
 .cx-tabs button { position: relative; padding: 8px 0 10px; font-size: 0.875rem; font-weight: 600; color: var(--pt-muted); }

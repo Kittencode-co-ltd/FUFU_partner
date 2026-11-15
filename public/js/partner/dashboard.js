@@ -11,6 +11,7 @@ import { icon } from '../utils/icons.js';
 import { initResponsiveEnhancements } from '../utils/responsive.js';
 import { disablePushQuietly, listenForPushNavigation } from './push-notifications.js';
 import { buildPortalGuideSteps, maybeShowGuide, openGuide } from './welcome-guide.js';
+import { initInstallBanner } from './install-app.js';
 
 const PUSH_PAGES = new Set(['appointments', 'reviews']);
 
@@ -587,6 +588,7 @@ export async function initDashboard() {
   _initOfflineBadge();
   if (isStoreActive) startSyncEngine();
   maybeShowGuide(_guideOptions());
+  initInstallBanner(getCurrentUser().id || getCurrentUser().email);
 }
 
 // First-run guide: slides follow the menu this user actually sees (store type + staff role)

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { IN_APP_BROWSER } from '../public/js/utils/in-app-browser.js';
 import {
   bookingRequestMessage, customerMessage, isExpiredStatus, parseAdminEmails, reviewMessage,
   safeEqual, shouldPushNotification, storePendingMessage, storeRecipients, toLang,
@@ -68,4 +69,14 @@ test('portal service worker handles push and never prompts on load', () => {
   assert.match(sw, /addEventListener\('notificationclick'/);
   assert.match(pushClient, /requestPermission/);
   assert.doesNotMatch(pushClient, /DOMContentLoaded[\s\S]{0,200}requestPermission/);
+});
+
+test('in-app browsers (LINE, Facebook…) get an "open in browser" hint instead of a dead switch', () => {
+  const re = IN_APP_BROWSER;
+  assert.ok(re.test('Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari Line/14.3.0'));
+  assert.ok(re.test('Mozilla/5.0 (Linux; Android 13; Pixel 7; wv) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/460.0;]'));
+  assert.ok(!re.test('Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36'));
+  assert.ok(!re.test('Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Version/17.4 Mobile/15E148 Safari/604.1'));
+  assert.match(pushClient, /if \(isInAppBrowser\(\)\) return 'in-app'/);
+  assert.equal((pushClient.match(/ inApp: '/g) || []).length, 5);
 });

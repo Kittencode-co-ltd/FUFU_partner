@@ -5,6 +5,7 @@ import { t, LANGS, getLang, setLang, pageLabel } from './portal-i18n.js';
 import { showToast } from '../utils/toast.js';
 import { getPushState, enablePush, disablePush, pushText } from './push-notifications.js';
 import { guideText } from './welcome-guide.js';
+import { installText, isStandalone, openInstallSheet } from './install-app.js';
 
 const ROLES = ['owner', 'vet', 'reception', 'staff', 'accountant', 'counter', 'admin'];
 const THEMES = ['light', 'dark', 'auto'];
@@ -130,13 +131,19 @@ function _render() {
         </div>
       </div>
 
-      ${_state.onGuide ? `<div class="pm-group">
+      <div class="pm-group">
+        <button type="button" class="pm-row" data-pm-install>
+          <span class="pm-row__icon">${icon('download', 'w-[18px] h-[18px]')}</span>
+          <span class="pm-row__label">${esc(installText('menu'))}</span>
+          ${isStandalone() ? `<span class="pm-row__trail">${esc(installText('installed'))}</span>` : icon('chevron-right', 'w-4 h-4 pm-row__chev')}
+        </button>
+      ${_state.onGuide ? `
         <button type="button" class="pm-row" data-pm-guide>
           <span class="pm-row__icon">${icon('list-ul', 'w-[18px] h-[18px]')}</span>
           <span class="pm-row__label">${esc(guideText('menuEntry'))}</span>
           ${icon('chevron-right', 'w-4 h-4 pm-row__chev')}
-        </button>
-      </div>` : ''}
+        </button>` : ''}
+      </div>
 
       <div class="pm-group">
         <button type="button" class="pm-row is-danger" data-pm-logout>
@@ -154,7 +161,7 @@ async function _refreshPush() {
   const desc = document.querySelector('#profile-menu [data-pm-push-desc]');
   if (!btn || !desc) return;
   const state = await getPushState();
-  const note = { 'ios-install': 'ios', unsupported: 'unsupported', 'not-configured': 'notReady', denied: 'blocked' }[state];
+  const note = { 'in-app': 'inApp', 'ios-install': 'ios', unsupported: 'unsupported', 'not-configured': 'notReady', denied: 'blocked' }[state];
   desc.textContent = pushText(note || 'desc');
   desc.classList.toggle('is-warn', Boolean(note));
   btn.hidden = Boolean(note);
@@ -196,6 +203,7 @@ function _onClick(event) {
   if (nav) { _toggle(false); _state.onNavigate(nav.dataset.pmNav); return; }
   const pushBtn = event.target.closest('[data-pm-push]');
   if (pushBtn) { _togglePush(pushBtn); return; }
+  if (event.target.closest('[data-pm-install]')) { _toggle(false); openInstallSheet(); return; }
   if (event.target.closest('[data-pm-guide]')) { _toggle(false); _state.onGuide?.(); return; }
   if (event.target.closest('[data-pm-logout]')) { _toggle(false); _state.onLogout(); }
 }
