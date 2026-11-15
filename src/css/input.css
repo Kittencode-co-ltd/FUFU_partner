@@ -340,14 +340,15 @@ body.is-scrolled #topbar { border-bottom-color: var(--pt-line); }
 .pm { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
 .pm-panel {
   position: absolute; top: 60px; right: 16px; width: 320px; max-height: calc(100dvh - 76px); overflow-y: auto;
-  padding: 8px; pointer-events: auto;
+  /* Closed: hidden and not clickable (it used to sit invisibly over the page and catch taps) */
+  padding: 8px; pointer-events: none; visibility: hidden;
   background: var(--pt-surface); border: 1px solid var(--pt-line); border-radius: 20px;
   box-shadow: 0 20px 50px rgba(15,23,42,.14);
   opacity: 0; transform: translateY(-6px) scale(.98); transform-origin: top right;
-  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base);
 }
 html.dark .pm-panel { box-shadow: 0 20px 50px rgba(0,0,0,.5); }
-.pm.is-open .pm-panel { opacity: 1; transform: none; }
+.pm.is-open .pm-panel { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition-delay: 0s; }
 .pm-grab { display: none; }
 .pm-head { display: flex; align-items: center; gap: 12px; padding: 10px 10px 14px; }
 .pm-avatar { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; border-radius: 999px; background: var(--pt-tint); color: var(--pt-brand-ink); font: 700 1rem 'DM Sans', sans-serif; }

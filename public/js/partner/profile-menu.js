@@ -76,7 +76,8 @@ function _toggle(force) {
   }
   _render();
   document.body.classList.add('pm-open');
-  requestAnimationFrame(() => menu.classList.add('is-open'));
+  // Only if still open: a close in the same frame must not leave a stuck, invisible-but-open menu behind
+  requestAnimationFrame(() => { if (_open) menu.classList.add('is-open'); });
 }
 
 function _segmented(name, options, current) {

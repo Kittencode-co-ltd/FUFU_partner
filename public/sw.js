@@ -1,4 +1,4 @@
-const CACHE = 'fufu-v16';
+const CACHE = 'fufu-v17';
 
 // App shell — all files needed to render the dashboard while offline
 const SHELL = [
