@@ -706,10 +706,13 @@ function _renderFlowSteps(pageId) {
   if (visible.length < 2 || !visible.some(item => item.id === pageId)) { bar.hidden = true; bar.innerHTML = ''; return; }
   const current = visible.findIndex(item => item.id === pageId);
   bar.hidden = false;
+  // --flow-n / --flow-at drive the progress rail under the steps (CSS .flow-steps::after)
+  bar.style.setProperty('--flow-n', visible.length);
+  bar.style.setProperty('--flow-at', current + 1);
   bar.innerHTML = visible.map((item, i) => `
-    <button type="button" data-nav="${item.id}" class="flow-step ${i === current ? 'is-current' : i < current ? 'is-done' : ''}" ${i === current ? 'aria-current="step"' : ''}>
-      <span class="flow-step__n">${i + 1}</span><span class="flow-step__label">${pageLabel(item.id, item.label).split(' · ')[0]}</span>
-    </button>${i < visible.length - 1 ? '<span class="flow-step__line" aria-hidden="true"></span>' : ''}`).join('');
+    <button type="button" data-nav="${item.id}" class="flow-step ${i === current ? 'is-current' : i < current ? 'is-done' : ''}" title="${escapeHtml(pageLabel(item.id, item.label))}" ${i === current ? 'aria-current="step"' : ''}>
+      <span class="flow-step__n">${i + 1}</span><span class="flow-step__label">${shortLabel(item)}</span>
+    </button>`).join('');
   bar.onclick = e => { const btn = e.target.closest('[data-nav]'); if (btn) navigate(btn.dataset.nav); };
 }
 

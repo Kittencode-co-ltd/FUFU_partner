@@ -316,5 +316,10 @@ export function openGuide({ getSteps, userId, returnFocus } = {}) {
 export function maybeShowGuide(options) {
   if (hasSeenGuide(options.userId) || _active) return;
   // Let the first page paint before the guide slides in
-  setTimeout(() => { if (!hasSeenGuide(options.userId) && !document.querySelector('.sh, .pm.is-open')) openGuide(options); }, 700);
+  setTimeout(() => {
+    if (hasSeenGuide(options.userId) || document.querySelector('.sh, .pm.is-open')) return;
+    // Count it as seen as soon as it appears: a reload, sign-out or tab close must not bring it back
+    markSeen(options.userId);
+    openGuide(options);
+  }, 700);
 }
