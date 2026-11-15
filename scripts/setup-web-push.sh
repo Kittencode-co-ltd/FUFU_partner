@@ -14,7 +14,10 @@ fail() { printf '\n\033[1;31m✖ %s\033[0m\n' "$*" >&2; exit 1; }
 val()  { grep -E "^$1=" "$2" 2>/dev/null | head -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'; }
 
 [ -d supabase ] || fail "Run this from the FUFU_partner folder (the one with supabase/)."
-command -v supabase >/dev/null || fail "Supabase CLI not found. Install it first:  brew install supabase/tap/supabase"
+# Use an installed Supabase CLI, or run it through npx (no Homebrew needed)
+if command -v supabase >/dev/null; then supabase() { command supabase "$@"; }
+elif command -v npx >/dev/null; then supabase() { npx --yes supabase@latest "$@"; }
+else fail "Neither the Supabase CLI nor npx was found. Install Node.js from https://nodejs.org first."; fi
 [ -f "$KEYS" ] || fail "Key file $KEYS not found."
 
 # Project ref from the App's Supabase URL (https://<ref>.supabase.co)
@@ -56,7 +59,8 @@ supabase secrets set --env-file "$TMP" >/dev/null
 echo "Secrets set: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, WEB_PUSH_WEBHOOK_SECRET, ADMIN_EMAILS"
 
 say "4/5  Deploy the send-web-push function"
-supabase functions deploy send-web-push --no-verify-jwt
+# --use-api bundles the function on Supabase, so Docker is not needed
+supabase functions deploy send-web-push --no-verify-jwt --use-api
 
 say "5/5  Vault entries the database triggers read"
 umask 077
