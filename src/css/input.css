@@ -1242,3 +1242,7 @@ html.dark .rv { --rv-star: #FBBF24; }
 .rv-summary.rv-skel { min-height: 190px; }
 @keyframes rv-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .rv-skel { animation: none; } .rv-bar i { transition: none; } }
+
+.fufu-store-location-map { height: 280px; min-height: 240px; overflow: hidden; border: 1px solid var(--pt-line); background: var(--pt-sunken); }
+.fufu-store-location-map .leaflet-container { height: 100%; width: 100%; background: var(--pt-sunken); }
+@media (min-width: 768px) { .fufu-store-location-map { height: 360px; } }

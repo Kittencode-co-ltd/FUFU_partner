@@ -34,6 +34,7 @@ import visitsRoutes         from './routes/visits.js';
 import screeningsRoutes     from './routes/screenings.js';
 import cashierRoutes        from './routes/cashier.js';
 import pushRoutes           from './routes/push.js';
+import ordersRoutes         from './routes/orders.js';
 import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
 import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
 import { validateEnvironment } from './config/env.js';
@@ -83,6 +84,7 @@ export function createApiApp({ withFallback = true } = {}) {
   app.use('/api/expenses',        expensesRoutes);
   app.use('/api/soap-templates',  soapTemplatesRoutes);
   app.use('/api/rewards',         rewardsRoutes);
+  app.use('/api/orders',          ordersRoutes);
 
   if (withFallback) {
     app.use('/api', (req, res) => res.status(404).json({

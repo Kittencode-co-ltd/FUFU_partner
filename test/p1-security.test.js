@@ -19,7 +19,7 @@ test('security foundation limits auth/mutations, restricts CORS and sets headers
   const security = await read('../server/middleware/security.js');
   const auth = await read('../server/routes/auth.js');
   assert.match(index, /mutationRateLimit/);
-  assert.match(index, /express\.json\(\{ limit: '100kb' \}\)/);
+  assert.match(index, /express\.json\(\{ limit: '3mb' \}\)/);
   assert.match(index, /cors\(corsOptions\(\)\)/);
   assert.match(security, /Content-Security-Policy/);
   assert.match(security, /CORS_ORIGINS/);

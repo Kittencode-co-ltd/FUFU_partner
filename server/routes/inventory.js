@@ -43,7 +43,8 @@ router.get('/', async (req, res) => {
 
   const enriched = (products || []).map(p => ({
     ...p,
-    stock:            stockMap[p.id] || 0,
+    // stock_qty is the shared sellable balance used by POS and online orders.
+    stock:            Number(p.stock_qty) || 0,
     nearest_expiry:   expiryMap[p.id] || null,
   }));
 
@@ -54,8 +55,9 @@ const VALID_CATEGORIES = new Set(['medicine', 'vaccine', 'food', 'accessory', 's
 
 // POST /api/inventory/products — create product
 router.post('/products', requireRole('owner', 'vet', 'staff'), async (req, res) => {
-  const { store_id, name, category, unit, cost_price, sell_price, reorder_point, reorder_qty } = req.body;
+  const { store_id, name, category, unit, cost_price, sell_price, stock_qty, reorder_point, reorder_qty, description, photo_url, is_published, supports_pickup, supports_delivery } = req.body;
   if (!store_id || !name) return res.status(400).json({ error: 'store_id and name required' });
+  if (String(name).trim().length > 160 || Number(sell_price ?? 0) < 0 || !Number.isInteger(Number(stock_qty ?? 0)) || Number(stock_qty ?? 0) < 0) return res.status(400).json({ error: 'Invalid product details' });
 
   const safeCategory = VALID_CATEGORIES.has(category) ? category : 'medicine';
 
@@ -67,7 +69,13 @@ router.post('/products', requireRole('owner', 'vet', 'staff'), async (req, res) 
     sell_price:    sell_price    ?? null,
     reorder_point: reorder_point ?? null,
     reorder_qty:   reorder_qty   ?? null,
-    is_active:     true,
+    description: typeof description === 'string' ? description.trim().slice(0, 4000) : null,
+    photo_url: typeof photo_url === 'string' ? photo_url.trim().slice(0, 1000) || null : null,
+    stock_qty: Number(stock_qty ?? 0),
+    is_published: is_published === true,
+    supports_pickup: supports_pickup !== false,
+    supports_delivery: supports_delivery !== false,
+    is_active: true,
   };
 
   const { data, error } = await req.supabase.from('products').insert([row]).select().single();
@@ -89,9 +97,14 @@ router.patch('/products/:id', resolveStoreId('products'), requireRole('owner', '
   if (req.body.price !== undefined && req.body.sell_price === undefined) req.body.sell_price = req.body.price;
   if (req.body.min_stock !== undefined && req.body.reorder_point === undefined) req.body.reorder_point = req.body.min_stock;
 
-  const allowed = ['name', 'category', 'unit', 'cost_price', 'sell_price', 'reorder_point', 'reorder_qty', 'is_active'];
+  const allowed = ['name', 'category', 'unit', 'cost_price', 'sell_price', 'reorder_point', 'reorder_qty', 'is_active', 'description', 'photo_url', 'is_published', 'supports_pickup', 'supports_delivery'];
   const updates = {};
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
+  if (updates.name !== undefined && (typeof updates.name !== 'string' || updates.name.trim().length < 1 || updates.name.trim().length > 160)) return res.status(400).json({ error: 'Invalid product name' });
+  if (updates.sell_price !== undefined && (!Number.isFinite(Number(updates.sell_price)) || Number(updates.sell_price) < 0)) return res.status(400).json({ error: 'Invalid sell price' });
+  if (updates.stock_qty !== undefined && (!Number.isInteger(Number(updates.stock_qty)) || Number(updates.stock_qty) < 0)) return res.status(400).json({ error: 'Invalid stock quantity' });
+  if (updates.description !== undefined) updates.description = String(updates.description).trim().slice(0, 4000);
+  if (updates.photo_url !== undefined) updates.photo_url = typeof updates.photo_url === 'string' ? updates.photo_url.trim().slice(0, 1000) || null : null;
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'No valid fields to update. Valid: name, category, unit, cost_price, sell_price, reorder_point, reorder_qty, is_active' });
   }
@@ -107,6 +120,21 @@ router.patch('/products/:id', resolveStoreId('products'), requireRole('owner', '
     return res.json({ success: true, data: d2, migration_needed: true });
   }
 
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true, data });
+});
+
+router.post('/products/:id/photo', resolveStoreId('products'), requireRole('owner', 'vet', 'staff'), async (req, res) => {
+  const match = typeof req.body?.data_url === 'string' ? req.body.data_url.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/) : null;
+  if (!match) return res.status(400).json({ error: 'กรุณาเลือกรูป JPG, PNG หรือ WebP' });
+  const buffer = Buffer.from(match[2], 'base64');
+  if (!buffer.length || buffer.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'รูปต้องมีขนาดไม่เกิน 2 MB' });
+  const extension = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp' }[match[1]];
+  const path = `${req.query.store_id}/${req.params.id}.${extension}`;
+  const { error: uploadError } = await req.supabase.storage.from('product-images').upload(path, buffer, { contentType: match[1], upsert: true });
+  if (uploadError) return res.status(400).json({ error: uploadError.message });
+  const { data: { publicUrl } } = req.supabase.storage.from('product-images').getPublicUrl(path);
+  const { data, error } = await req.supabase.from('products').update({ photo_url: publicUrl }).eq('id', req.params.id).select('id,photo_url').single();
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data });
 });
@@ -137,6 +165,9 @@ router.post('/receive', requireRole('owner', 'vet', 'staff'), async (req, res) =
     .single();
 
   if (bErr) return res.status(500).json({ error: bErr.message });
+
+  const { error: stockError } = await req.supabase.rpc('adjust_product_sellable_stock', { p_product_id: product_id, p_delta: parseInt(quantity, 10) });
+  if (stockError) return res.status(400).json({ error: stockError.message });
 
   // Log movement
   await req.supabase.from('stock_movements').insert([{
@@ -212,6 +243,9 @@ router.post('/dispense', requireRole('owner', 'vet'), async (req, res) => {
   if (movements.length) {
     await req.supabase.from('stock_movements').insert(movements);
   }
+
+  const { error: stockError } = await req.supabase.rpc('adjust_product_sellable_stock', { p_product_id: product_id, p_delta: -qty });
+  if (stockError) return res.status(400).json({ error: stockError.message });
 
   res.json({ success: true, dispensed: qty, movements: movements.length });
 });
@@ -397,6 +431,8 @@ router.post('/adjust', requireRole('owner', 'vet', 'staff'), async (req, res) =>
   }]).select().single();
 
   if (error) return res.status(500).json({ error: error.message });
+  const { error: stockError } = await req.supabase.rpc('adjust_product_sellable_stock', { p_product_id: product_id, p_delta: delta });
+  if (stockError) return res.status(400).json({ error: stockError.message });
   res.json({ success: true, data });
 });
 
@@ -428,6 +464,8 @@ router.post('/expire-batch', requireRole('owner', 'vet', 'staff'), async (req, r
       reason:         `ตัดสต็อกหมดอายุ Lot: ${batch.lot_number}`,
       performed_by:   req.user.email || 'staff',
     }]);
+    const { error: stockError } = await req.supabase.rpc('adjust_product_sellable_stock', { p_product_id: batch.product_id, p_delta: -remaining });
+    if (stockError) return res.status(400).json({ error: stockError.message });
   }
 
   res.json({ success: true, expired_qty: remaining, lot_number: batch.lot_number });

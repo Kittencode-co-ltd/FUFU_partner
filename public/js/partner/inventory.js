@@ -528,6 +528,9 @@ function _openProductModal(tabEl, existing = null) {
           <label class="input-label">ชื่อสินค้า *</label>
           <input id="pm-name" class="input-field" value="${existing?.name || ''}" placeholder="วัคซีน DHPPL">
         </div>
+        <div class="col-span-2"><label class="input-label">รายละเอียดสินค้า</label><textarea id="pm-description" class="input-field" rows="3" maxlength="4000" placeholder="รายละเอียดและวิธีใช้">${existing?.description || ''}</textarea></div>
+        <div class="col-span-2"><label class="input-label">URL รูปสินค้า</label><input id="pm-photo" class="input-field" type="url" value="${existing?.photo_url || ''}" placeholder="https://..."></div>
+        <div class="col-span-2"><label class="input-label">หรืออัปโหลดรูป (JPG, PNG, WebP · ไม่เกิน 2 MB)</label><input id="pm-image" class="input-field" type="file" accept="image/jpeg,image/png,image/webp"></div>
         <div>
           <label class="input-label">หมวดหมู่</label>
           <select id="pm-category" class="input-field">
@@ -548,6 +551,8 @@ function _openProductModal(tabEl, existing = null) {
           <label class="input-label">ราคาขาย (฿)</label>
           <input id="pm-sell" class="input-field" type="number" step="0.01" value="${existing?.sell_price || ''}" placeholder="0">
         </div>
+        ${!isEdit ? `<div><label class="input-label">จำนวนเริ่มต้น</label><input id="pm-stock" class="input-field" type="number" min="0" step="1" value="0"></div>` : ''}
+        <label class="col-span-2 flex items-center gap-2 text-sm"><input id="pm-published" type="checkbox" ${existing?.is_published ? 'checked' : ''}> เผยแพร่ให้ลูกค้าสั่งซื้อได้</label>
         <div>
           <label class="input-label">จุดสั่งซื้อ (เตือนเมื่อ ≤)</label>
           <input id="pm-reorder" class="input-field" type="number" value="${existing?.reorder_point ?? 10}">
@@ -591,13 +596,26 @@ function _openProductModal(tabEl, existing = null) {
       unit:          modal.querySelector('#pm-unit').value.trim(),
       cost_price:    parseFloat(modal.querySelector('#pm-cost').value) || 0,
       sell_price:    parseFloat(modal.querySelector('#pm-sell').value) || 0,
+      description: modal.querySelector('#pm-description').value.trim(),
+      photo_url: modal.querySelector('#pm-photo').value.trim() || null,
+      is_published: modal.querySelector('#pm-published').checked,
+      ...(!isEdit ? { stock_qty: parseInt(modal.querySelector('#pm-stock').value, 10) || 0 } : {}),
       reorder_point: parseInt(modal.querySelector('#pm-reorder').value) || 10,
       reorder_qty:   parseInt(modal.querySelector('#pm-reorder-qty').value) || 50,
     };
     const url    = isEdit ? `/api/inventory/products/${existing.id}` : '/api/inventory/products';
     const method = isEdit ? 'PATCH' : 'POST';
     const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
-    if (res?.success) { showToast(isEdit ? 'แก้ไขสินค้าแล้ว' : `เพิ่ม ${name} แล้ว`); modal.remove(); await _renderProducts(tabEl); }
+    if (res?.success) {
+      const image = modal.querySelector('#pm-image').files?.[0];
+      if (image && res.data?.id) {
+        if (image.size > 2 * 1024 * 1024) { showToast('รูปต้องมีขนาดไม่เกิน 2 MB', 'error'); return; }
+        const dataUrl = await new Promise(resolve => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(image); });
+        const uploaded = await apiFetch(`/api/inventory/products/${res.data.id}/photo`, { method:'POST', body:JSON.stringify({ store_id:_storeId, data_url:dataUrl }) });
+        if (!uploaded?.success) { showToast(uploaded?.error || 'อัปโหลดรูปไม่สำเร็จ', 'error'); return; }
+      }
+      showToast(isEdit ? 'แก้ไขสินค้าแล้ว' : `เพิ่ม ${name} แล้ว`); modal.remove(); await _renderProducts(tabEl);
+    }
     else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
   });
 }

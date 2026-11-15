@@ -38,20 +38,22 @@ test('MVP navigation and dashboard are selected by the active store category', a
 test('store onboarding tolerates schemas without the optional branch_name column', async () => {
   const stores = await read('../server/routes/stores.js');
   const app = await read('../public/js/app.js');
-  assert.match(stores, /function isMissingBranchName/);
-  assert.match(stores, /if \(isMissingBranchName\(error\) && Object\.hasOwn\(store, 'branch_name'\)\)/);
+  assert.match(stores, /function isMissingOptionalStoreField/);
+  assert.match(stores, /if \(isMissingOptionalStoreField\(error\) && Object\.hasOwn\(store, 'branch_name'\)\)/);
   assert.match(stores, /BASE_STORE_FIELDS = 'id, name, category'/);
   assert.match(app, /tr\('catShop'/);
   assert.doesNotMatch(app, /ยังไม่มีร้านค้า — สร้างร้านแรกของคุณได้เลย/);
 });
 
-test('online order screens explain the current FUFU App store-link limitation', async () => {
+test('online order screens load and transition store-linked commerce orders', async () => {
   const dashboard = await read('../public/js/partner/dashboard.js');
   const operations = await read('../public/js/partner/shop-operations.js');
+  const api = await read('../server/routes/orders.js');
   assert.match(dashboard, /renderShopOperations/);
-  assert.match(operations, /รหัสร้านกำกับ/);
-  assert.match(operations, /ไปที่คลังสินค้า/);
-  assert.match(operations, /ขายหน้าร้าน · POS/);
+  assert.match(operations, /api\/orders\?store_id=/);
+  assert.match(operations, /data-status/);
+  assert.match(api, /transition_commerce_order/);
+  assert.match(api, /requireRole\('owner', 'staff', 'reception', 'vet'\)/);
 });
 
 test('MVP overview uses appointment data and excludes finance execution', async () => {
