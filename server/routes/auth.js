@@ -88,6 +88,18 @@ async function listAccessibleStores(client, user) {
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
 router.post('/login', loginAttemptThrottle, authRateLimit, async (req, res) => {
+  const activeToken = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7).trim()
+    : '';
+  if (activeToken) {
+    const { data: { user: activeUser }, error: activeError } = await supabase.auth.getUser(activeToken);
+    if (!activeError && activeUser) {
+      return res.status(409).json({ success:false, code:'ALREADY_AUTHENTICATED', error:'คุณเข้าสู่ระบบอยู่แล้ว กรุณาออกจากระบบก่อนจึงจะเปลี่ยนบัญชีได้' });
+    }
+    if (activeError && ![401, 403].includes(activeError.status)) {
+      return res.status(503).json({ success:false, code:'SESSION_CHECK_UNAVAILABLE', error:'ตรวจสอบ session ปัจจุบันไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+    }
+  }
   const { email, password } = req.body;
   if (!validEmail(email) || typeof password !== 'string' || password.length > 128) {
     return res.status(400).json({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' });

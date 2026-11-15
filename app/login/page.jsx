@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [stores, setStores] = useState(null)
+  const [sessionChecked, setSessionChecked] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem(KEYS.token)
@@ -28,11 +29,29 @@ export default function LoginPage() {
       fetch('/api/auth/stores', { headers: { Authorization: `Bearer ${token}` } })
         .then(async response => {
           const result = await response.json().catch(() => ({}))
-          if (!response.ok || !result.success || !Array.isArray(result.stores)) throw new Error(result.error || 'โหลดรายชื่อร้านไม่สำเร็จ')
+          if (!response.ok || !result.success || !Array.isArray(result.stores)) {
+            const refreshToken = localStorage.getItem(KEYS.refresh)
+            if (refreshToken) {
+              const refreshed = await fetch('/api/auth/refresh', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({refresh_token:refreshToken}) }).then(r=>r.json()).catch(()=>null)
+              if (refreshed?.success && refreshed.token) {
+                localStorage.setItem(KEYS.token,refreshed.token)
+                if(refreshed.refresh_token) localStorage.setItem(KEYS.refresh,refreshed.refresh_token)
+                const retry = await fetch('/api/auth/stores',{headers:{Authorization:`Bearer ${refreshed.token}`}})
+                const retryResult = await retry.json().catch(()=>({}))
+                if(retry.ok && retryResult.success && Array.isArray(retryResult.stores)) return retryResult
+              }
+            }
+            ;['token','refresh','user','stores','storeId','storeName','storeCategory','role','storeActive'].forEach(key=>localStorage.removeItem(KEYS[key]))
+            throw new Error('SESSION_EXPIRED')
+          }
+          return result
+        })
+        .then(result => {
           localStorage.setItem(KEYS.stores, JSON.stringify(result.stores))
           setStores(result.stores)
         })
-        .catch(() => setError('โหลดรายชื่อร้านไม่สำเร็จ กรุณาลองเข้าสู่ระบบอีกครั้ง'))
+        .catch(error => { if(error.message !== 'SESSION_EXPIRED') setError('ตรวจสอบ session ไม่สำเร็จ กรุณาลองใหม่'); })
+        .finally(() => setSessionChecked(true))
       return
     }
     // Restore the remembered email (the static login page did this too)
@@ -40,6 +59,7 @@ export default function LoginPage() {
       const saved = localStorage.getItem(KEYS.email)
       if (saved) { setEmail(saved); setRemember(true) } // eslint-disable-line react-hooks/set-state-in-effect
     }
+    setSessionChecked(true)
   }, [])
 
   function chooseStore(store) {
@@ -56,13 +76,17 @@ export default function LoginPage() {
 
   async function submit(event) {
     event.preventDefault()
+    if (localStorage.getItem(KEYS.token)) {
+      setError('ยังตรวจสอบ session เดิมไม่ได้ กรุณาลองใหม่ก่อนเข้าสู่ระบบอีกครั้ง')
+      return
+    }
     if (!email.trim() || !password) { setError(t('errEmpty')); return }
     setError('')
     setBusy(true)
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(localStorage.getItem(KEYS.token) ? { Authorization:`Bearer ${localStorage.getItem(KEYS.token)}` } : {}) },
         body: JSON.stringify({ email: email.trim(), password }),
       })
       const result = await response.json().catch(() => ({}))
@@ -132,6 +156,7 @@ export default function LoginPage() {
         </>
       ) : (
         <>
+          {!sessionChecked ? <p className={styles.subtitle} role="status">กำลังตรวจสอบสถานะเข้าสู่ระบบ…</p> : <>
           <nav className={styles.tabs} aria-label={t('portal')}>
             <Link href="/login" className={styles.activeTab} aria-current="page">{t('tabLogin')}</Link>
             <Link href="/register">{t('tabRegister')}</Link>
@@ -152,6 +177,7 @@ export default function LoginPage() {
             </button>
           </form>
           <p className={styles.footer}>{t('noAccount')} <Link href="/register">{t('joinLink')}</Link></p>
+          </>}
         </>
       )}
     </AuthShell>
