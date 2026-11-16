@@ -104,16 +104,22 @@ router.patch('/:id', storeIdParam('id'), requireRole('owner'), async (req, res) 
   if (updates.delivery_fee !== undefined) updates.delivery_fee = Number(updates.delivery_fee);
   if (!Object.keys(updates).length) return res.status(400).json({ error: 'no valid fields' });
 
-  if (updates.supports_delivery === true || updates.address !== undefined || updates.location_lat !== undefined || updates.location_lng !== undefined) {
+  // A store that takes product orders (delivery or pickup) must have an address and a map pin, so customers can find it
+  if (updates.supports_delivery === true || updates.can_sell_products === true || updates.supports_pickup === true || updates.address !== undefined || updates.location_lat !== undefined || updates.location_lng !== undefined) {
     const { data: current, error: currentError } = await req.supabase.from('stores')
-      .select('address,location_lat,location_lng,supports_delivery').eq('id', req.params.id).single();
+      .select('address,location_lat,location_lng,supports_delivery,can_sell_products').eq('id', req.params.id).single();
     if (currentError || !current) return res.status(404).json({ error: 'Store not found' });
     const nextAddress = updates.address !== undefined ? updates.address : current.address;
     const nextLatitude = updates.location_lat !== undefined ? updates.location_lat : current.location_lat;
     const nextLongitude = updates.location_lng !== undefined ? updates.location_lng : current.location_lng;
     const deliveryEnabled = updates.supports_delivery !== undefined ? updates.supports_delivery : current.supports_delivery;
-    if (deliveryEnabled && (!String(nextAddress || '').trim() || nextLatitude == null || nextLongitude == null)) {
+    const sellingEnabled = updates.can_sell_products !== undefined ? updates.can_sell_products : current.can_sell_products;
+    const missingLocation = !String(nextAddress || '').trim() || nextLatitude == null || nextLongitude == null;
+    if (deliveryEnabled && missingLocation) {
       return res.status(400).json({ error: 'กรุณากรอกที่อยู่ร้านและปักหมุดตำแหน่งร้านก่อนเปิดรับจัดส่ง' });
+    }
+    if (sellingEnabled && missingLocation) {
+      return res.status(400).json({ error: 'กรุณากรอกที่อยู่ร้านและปักหมุดตำแหน่งร้านก่อนเปิดรับคำสั่งซื้อ ลูกค้าต้องใช้หมุดนี้เดินทางมารับสินค้า' });
     }
   }
 

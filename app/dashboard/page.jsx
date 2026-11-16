@@ -80,6 +80,8 @@ export default function DashboardPage() {
         </div>
 
         <nav id="sidebar-nav" className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2 scrollbar-thin" />
+        {/* Developer credit; dashboard.js fills in the translated "Developed by" */}
+        <p className="sb-credit">© 2026 FUFU Pet Care · <span data-dev-by>พัฒนาโดย</span> <a href="https://kitten-code.com" target="_blank" rel="noopener noreferrer">Kitten Code Co., Ltd.</a></p>
       </aside>
 
       <div id="main-wrap" className="flex min-h-screen min-w-0 flex-col lg:ml-64">

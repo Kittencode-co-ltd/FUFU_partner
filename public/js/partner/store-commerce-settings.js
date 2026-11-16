@@ -9,10 +9,10 @@ const hasPoint = store => store?.location_lat != null && store?.location_lng != 
 export function commerceSettingsMarkup(store) {
   const point = hasPoint(store);
   return `<form id="commerce-settings" class="card space-y-4 p-5">
-    <div><h3 class="text-lg font-bold text-navy">ที่อยู่และการจัดส่ง</h3><p class="mt-1 text-sm text-slate-500">ตั้งค่าที่อยู่ร้าน จุดบนแผนที่ และวิธีรับสินค้าของลูกค้า</p></div>
-    <label class="block text-sm">ที่อยู่ร้าน<textarea name="address" maxlength="1000" rows="2" class="input-field mt-1 w-full" placeholder="บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด และรหัสไปรษณีย์">${esc(store.address)}</textarea></label>
+    <div><h3 class="text-lg font-bold text-navy">ที่อยู่และการจัดส่ง</h3><p class="mt-1 text-sm text-slate-500">ต้องมีที่อยู่และหมุดร้านก่อนเปิดรับคำสั่งซื้อ ลูกค้าใช้หมุดนี้เดินทางมารับสินค้า และขนส่งใช้เป็นจุดรับของ</p></div>
+    <label class="block text-sm">ที่อยู่ร้าน <span class="text-red-600">*</span><textarea name="address" maxlength="1000" rows="2" class="input-field mt-1 w-full" placeholder="บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด และรหัสไปรษณีย์">${esc(store.address)}</textarea></label>
     <div id="store-location-map" class="fufu-store-location-map rounded-2xl" role="application" aria-label="แผนที่ปักหมุดตำแหน่งร้าน"></div>
-    <div class="flex flex-wrap items-center justify-between gap-2"><p id="store-location-coordinates" aria-live="polite" class="text-xs text-slate-500">${point ? `พิกัด ${Number(store.location_lat).toFixed(6)}, ${Number(store.location_lng).toFixed(6)}` : 'ยังไม่ได้ปักหมุดตำแหน่งร้าน'}</p><button type="button" id="use-store-location" class="min-h-10 rounded-full border px-4 text-sm font-semibold text-primary">ใช้ตำแหน่งปัจจุบัน</button></div>
+    <div class="flex flex-wrap items-center justify-between gap-2"><p id="store-location-coordinates" aria-live="polite" class="text-xs text-slate-500">${point ? `พิกัด ${Number(store.location_lat).toFixed(6)}, ${Number(store.location_lng).toFixed(6)}` : 'ยังไม่ได้ปักหมุด · แตะแผนที่ตรงที่ตั้งร้าน หรือกด “ใช้ตำแหน่งปัจจุบัน”'}</p><button type="button" id="use-store-location" class="min-h-10 rounded-full border px-4 text-sm font-semibold text-primary">ใช้ตำแหน่งปัจจุบัน</button></div>
     <div class="flex flex-wrap items-end gap-4 border-t border-slate-200 pt-4">
       <label class="flex min-h-10 items-center gap-2 text-sm"><input name="can_sell_products" type="checkbox" ${store.can_sell_products?'checked':''}> เปิดรับคำสั่งซื้อสินค้า</label>
       <label class="flex min-h-10 items-center gap-2 text-sm"><input name="supports_pickup" type="checkbox" ${store.supports_pickup?'checked':''}> รับสินค้าที่ร้าน</label>
@@ -57,7 +57,8 @@ export function mountCommerceSettings(container, store, storeId) {
   form.addEventListener('submit',async event=>{
     event.preventDefault();
     const button=form.querySelector('[type="submit"]'), point=form._storeLocationMap?.getCenterPoint()||(hasPoint(store)?{latitude:Number(store.location_lat),longitude:Number(store.location_lng)}:null), address=form.elements.address.value.trim();
-    if(form.elements.supports_delivery.checked&&(!address||!point)){showToast('กรุณากรอกที่อยู่ร้านและปักหมุดก่อนเปิดรับจัดส่ง','error');return;}
+    // Pickup and delivery both need the store's address and pin: customers navigate to it or the courier starts from it
+    if((form.elements.can_sell_products.checked||form.elements.supports_pickup.checked||form.elements.supports_delivery.checked)&&(!address||!point)){showToast(!point?'กรุณาปักหมุดตำแหน่งร้านบนแผนที่ก่อนเปิดรับคำสั่งซื้อ':'กรุณากรอกที่อยู่ร้านก่อนเปิดรับคำสั่งซื้อ','error');(!point?root:form.elements.address).scrollIntoView({behavior:'smooth',block:'center'});return;}
     button.disabled=true;
     const result=await apiFetch(`/api/stores/${encodeURIComponent(storeId)}`,{method:'PATCH',body:JSON.stringify({address,latitude:point?.latitude??null,longitude:point?.longitude??null,can_sell_products:form.elements.can_sell_products.checked,supports_pickup:form.elements.supports_pickup.checked,supports_delivery:form.elements.supports_delivery.checked,delivery_fee:Number(form.elements.delivery_fee.value)})});
     button.disabled=false;

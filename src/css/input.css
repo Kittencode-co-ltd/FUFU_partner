@@ -1251,3 +1251,67 @@ html.dark .rv { --rv-star: #FBBF24; }
 .fufu-store-location-map { position: relative; isolation: isolate; z-index: 0; contain: paint; height: 280px; min-height: 240px; overflow: hidden; border: 1px solid var(--pt-line); background: var(--pt-sunken); }
 .fufu-store-location-map .leaflet-container { position: relative; z-index: 0; height: 100%; width: 100%; overflow: hidden; background: var(--pt-sunken); }
 @media (min-width: 768px) { .fufu-store-location-map { height: 360px; } }
+
+/* Developer credit at the bottom of the side menu */
+.sb-credit { flex-shrink: 0; padding: 10px 16px calc(12px + var(--safe-bottom)); border-top: 1px solid var(--pt-line); font-size: 0.6875rem; line-height: 1.5; color: var(--pt-subtle); }
+.sb-credit a { font-weight: 600; color: var(--pt-muted); text-underline-offset: 2px; }
+.sb-credit a:hover { color: var(--pt-accent); text-decoration: underline; }
+
+/* ── Online orders / delivery desk (public/js/partner/shop-operations.js) ── */
+.ph-btn.is-danger { background: transparent; border-color: rgba(220,38,38,.35); color: #B91C1C; }
+.ph-btn.is-danger:hover { background: rgba(220,38,38,.06); color: #991B1B; }
+html.dark .ph-btn.is-danger { border-color: rgba(248,113,113,.4); color: #FCA5A5; }
+.cx-field textarea { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--pt-line); background: var(--pt-sunken); color: var(--pt-text); font-size: .875rem; line-height: 1.6; resize: vertical; outline: none; }
+.cx-field textarea:focus { border-color: var(--pt-accent); background: var(--pt-surface); }
+.so { max-width: 56rem; margin-inline: auto; display: grid; gap: 14px; }
+.so-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 2px 2px 0; }
+.so-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; color: var(--pt-text); }
+.so-sub { margin-top: 2px; font-size: .8125rem; color: var(--pt-muted); }
+.so-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.so-tab { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--pt-line); background: var(--pt-surface); font-size: .8125rem; font-weight: 600; color: var(--pt-muted); white-space: nowrap; }
+.so-tab span { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--pt-sunken); font-size: .6875rem; line-height: 18px; text-align: center; }
+.so-tab[aria-pressed="true"] { background: var(--pt-tint); border-color: transparent; color: var(--pt-brand-ink); }
+.so-tab[aria-pressed="true"] span { background: var(--pt-surface); }
+.so-list { display: grid; gap: 12px; }
+.so-card { display: grid; gap: 14px; padding: 16px 18px; }
+.so-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.so-no { font-weight: 700; color: var(--pt-text); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.so-meta { margin-top: 2px; font-size: .75rem; color: var(--pt-subtle); }
+.so-method { font-weight: 600; color: var(--pt-muted); }
+.so-chip { flex-shrink: 0; padding: 4px 10px; border-radius: 999px; font-size: .75rem; font-weight: 600; background: var(--pt-sunken); color: var(--pt-muted); }
+.so-chip.is-new { background: rgba(245,165,36,.14); color: #B45309; }
+.so-chip.is-work { background: var(--pt-tint); color: var(--pt-brand-ink); }
+.so-chip.is-done { background: rgba(16,185,129,.12); color: #047857; }
+.so-chip.is-bad { background: rgba(239,68,68,.1); color: #B91C1C; }
+html.dark .so-chip.is-new { color: #FCD34D; }
+html.dark .so-chip.is-done { color: #6EE7B7; }
+html.dark .so-chip.is-bad { color: #FCA5A5; }
+.so-steps { display: flex; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.so-steps li { flex: 1; min-width: 0; display: grid; gap: 6px; font-size: .6875rem; color: var(--pt-subtle); }
+.so-steps i { display: block; height: 4px; border-radius: 999px; background: var(--pt-sunken); }
+.so-steps li.is-done i { background: var(--pt-accent); opacity: .45; }
+.so-steps li.is-now i { background: var(--pt-accent); }
+.so-steps li.is-now span { color: var(--pt-brand-ink); font-weight: 600; }
+.so-steps span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.so-items { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: .875rem; color: var(--pt-text); }
+.so-items li { display: flex; justify-content: space-between; gap: 12px; }
+.so-items b { font-weight: 600; color: var(--pt-muted); }
+.so-items li > span:last-child, .so-total span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.so-total { display: grid; gap: 4px; padding-top: 10px; border-top: 1px dashed var(--pt-line); font-size: .8125rem; color: var(--pt-muted); }
+.so-total > div { display: flex; justify-content: space-between; gap: 12px; }
+.so-total .is-grand { font-size: .9375rem; font-weight: 700; color: var(--pt-text); }
+.so-who { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: var(--pt-sunken); }
+.so-line { display: flex; align-items: flex-start; gap: 8px; font-size: .8125rem; line-height: 1.5; color: var(--pt-text); overflow-wrap: anywhere; }
+.so-line svg { margin-top: 2px; color: var(--pt-muted); }
+a.so-line { font-weight: 600; color: var(--pt-brand-ink); }
+.so-line b { font-weight: 600; }
+.so-line.is-note span { color: var(--pt-muted); }
+.so-line.is-reason { color: #B91C1C; } html.dark .so-line.is-reason { color: #FCA5A5; }
+.so-map { justify-self: start; display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--pt-surface); font-size: .75rem; font-weight: 600; color: var(--pt-brand-ink); border: 1px solid var(--pt-line); }
+.so-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.so-actions .ph-btn { min-height: 42px; }
+.so-hint { font-size: .75rem; color: var(--pt-subtle); text-align: right; }
+.so-empty { display: grid; justify-items: center; gap: 10px; padding: 40px 20px; text-align: center; font-size: .875rem; color: var(--pt-muted); }
+.so-empty__icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 999px; background: var(--pt-sunken); color: var(--pt-muted); }
+.so-skel { min-height: 160px; background: linear-gradient(90deg, var(--pt-sunken) 25%, var(--pt-surface) 50%, var(--pt-sunken) 75%) 0 0 / 200% 100%; animation: rv-shimmer 1.2s linear infinite; }
+@media (max-width: 479px) { .so-actions .ph-btn { flex: 1; } .so-steps span { font-size: .625rem; } }

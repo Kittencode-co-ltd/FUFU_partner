@@ -103,9 +103,11 @@ function LanguageMenu() {
   )
 }
 
+const DEV_BY = { th: 'พัฒนาโดย', en: 'Developed by', zh: '开发：', ja: '開発：', ko: '개발:' }
+
 /** Shared frame for /login, /register and /onboarding. */
 export function AuthShell({ children, showLanguage = true }) {
-  const { t } = useAuthLang()
+  const { t, lang } = useAuthLang()
   return (
     <div className={styles.shell}>
       <header className={styles.topbar}>
@@ -122,7 +124,7 @@ export function AuthShell({ children, showLanguage = true }) {
         </section>
         <p className={styles.secure}><Lock size={13} aria-hidden="true" /> {t('secure')}</p>
       </main>
-      <footer className={styles.copyright}>© 2026 FUFU Pet Care · KITTEN CODE Co., Ltd.</footer>
+      <footer className={styles.copyright}>© 2026 FUFU Pet Care · {DEV_BY[lang] ?? DEV_BY.th} <a href="https://kitten-code.com" target="_blank" rel="noopener noreferrer">Kitten Code Co., Ltd.</a></footer>
     </div>
   )
 }

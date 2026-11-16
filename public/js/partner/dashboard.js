@@ -461,6 +461,7 @@ function _switchStore(id, name, category) {
 
 export async function initDashboard() {
   applyLangAttr();
+  document.querySelectorAll('[data-dev-by]').forEach(el => { el.textContent = tr('devBy'); });
   const role    = getCurrentRole();
   const user    = getCurrentUser();
   const store   = getCurrentStore();
