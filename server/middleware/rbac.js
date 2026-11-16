@@ -9,6 +9,19 @@
 
 import { toRbacRole } from '../config/roles.js';
 
+const STORE_ACCESS_FIELDS = 'owner_id, owner_email, verification_status, is_verified, is_active';
+
+/** Reads the store row once per request; later middleware in the same request reuses it. */
+async function loadStoreForRequest(req, storeId) {
+  req._storeRows = req._storeRows || new Map();
+  if (!req._storeRows.has(storeId)) {
+    req._storeRows.set(storeId, req.supabase
+      .from('stores').select(STORE_ACCESS_FIELDS).eq('id', storeId).maybeSingle()
+      .then(({ data }) => data ?? null));
+  }
+  return req._storeRows.get(storeId);
+}
+
 /**
  * Resolves the current user's role for the given store and attaches it as req.staffRole.
  * Reads store_id from req.query.store_id or req.body.store_id.
@@ -23,11 +36,7 @@ export async function attachStoreRole(req, res, next) {
 
   try {
     // User-scoped queries keep authorization fail-closed under RLS.
-    const { data: store } = await req.supabase
-      .from('stores')
-      .select('owner_id, owner_email, verification_status, is_verified, is_active')
-      .eq('id', storeId)
-      .single();
+    const store = await loadStoreForRequest(req, storeId);
 
     const verificationStatus = store?.verification_status || (store?.is_verified ? 'accept' : 'pending');
     req.storeIsActive = store?.is_active !== false;
@@ -81,11 +90,7 @@ export async function guardInactiveStoreMutations(req, res, next) {
   try {
     const { requireAuth } = await import('./auth.js');
     return requireAuth(req, res, async () => {
-      const { data: store } = await req.supabase
-        .from('stores')
-        .select('is_active')
-        .eq('id', storeId)
-        .maybeSingle();
+      const store = await loadStoreForRequest(req, storeId);
       if (store && store.is_active === false) {
         return res.status(403).json({
           success: false,

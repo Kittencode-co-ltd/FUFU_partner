@@ -17,6 +17,9 @@ export async function requireAuth(req, res, next) {
   }
 
   const token = header.split(' ')[1];
+  // Already verified earlier in this same request (e.g. by guardInactiveStoreMutations): skip a second Auth round trip.
+  if (req.user && req.supabase && req.authToken === token) return next();
+
   const { data: { user }, error } = await _anonClient.auth.getUser(token);
 
   if (error || !user) {
@@ -25,6 +28,7 @@ export async function requireAuth(req, res, next) {
 
   // Create user-scoped client so RLS policies work correctly
   req.user = user;
+  req.authToken = token;
   req.supabase = createClient(
     process.env.Project_URL,
     process.env.publishable_key,

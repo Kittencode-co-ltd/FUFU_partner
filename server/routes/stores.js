@@ -1,6 +1,6 @@
 import { Router }      from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole, useStoreIdParam as storeIdParam } from '../middleware/rbac.js';
+import { requireRole, useStoreIdParam } from '../middleware/rbac.js';
 import { isTimezone } from '../utils/validation.js';
 
 const router = Router();
@@ -78,7 +78,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/stores/:id — update store settings (business_hours, default_service_rates, etc.)
-router.patch('/:id', storeIdParam('id'), requireRole('owner'), async (req, res) => {
+router.patch('/:id', useStoreIdParam('id'), requireRole('owner'), async (req, res) => {
   const ALLOWED = new Set(['name', 'branch_name', 'phone', 'email', 'address', 'description', 'timezone', 'tax_id', 'website', 'receipt_header_note', 'business_hours', 'default_service_rates', 'can_sell_products', 'supports_pickup', 'supports_delivery', 'delivery_fee']);
   const updates = {};
   for (const [k, v] of Object.entries(req.body)) {
