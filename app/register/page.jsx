@@ -1,5 +1,6 @@
 'use client'
 
+import '../globals.css'
 import { useState } from 'react'
 import Link from 'next/link'
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'

@@ -1,3 +1,4 @@
+import './globals.css'
 import { connection } from 'next/server'
 import Landing from './components/landing'
 

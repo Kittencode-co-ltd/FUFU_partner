@@ -1,3 +1,5 @@
+import '../globals.css'
+
 export const metadata = {
   title: 'ใบเสร็จรับเงิน',
   robots: { index: false, follow: false },

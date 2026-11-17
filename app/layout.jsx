@@ -1,4 +1,6 @@
-import './globals.css'
+// Website styles (globals.css) are imported by the website and sign-in pages, not here: the partner
+// dashboard loads only its own bundle (/css/main.css), so generic website classes such as .flow-step,
+// .btn, .progress or .p-1 can't leak into it.
 
 export const metadata = {
   title: 'FUFU Pet Care — ดูแลน้องได้อย่างเข้าใจ',
