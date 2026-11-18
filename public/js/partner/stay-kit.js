@@ -2,6 +2,8 @@
 // Styles: .st-* in src/css/input.css (theme tokens, so dark mode follows).
 import { apiFetch } from '../utils/api-client.js';
 import { getLang, locale } from './portal-i18n.js';
+import { icon, speciesIcon } from '../utils/icons.js';
+export { icon };
 
 export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const baht = n => `฿${Number(n || 0).toLocaleString(locale(), { maximumFractionDigits: 2 })}`;
@@ -40,7 +42,22 @@ const STRINGS = {};
 export const addStrings = rows => Object.assign(STRINGS, rows);
 
 export const speciesLabel = s => T(['dog', 'cat', 'rabbit', 'bird'].includes(s) ? s : 'other');
-export const speciesEmoji = s => ({ dog: '🐶', cat: '🐱', rabbit: '🐰', bird: '🐦' })[s] || '🐾';
+// Outline dog / cat glyphs (Lucide, ISC licence). The shared icon set's dog is a fill path that draws badly as a stroke.
+const PET_PATHS = {
+  dog: ['M11.25 16.25h1.5L12 17z', 'M16 14v.5', 'M4.42 11.247A13.152 13.152 0 0 0 4 14.556C4 18.728 7.582 21 12 21s8-2.272 8-6.444a11.702 11.702 0 0 0-.493-3.309', 'M8 14v.5', 'M8.5 8.5c-.384 1.05-1.083 2.028-2.344 2.5-1.931.722-3.576-.297-3.656-1-.113-.994 1.177-6.53 4-7 1.923-.321 3.651.845 3.651 2.235A7.497 7.497 0 0 1 14 5.277c0-1.39 1.844-2.598 3.767-2.277 2.823.47 4.113 6.006 4 7-.08.703-1.725 1.722-3.656 1-1.261-.472-1.855-1.45-2.239-2.5'],
+  cat: ['M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z', 'M8 14v.5', 'M16 14v.5', 'M11.25 16.25h1.5L12 17l-.75-.75Z'],
+};
+export const petIcon = (species, cls = 'w-5 h-5') => PET_PATHS[species]
+  ? `<svg class="${cls} flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PET_PATHS[species].map(d => `<path d="${d}"/>`).join('')}</svg>`
+  : speciesIcon(species, cls);
+
+/** Pet picture: photo when there is one, otherwise a line icon on a species tint. */
+export const petAvatar = (species, url = null, size = '') => {
+  const tint = { dog: 'is-dog', cat: 'is-cat' }[species] || 'is-other';
+  return `<span class="st-avatar ${tint} ${size}">${url ? `<img src="${esc(url)}" alt="" loading="lazy">` : petIcon(species, size === 'is-sm' ? 'w-4 h-4' : size === 'is-lg' ? 'w-7 h-7' : 'w-5 h-5')}</span>`;
+};
+/** Kept for older callers: returns the same avatar markup without the wrapper. */
+export const speciesEmoji = s => petIcon(s, 'w-5 h-5');
 
 /** Translates API error codes; Thai server messages are shown as-is only in Thai. */
 export function apiError(res, fallback = 'failed') {
@@ -61,7 +78,7 @@ export function ageText(pet) {
 export function petFacts(pet) {
   if (!pet) return '';
   const facts = [pet.breed, ageText(pet), pet.weight_kg ? `${pet.weight_kg} ${T('kg')}` : '', pet.is_neutered ? T('neutered') : ''].filter(Boolean);
-  return `<div class="st-facts">${facts.map(f => `<span>${esc(f)}</span>`).join('')}${pet.allergies ? `<span class="is-warn">${esc(T('allergies'))}: ${esc(pet.allergies)}</span>` : ''}</div>`;
+  return `<div class="st-facts">${facts.map(f => `<span>${esc(f)}</span>`).join('')}${pet.allergies ? `<span class="is-warn">${icon('exclamation-triangle', 'w-3.5 h-3.5')}${esc(T('allergies'))}: ${esc(pet.allergies)}</span>` : ''}</div>`;
 }
 
 /**
@@ -79,10 +96,10 @@ export function petPicker({ storeId, initial = null, onChange } = {}) {
     if (chosen && !manual) {
       el.innerHTML = `
         <div class="st-chosen">
-          <span class="st-avatar">${chosen.pet?.avatar_url ? `<img src="${esc(chosen.pet.avatar_url)}" alt="">` : speciesEmoji(chosen.species)}</span>
+          ${petAvatar(chosen.species, chosen.pet?.avatar_url)}
           <div class="min-w-0 flex-1">
             <p class="st-strong">${esc(chosen.pet_name)} <span class="st-muted">· ${esc(speciesLabel(chosen.species))}</span></p>
-            <p class="st-muted">${esc([chosen.owner_name, chosen.owner_phone].filter(Boolean).join(' · ') || '—')}</p>
+            ${chosen.owner_name || chosen.owner_phone ? `<p class="st-muted">${esc([chosen.owner_name, chosen.owner_phone].filter(Boolean).join(' · '))}</p>` : ''}
             ${petFacts(chosen.pet)}
           </div>
           <button type="button" class="ph-btn" data-change>${esc(T('change'))}</button>
@@ -124,10 +141,10 @@ export function petPicker({ storeId, initial = null, onChange } = {}) {
     if (!rows.length) { box.innerHTML = `<p class="st-muted st-pad">${esc(term ? T('noResult') : '')}</p>`; return; }
     box.innerHTML = rows.map(({ o, p }, i) => `
       <button type="button" class="st-result" data-i="${i}">
-        <span class="st-avatar">${speciesEmoji(p.species)}</span>
+        ${petAvatar(p.species, null, 'is-sm')}
         <span class="min-w-0 flex-1 text-left"><span class="st-strong">${esc(p.name)}</span> <span class="st-muted">${esc(p.breed || speciesLabel(p.species))}</span>
           <span class="st-muted block truncate">${esc([o.name, o.phone].filter(Boolean).join(' · '))}</span></span>
-        ${p.allergies ? `<span class="st-chip is-warn">${esc(T('allergies'))}</span>` : ''}
+        ${p.allergies ? `<span class="st-warnline">${icon('exclamation-triangle', 'w-3.5 h-3.5')}${esc(T('allergies'))}</span>` : ''}
       </button>`).join('');
     box.querySelectorAll('[data-i]').forEach(btn => {
       btn.onclick = async () => {

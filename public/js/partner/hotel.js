@@ -7,11 +7,18 @@ import { STORAGE_KEYS } from '../utils/config.js';
 import { showToast } from '../utils/toast.js';
 import { openSheet } from './sheet.js';
 import {
-  T, addStrings, esc, baht, todayBkk, addDays, nightsBetween, fmtDay, speciesEmoji, speciesLabel,
-  petPicker, petFacts, askReason, apiError,
+  T, addStrings, esc, baht, todayBkk, addDays, nightsBetween, fmtDay, speciesLabel,
+  petPicker, petFacts, askReason, apiError, petAvatar, petIcon, icon,
 } from './stay-kit.js';
 
 addStrings({
+  summary: ['สรุปการจอง', 'Summary', '预订摘要', '予約内容', '예약 요약'],
+  vaccinesNotChecked: ['ยังไม่ได้ตรวจสมุดวัคซีน', 'Vaccine record not checked yet', '尚未检查疫苗本', 'ワクチン記録は未確認', '예방접종 수첩 미확인'],
+  validUntil: ['ใช้ได้ถึง', 'valid until', '有效期至', '有効期限', '유효기간'],
+  customerSays: ['ลูกค้าแจ้ง', 'Customer says', '顾客说明', 'お客様申告', '고객 안내'], saidVaccinated: ['ฉีดวัคซีนครบ', 'vaccines up to date', '疫苗已打全', 'ワクチン接種済み', '예방접종 완료'], saidFlea: ['หยอดเห็บหมัดแล้ว', 'flea/tick treated', '已驱虫', 'ノミ・ダニ対策済み', '진드기 예방 완료'],
+  movesToday: ['เข้า–ออกวันนี้', 'In and out today', '今日入住/离店', '本日のチェックイン/アウト', '오늘 입·퇴실'],
+  roomsTonight: ['ห้องคืนนี้', 'Rooms tonight', '今晚房间', '今夜の部屋', '오늘 밤 객실'],
+  dirIn: ['เข้า', 'In', '入住', 'IN', '입실'], dirOut: ['ออก', 'Out', '离店', 'OUT', '퇴실'], free: ['ว่าง', 'free', '空', '空き', '빈 자리'],
   title: ['โรงแรมสัตว์เลี้ยง', 'Pet hotel', '宠物酒店', 'ペットホテル', '펫호텔'],
   sub: ['จองห้อง เช็กอิน–เอาต์ และดูแลน้องที่เข้าพัก', 'Bookings, check-in/out and care for every guest', '预订、入住/退房与住宿照护', '予約・チェックイン/アウト・お世話', '예약, 체크인·아웃, 투숙 케어'],
   newBooking: ['จองห้อง', 'New booking', '新预订', '予約する', '예약하기'],
@@ -143,31 +150,98 @@ async function loadView() {
 
 // ── Today ────────────────────────────────────────────────────────────────────
 async function renderToday(el) {
-  const res = await apiFetch(`/api/hotel/overview?store_id=${_storeId}`);
+  const [res, roomsRes] = await Promise.all([
+    apiFetch(`/api/hotel/overview?store_id=${_storeId}`),
+    apiFetch(`/api/hotel/rooms?store_id=${_storeId}`),
+  ]);
   if (!res?.success) throw new Error('load');
   const s = res.stats;
-  const pct = s.capacity ? Math.round((s.tonight / s.capacity) * 100) : 0;
-  const section = (title, list, render, hint = '') => list.length ? `
-    <section class="st-section"><h2 class="st-h2">${esc(title)} <span class="st-count">${list.length}</span></h2>${hint ? `<p class="st-muted st-hint">${esc(hint)}</p>` : ''}
-      <div class="st-list">${list.map(render).join('')}</div></section>` : '';
+  const rooms = roomsRes?.data || [];
+  const pct = s.capacity ? Math.min(100, Math.round((s.tonight / s.capacity) * 100)) : 0;
+  const moves = [
+    ...res.arrivals.map(b => ({ b, kind: 'in' })),
+    ...res.departures.map(b => ({ b, kind: 'out' })),
+  ];
+
+  if (!s.rooms) {
+    el.innerHTML = `<div class="st-empty"><span class="st-empty__icon">${icon('bed', 'w-6 h-6')}</span><p>${esc(T('noRooms'))}</p>${_isOwner ? `<button type="button" class="ph-btn is-primary" data-add-room>${esc(T('addRoom'))}</button>` : ''}</div>`;
+    el.querySelector('[data-add-room]')?.addEventListener('click', () => openRoomSheet());
+    return;
+  }
 
   el.innerHTML = `
-    <div class="st-stats">
-      <div class="st-stat is-main"><span>${esc(T('sTonight'))}</span><b>${s.tonight}</b><small>${esc(T('ofCapacity', { n: s.capacity }))}</small><i class="st-meter"><i style="width:${Math.min(100, pct)}%"></i></i></div>
-      <div class="st-stat"><span>${esc(T('sArrive'))}</span><b>${res.arrivals.length}</b></div>
-      <div class="st-stat"><span>${esc(T('sDepart'))}</span><b>${res.departures.length}</b></div>
-      <div class="st-stat"><span>${esc(T('sClean'))}</span><b>${s.cleaning}</b></div>
-    </div>
-    ${!s.rooms ? `<div class="st-empty"><p>${esc(T('noRooms'))}</p>${_isOwner ? `<button type="button" class="ph-btn is-primary" data-add-room>${esc(T('addRoom'))}</button>` : ''}</div>` : ''}
-    ${section(T('requests'), res.requests, requestCard, T('requestsHint'))}
-    ${section(T('arrivals'), res.arrivals, b => bookingCard(b, 'arrive'))}
-    ${section(T('departures'), res.departures, b => bookingCard(b, 'depart'))}
-    ${section(T('inHouse'), res.in_house.filter(b => !res.departures.some(d => d.id === b.id)), b => bookingCard(b, 'stay'))}
-    ${section(T('upcoming'), res.upcoming.slice(0, 12), b => bookingCard(b, 'future'))}
-    ${s.rooms && !res.requests.length && !res.arrivals.length && !res.departures.length && !res.in_house.length && !res.upcoming.length ? `<div class="st-empty"><p>${esc(T('nothingToday'))}</p></div>` : ''}`;
+    <section class="st-daybar" aria-label="${esc(T('sTonight'))}">
+      <div class="st-daybar__main">
+        <p class="st-muted">${esc(T('sTonight'))}</p>
+        <p class="st-daybar__num"><b>${s.tonight}</b><span>/ ${s.capacity}</span></p>
+        <div class="st-occ" role="img" aria-label="${pct}%"><i style="width:${pct}%"></i></div>
+      </div>
+      <dl class="st-daybar__facts">
+        <div><dt>${esc(T('sArrive'))}</dt><dd>${res.arrivals.length}</dd></div>
+        <div><dt>${esc(T('sDepart'))}</dt><dd>${res.departures.length}</dd></div>
+        <div><dt>${esc(T('sClean'))}</dt><dd>${s.cleaning}</dd></div>
+      </dl>
+    </section>
 
-  el.querySelector('[data-add-room]')?.addEventListener('click', () => openRoomSheet());
+    ${res.requests.length ? `
+      <section class="st-section">
+        <h2 class="st-h2">${esc(T('requests'))} <span class="st-count">${res.requests.length}</span></h2>
+        <div class="st-list">${res.requests.map(requestCard).join('')}</div>
+      </section>` : ''}
+
+    <div class="st-today-grid">
+      <section class="st-panel">
+        <h2 class="st-h2">${esc(T('movesToday'))}</h2>
+        ${moves.length ? `<ul class="st-moves">${moves.map(({ b, kind }) => moveRow(b, kind)).join('')}</ul>` : `<p class="st-muted st-pad">${esc(T('nothingToday'))}</p>`}
+      </section>
+      <section class="st-panel">
+        <h2 class="st-h2">${esc(T('roomsTonight'))}</h2>
+        <div class="st-roommap">${rooms.map(roomTile).join('')}</div>
+      </section>
+    </div>
+
+    ${res.upcoming.length ? `
+      <section class="st-section">
+        <h2 class="st-h2">${esc(T('upcoming'))}</h2>
+        <ul class="st-rows-list">${res.upcoming.slice(0, 10).map(b => `
+          <li><button type="button" class="st-line" data-open="${b.id}">
+            <span class="st-line__date">${esc(fmtDay(b.check_in_date, { weekday: 'short', day: 'numeric', month: 'short' }))}</span>
+            <span class="st-line__main"><b>${esc(b.pet_name)}</b> <span class="st-muted">${esc(T('nights', { n: nightsBetween(b.check_in_date, b.check_out_date) }))} · ${esc(T('room'))} ${esc(b.hotel_rooms?.room_number || '—')}</span></span>
+            ${b.appointment_id ? `<span class="st-tag">${esc(T('fromApp'))}</span>` : ''}
+            ${icon('chevron-right', 'w-4 h-4 st-chev')}
+          </button></li>`).join('')}</ul>
+      </section>` : ''}`;
+
   bindCards(el, [...res.arrivals, ...res.departures, ...res.in_house, ...res.upcoming], res.requests);
+}
+
+function moveRow(b, kind) {
+  const late = kind === 'out' && b.check_out_date < todayBkk();
+  const care = b.care_profile || {};
+  return `
+    <li class="st-move" data-open="${b.id}" tabindex="0" role="button">
+      <span class="st-move__dir is-${kind}">${icon(kind === 'in' ? 'arrow-down' : 'arrow-up', 'w-3.5 h-3.5')}${esc(T(kind === 'in' ? 'dirIn' : 'dirOut'))}</span>
+      ${petAvatar(b.species, b.pets?.avatar_url, 'is-sm')}
+      <span class="st-move__main">
+        <b>${esc(b.pet_name)}</b>
+        <span class="st-muted">${esc(T('room'))} ${esc(b.hotel_rooms?.room_number || '—')}${b.owner_name ? ` · ${esc(b.owner_name)}` : ''}</span>
+        ${care.medications ? `<span class="st-warnline">${icon('pills', 'w-3.5 h-3.5')}${esc(care.medications)}</span>` : ''}
+        ${late ? `<span class="st-warnline is-bad">${icon('exclamation-triangle', 'w-3.5 h-3.5')}${esc(T('overdue'))}</span>` : ''}
+      </span>
+      <button type="button" class="ph-btn ${kind === 'in' ? '' : 'is-primary'}" data-${kind === 'in' ? 'checkin' : 'checkout'}="${b.id}">${esc(T(kind === 'in' ? 'checkIn' : 'checkOut'))}</button>
+    </li>`;
+}
+
+function roomTile(r) {
+  const guests = r.tonight || [];
+  const state = r.status === 'maintenance' ? 'maintenance' : guests.length ? 'busy' : r.status === 'cleaning' ? 'cleaning' : 'free';
+  const label = { maintenance: T('rs_maintenance'), cleaning: T('rs_cleaning'), free: T('free') }[state];
+  return `
+    <div class="st-tile is-${state}">
+      <p class="st-tile__no">${esc(r.room_number)}</p>
+      ${guests.length ? guests.map(g => `<button type="button" class="st-tile__guest" data-open="${g.id}">${petIcon(g.species, 'w-3.5 h-3.5')}${esc(g.pet_name)}</button>`).join('') : `<p class="st-tile__state">${esc(label)}</p>`}
+      ${guests.length && guests.length < r.max_pets ? `<p class="st-tile__state">+${r.max_pets - guests.length} ${esc(T('free'))}</p>` : ''}
+    </div>`;
 }
 
 function requestCard(a) {
@@ -175,34 +249,42 @@ function requestCard(a) {
   const pet = a.pets || {};
   return `
     <article class="st-card is-request">
-      <span class="st-avatar">${speciesEmoji(pet.species)}</span>
+      ${petAvatar(pet.species || 'dog')}
       <div class="min-w-0 flex-1">
-        <p class="st-strong">${esc(pet.name || a.pet_name)} <span class="st-chip is-app">${esc(T('fromApp'))}</span></p>
-        <p class="st-muted">${esc(fmtDay(a.check_in_date))} → ${esc(fmtDay(a.check_out_date))} · ${esc(T('nights', { n: nights }))}${pet.breed ? ` · ${esc(pet.breed)}` : ''}</p>
-        ${a.customer_notes ? `<p class="st-note">“${esc(a.customer_notes)}”</p>` : ''}
+        <p class="st-strong">${esc(pet.name || a.pet_name)}${pet.breed ? ` <span class="st-muted">${esc(pet.breed)}</span>` : ''}</p>
+        <p class="st-muted">${esc(fmtDay(a.check_in_date))} – ${esc(fmtDay(a.check_out_date))} · ${esc(T('nights', { n: nights }))}</p>
+        ${a.customer_notes ? `<p class="st-note">${esc(a.customer_notes)}</p>` : ''}
+        ${a.care_profile?.medications ? `<span class="st-warnline">${icon('pills', 'w-3.5 h-3.5')}${esc(a.care_profile.medications)}</span>` : ''}
       </div>
       <button type="button" class="ph-btn is-primary" data-request="${a.id}">${esc(T('assignRoom'))}</button>
     </article>`;
 }
 
-function bookingCard(b, mode) {
-  const room = b.hotel_rooms?.room_number || '—';
-  const nights = nightsBetween(b.check_in_date, b.check_out_date);
-  const late = b.status === 'checked_in' && b.check_out_date < todayBkk();
-  const action = mode === 'arrive' ? `<button type="button" class="ph-btn is-primary" data-checkin="${b.id}">${esc(T('checkIn'))}</button>`
-    : mode === 'depart' ? `<button type="button" class="ph-btn is-primary" data-checkout="${b.id}">${esc(T('checkOut'))}</button>`
-    : mode === 'stay' ? `<button type="button" class="ph-btn" data-log="${b.id}">${esc(T('careLog'))}</button>` : '';
-  const care = b.care_profile || {};
+function bookingCard(b) {
+  const nights = b.nights || nightsBetween(b.check_in_date, b.check_out_date);
   return `
     <article class="st-card" data-open="${b.id}" tabindex="0" role="button">
-      <span class="st-avatar">${speciesEmoji(b.species)}</span>
+      ${petAvatar(b.species, b.pets?.avatar_url)}
       <div class="min-w-0 flex-1">
-        <p class="st-strong">${esc(b.pet_name)} <span class="st-room">${esc(T('room'))} ${esc(room)}</span>${b.appointment_id ? ` <span class="st-chip is-app">${esc(T('fromApp'))}</span>` : ''}${late ? ` <span class="st-chip is-bad">${esc(T('overdue'))}</span>` : ''}</p>
-        <p class="st-muted">${esc(fmtDay(b.check_in_date))} → ${esc(fmtDay(b.check_out_date))} · ${esc(T('nights', { n: nights }))}${b.owner_name ? ` · ${esc(b.owner_name)}` : ''}</p>
-        ${care.medications || care.temperament ? `<p class="st-flags">${care.medications ? `<span class="st-chip is-warn">💊 ${esc(care.medications)}</span>` : ''}${care.temperament ? `<span class="st-chip">${esc(care.temperament)}</span>` : ''}</p>` : ''}
+        <p class="st-strong">${esc(b.pet_name)} <span class="st-muted">· ${esc(T('room'))} ${esc(b.hotel_rooms?.room_number || '—')}</span></p>
+        <p class="st-muted">${esc(fmtDay(b.check_in_date))} – ${esc(fmtDay(b.check_out_date))} · ${esc(T('nights', { n: nights }))}${b.owner_name ? ` · ${esc(b.owner_name)}` : ''}${b.owner_phone ? ` · ${esc(b.owner_phone)}` : ''}</p>
       </div>
-      ${action}
+      <span class="st-status is-${b.status}">${esc(T(`st_${b.status}`))}</span>
     </article>`;
+}
+
+/** Customer-entered App care details → the store's care sheet. Customer claims stay as text for staff to verify. */
+function careFromApp(c = {}, pet = {}) {
+  const said = [c.vaccinated && T('saidVaccinated') + (c.vaccine_expiry ? ` (${fmtDay(c.vaccine_expiry, { day: 'numeric', month: 'short', year: 'numeric' })})` : ''), c.flea_treated && T('saidFlea')].filter(Boolean);
+  return {
+    feeding_schedule: c.feeding ? [{ time: '', food: c.feeding }] : [],
+    care_profile: {
+      medications: c.medications || '', temperament: c.temperament || '',
+      health_notes: [c.health_notes || pet.allergies || '', said.length ? `${T('customerSays')}: ${said.join(', ')}` : ''].filter(Boolean).join('\n'),
+      vet_name: c.vet_name || '', vet_phone: c.vet_phone || '', emergency_name: c.emergency_name || '', emergency_phone: c.emergency_phone || '',
+      can_share_room: Boolean(c.can_share_room), photo_updates: Boolean(c.photo_updates),
+    },
+  };
 }
 
 function bindCards(el, bookings, requests = []) {
@@ -213,52 +295,81 @@ function bindCards(el, bookings, requests = []) {
       const pet = a.pets || {};
       openBookingSheet({
         from: a.check_in_date, to: a.check_out_date, appointmentId: a.id, note: a.customer_notes,
-        pets: [{ pet_id: a.pet_id, pet_name: pet.name || a.pet_name, species: pet.species || 'dog', owner_name: '', owner_phone: '', pet }],
+        pets: [{ pet_id: a.pet_id, pet_name: pet.name || a.pet_name, species: pet.species || 'dog', owner_name: '', owner_phone: '', pet, careData: careFromApp(a.care_profile, pet) }],
       });
     };
   });
   el.querySelectorAll('[data-checkin]').forEach(btn => { btn.onclick = e => { e.stopPropagation(); doCheckIn(btn.dataset.checkin); }; });
   el.querySelectorAll('[data-checkout]').forEach(btn => { btn.onclick = e => { e.stopPropagation(); openCheckout(byId[btn.dataset.checkout]); }; });
-  el.querySelectorAll('[data-log]').forEach(btn => { btn.onclick = e => { e.stopPropagation(); openBookingDetail(btn.dataset.log, { focusLog: true }); }; });
   el.querySelectorAll('[data-open]').forEach(card => {
-    const open = () => openBookingDetail(card.dataset.open);
+    const open = e => { e.stopPropagation(); openBookingDetail(card.dataset.open); };
     card.onclick = open;
-    card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+    card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } };
   });
 }
 
-// ── Availability calendar ────────────────────────────────────────────────────
+// ── Availability: one bar per stay, from the afternoon of check-in to the morning of check-out ──
 async function renderCalendar(el) {
-  const to = addDays(_calFrom, 13);
+  const DAYS = 14;
+  const to = addDays(_calFrom, DAYS - 1);
   const res = await apiFetch(`/api/hotel/availability?store_id=${_storeId}&from=${_calFrom}&to=${to}`);
   if (!res?.success) throw new Error('load');
   const today = todayBkk();
   if (!res.data.length) {
-    el.innerHTML = `<div class="st-empty"><p>${esc(T('noRooms'))}</p>${_isOwner ? `<button type="button" class="ph-btn is-primary" data-add-room>${esc(T('addRoom'))}</button>` : ''}</div>`;
+    el.innerHTML = `<div class="st-empty"><span class="st-empty__icon">${icon('bed', 'w-6 h-6')}</span><p>${esc(T('noRooms'))}</p>${_isOwner ? `<button type="button" class="ph-btn is-primary" data-add-room>${esc(T('addRoom'))}</button>` : ''}</div>`;
     el.querySelector('[data-add-room]')?.addEventListener('click', () => openRoomSheet());
     return;
   }
-  const head = res.dates.map(d => {
+  const dates = res.dates.slice(0, DAYS);
+  const idx = d => nightsBetween(_calFrom, d);
+  const head = dates.map(d => {
     const wd = new Date(`${d}T12:00:00+07:00`).getDay();
-    return `<th class="${d === today ? 'is-today' : ''} ${wd === 0 || wd === 6 ? 'is-weekend' : ''}"><span>${esc(fmtDay(d, { weekday: 'short' }))}</span><b>${esc(fmtDay(d, { day: 'numeric' }))}</b></th>`;
+    return `<div class="st-tl-day ${d === today ? 'is-today' : ''} ${wd === 0 || wd === 6 ? 'is-weekend' : ''}"><span>${esc(fmtDay(d, { weekday: 'narrow' }))}</span><b>${esc(fmtDay(d, { day: 'numeric' }))}</b></div>`;
   }).join('');
+
   const rows = res.data.map(r => {
-    const cells = res.dates.map(d => {
-      const here = r.bookings.filter(b => b.check_in_date <= d && b.check_out_date > d);
-      const full = here.length >= r.max_pets;
-      if (r.status === 'maintenance') return `<td class="is-maint" title="${esc(T('rs_maintenance'))}"></td>`;
-      const names = here.map(b => `<button type="button" class="st-cal-pet is-${b.status}" data-open="${b.id}" title="${esc(`${b.pet_name} · ${b.owner_name || ''}`)}">${b.check_in_date === d || d === res.dates[0] ? esc(b.pet_name) : '&nbsp;'}</button>`).join('');
-      return `<td class="${full ? 'is-full' : ''} ${d === today ? 'is-today' : ''}">${names}${!full && d >= today ? `<button type="button" class="st-cal-free" data-book="${r.id}" data-day="${d}" aria-label="${esc(`${T('newBooking')} ${r.room_number} ${d}`)}">+</button>` : ''}</td>`;
+    // Lanes: a room for 2 pets shows up to 2 bars stacked
+    const lanes = [];
+    const placed = r.bookings.slice().sort((a, b) => a.check_in_date.localeCompare(b.check_in_date)).map(b => {
+      let lane = lanes.findIndex(end => end <= b.check_in_date);
+      if (lane === -1) { lane = lanes.length; lanes.push(b.check_out_date); } else lanes[lane] = b.check_out_date;
+      return { b, lane };
+    });
+    const laneCount = Math.max(1, lanes.length);
+    const cells = dates.map((d, i) => {
+      const taken = r.bookings.filter(b => b.check_in_date <= d && b.check_out_date > d).length;
+      const open = r.status !== 'maintenance' && taken < r.max_pets && d >= today;
+      return `<button type="button" class="st-tl-cell ${d === today ? 'is-today' : ''}" style="grid-column:${i + 1};grid-row:1 / ${laneCount + 1}" ${open ? `data-book="${r.id}" data-day="${d}" aria-label="${esc(`${T('newBooking')} ${r.room_number} ${fmtDay(d)}`)}"` : 'disabled tabindex="-1"'}></button>`;
     }).join('');
-    return `<tr><th class="st-cal-room"><b>${esc(r.room_number)}</b><span>${esc(T(`rt_${r.room_type}`))} · ${esc(T('upTo', { n: r.max_pets }))}</span></th>${cells}</tr>`;
+    const bars = placed.map(({ b, lane }) => {
+      const s = idx(b.check_in_date), e = idx(b.check_out_date);
+      const clipStart = s < 0, clipEnd = e > DAYS - 1;
+      const colStart = clipStart ? 1 : s + 1;
+      const colEnd = clipEnd ? DAYS + 1 : e + 2;
+      return `<button type="button" class="st-tl-bar is-${b.status} ${clipStart ? 'is-clip-start' : ''} ${clipEnd ? 'is-clip-end' : ''}" style="grid-column:${colStart} / ${colEnd};grid-row:${lane + 1}" data-open="${b.id}" title="${esc(`${b.pet_name}${b.owner_name ? ` · ${b.owner_name}` : ''} · ${fmtDay(b.check_in_date)} – ${fmtDay(b.check_out_date)}`)}">${petIcon(b.species, 'w-3.5 h-3.5')}<span>${esc(b.pet_name)}</span></button>`;
+    }).join('');
+    return `
+      <div class="st-tl-row ${r.status === 'maintenance' ? 'is-maint' : ''}">
+        <div class="st-tl-room"><b>${esc(r.room_number)}</b><span>${esc(T(`rt_${r.room_type}`))}${r.max_pets > 1 ? ` · ${r.max_pets}` : ''}</span></div>
+        <div class="st-tl-track" style="--lanes:${laneCount}">${cells}${bars}</div>
+      </div>`;
   }).join('');
+
   el.innerHTML = `
     <div class="st-cal-bar">
-      <div class="flex gap-2"><button type="button" class="ph-btn" data-shift="-14" aria-label="${esc(T('prev'))}">‹</button><button type="button" class="ph-btn" data-shift="0">${esc(T('thisWeek'))}</button><button type="button" class="ph-btn" data-shift="14" aria-label="${esc(T('next'))}">›</button></div>
-      <p class="st-muted">${esc(fmtDay(_calFrom, { day: 'numeric', month: 'short', year: 'numeric' }))} – ${esc(fmtDay(to, { day: 'numeric', month: 'short', year: 'numeric' }))}</p>
+      <div class="st-seg">
+        <button type="button" data-shift="-7" aria-label="${esc(T('prev'))}">${icon('chevron-right', 'w-4 h-4 st-flip')}</button>
+        <button type="button" data-shift="0">${esc(T('thisWeek'))}</button>
+        <button type="button" data-shift="7" aria-label="${esc(T('next'))}">${icon('chevron-right', 'w-4 h-4')}</button>
+      </div>
+      <p class="st-cal-range">${esc(fmtDay(_calFrom, { day: 'numeric', month: 'short' }))} – ${esc(fmtDay(to, { day: 'numeric', month: 'short', year: 'numeric' }))}</p>
+      <p class="st-legend"><span class="is-in"></span>${esc(T('st_checked_in'))}<span class="is-res"></span>${esc(T('st_reserved'))}</p>
     </div>
-    <p class="st-muted st-hint">${esc(T('calHint'))}</p>
-    <div class="st-cal-wrap"><table class="st-cal"><thead><tr><th class="st-cal-room"></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    <div class="st-tl" style="--days:${DAYS}">
+      <div class="st-tl-row is-head"><div class="st-tl-room"></div><div class="st-tl-track is-head">${head}</div></div>
+      ${rows}
+    </div>
+    <p class="st-muted st-hint">${esc(T('calHint'))}</p>`;
   el.querySelectorAll('[data-shift]').forEach(b => { b.onclick = () => { const n = Number(b.dataset.shift); _calFrom = n ? addDays(_calFrom, n) : todayBkk(); loadView(); }; });
   el.querySelectorAll('[data-book]').forEach(b => { b.onclick = () => openBookingSheet({ from: b.dataset.day, to: addDays(b.dataset.day, 1), roomId: b.dataset.book }); });
   el.querySelectorAll('[data-open]').forEach(b => { b.onclick = () => openBookingDetail(b.dataset.open); });
@@ -274,15 +385,7 @@ async function renderBookings(el) {
       <input class="cx-search" type="search" data-q value="${esc(_bookingQuery)}" placeholder="${esc(T('search'))}">
       <div class="so-tabs">${[['active', 'fActive'], ['done', 'fDone'], ['all', 'fAll']].map(([id, k]) => `<button type="button" class="so-tab" data-f="${id}" aria-pressed="${_bookingFilter === id}">${esc(T(k))}</button>`).join('')}</div>
     </div>
-    <div class="st-list">${res.data.length ? res.data.map(b => `
-      <article class="st-card" data-open="${b.id}" tabindex="0" role="button">
-        <span class="st-avatar">${speciesEmoji(b.species)}</span>
-        <div class="min-w-0 flex-1">
-          <p class="st-strong">${esc(b.pet_name)} <span class="st-room">${esc(T('room'))} ${esc(b.hotel_rooms?.room_number || '—')}</span></p>
-          <p class="st-muted">${esc(fmtDay(b.check_in_date))} → ${esc(fmtDay(b.check_out_date))} · ${esc(T('nights', { n: b.nights || nightsBetween(b.check_in_date, b.check_out_date) }))}${b.owner_name ? ` · ${esc(b.owner_name)}` : ''}${b.owner_phone ? ` · ${esc(b.owner_phone)}` : ''}</p>
-        </div>
-        <span class="st-status is-${b.status}">${esc(T(`st_${b.status}`))}</span>
-      </article>`).join('') : `<div class="st-empty"><p>${esc(T('noBookings'))}</p></div>`}</div>`;
+    <div class="st-list">${res.data.length ? res.data.map(bookingCard).join('') : `<div class="st-empty"><p>${esc(T('noBookings'))}</p></div>`}</div>`;
   let t = null;
   const q = el.querySelector('[data-q]');
   q.oninput = () => { clearTimeout(t); t = setTimeout(() => { _bookingQuery = q.value.trim(); loadView().then(() => { const n = view().querySelector('[data-q]'); n?.focus(); n?.setSelectionRange(n.value.length, n.value.length); }); }, 350); };
@@ -304,7 +407,7 @@ async function renderRooms(el) {
           <span class="st-status is-room-${r.status}">${esc(T(`rs_${r.status}`))}</span>
         </div>
         <p class="st-price">${esc(baht(r.daily_rate))}<small>${esc(T('perNight'))}</small></p>
-        <div class="st-tonight">${r.tonight.length ? r.tonight.map(s => `<button type="button" class="st-chip" data-open="${s.id}">${speciesEmoji(s.species)} ${esc(s.pet_name)}</button>`).join('') : '<span class="st-muted">—</span>'}</div>
+        <div class="st-tonight">${r.tonight.length ? r.tonight.map(s => `<button type="button" class="st-tile__guest" data-open="${s.id}">${petIcon(s.species, 'w-3.5 h-3.5')}${esc(s.pet_name)}</button>`).join('') : '<span class="st-muted">—</span>'}</div>
         <div class="st-room-actions">
           ${r.status === 'cleaning' ? `<button type="button" class="ph-btn is-primary" data-status="available" data-room="${r.id}">${esc(T('markClean'))}</button>` : ''}
           ${r.status === 'maintenance' ? `<button type="button" class="ph-btn" data-status="available" data-room="${r.id}">${esc(T('reopen'))}</button>` : ''}
@@ -416,7 +519,8 @@ async function openBookingSheet({ from = todayBkk(), to = null, roomId = null, a
   const catalog = await addOnCatalog();
   const petBlocks = [];
 
-  sheet.body.innerHTML = `
+  sheet.root.querySelector('.sh-panel').classList.add('is-xwide');
+  sheet.body.innerHTML = `<div class="st-form-layout"><div class="st-form-main">
     <section class="st-block">
       <p class="st-label">${esc(T('stay'))}</p>
       <div class="st-grid2">
@@ -433,7 +537,8 @@ async function openBookingSheet({ from = todayBkk(), to = null, roomId = null, a
       <label class="cx-field"><span>${esc(T('deposit'))}</span><input type="number" min="0" step="50" inputmode="decimal" data-deposit placeholder="0"></label>
       <label class="cx-field"><span>${esc(T('notes'))}</span><input data-notes maxlength="500" value="${esc(note || '')}"></label>
     </section>
-    <label class="st-walkin" data-walkin-wrap hidden><input type="checkbox" data-walkin> ${esc(T('checkInNow'))}</label>`;
+    <label class="st-walkin" data-walkin-wrap hidden><input type="checkbox" data-walkin> ${esc(T('checkInNow'))}</label>
+    </div><aside class="st-form-aside" data-aside></aside></div>`;
   sheet.foot.innerHTML = `<p class="st-total" data-total></p><span class="flex-1"></span><button type="button" class="ph-btn" data-sh-close>${esc(T('cancel'))}</button><button type="button" class="ph-btn is-primary" data-save>${esc(T('reserve'))}</button>`;
 
   const $ = s => sheet.body.querySelector(s);
@@ -450,11 +555,12 @@ async function openBookingSheet({ from = todayBkk(), to = null, roomId = null, a
     const care = document.createElement('details');
     care.className = 'st-details';
     care.open = Boolean(initial);
-    care.innerHTML = `<summary>${esc(T('careSheet'))}</summary>${careFields(`p${n}`)}`;
+    care.innerHTML = `<summary>${esc(T('careSheet'))}${initial?.careData ? ` <span class="st-tag">${esc(T('fromApp'))}</span>` : ''}</summary>${careFields(`p${n}`, initial?.careData || {})}`;
     wrap.appendChild(care);
     bindCare(care);
     $('[data-pets]').appendChild(wrap);
     const block = { wrap, picker, care };
+    setTimeout(updateTotal, 0);
     petBlocks.push(block);
     wrap.querySelector('[data-remove-pet]')?.addEventListener('click', () => { wrap.remove(); petBlocks.splice(petBlocks.indexOf(block), 1); updateTotal(); });
   };
@@ -471,6 +577,19 @@ async function openBookingSheet({ from = todayBkk(), to = null, roomId = null, a
     const total = room ? (Number(room.daily_rate) * nights + per) * count : 0;
     $('[data-walkin-wrap]').hidden = $('[data-in]').value !== todayBkk();
     sheet.foot.querySelector('[data-total]').innerHTML = room ? `${esc(T('total'))} <b>${esc(baht(total))}</b>` : '';
+    const names = petBlocks.map(b => b.picker.get()?.pet_name).filter(Boolean);
+    const deposit = Number($('[data-deposit]')?.value || 0);
+    $('[data-aside]').innerHTML = `
+      <p class="st-aside__title">${esc(T('summary'))}</p>
+      <div class="st-aside__dates"><div><span>${esc(T('checkInDate'))}</span><b>${esc(fmtDay($('[data-in]').value, { weekday: 'short', day: 'numeric', month: 'short' }))}</b></div>${icon('chevron-right', 'w-4 h-4')}<div><span>${esc(T('checkOutDate'))}</span><b>${esc(fmtDay($('[data-out]').value, { weekday: 'short', day: 'numeric', month: 'short' }))}</b></div></div>
+      <dl class="st-bill">
+        <div><dt>${room ? `${esc(T('room'))} ${esc(room.room_number)}` : esc(T('chooseRoom'))}</dt><dd>${nights > 0 ? esc(T('nights', { n: nights })) : '—'}</dd></div>
+        ${room ? `<div><dt>${esc(baht(room.daily_rate))} × ${esc(T('nights', { n: nights }))}${count > 1 ? ` × ${count}` : ''}</dt><dd>${esc(baht(Number(room.daily_rate) * nights * count))}</dd></div>` : ''}
+        ${addOns.map(a => `<div><dt>${esc(a.name)}</dt><dd>${esc(baht(Number(a.price || 0) * (a.category === 'boarding' ? nights : 1) * count))}</dd></div>`).join('')}
+        ${deposit ? `<div><dt>${esc(T('deposit'))}</dt><dd>−${esc(baht(deposit))}</dd></div>` : ''}
+        <div class="is-total"><dt>${esc(deposit ? T('balance') : T('total'))}</dt><dd>${esc(baht(Math.max(0, total - deposit)))}</dd></div>
+      </dl>
+      ${names.length ? `<p class="st-aside__pets">${names.map(n => `<span>${esc(n)}</span>`).join('')}</p>` : ''}`;
   }
 
   async function loadRooms() {
@@ -491,6 +610,7 @@ async function openBookingSheet({ from = todayBkk(), to = null, roomId = null, a
   $('[data-in]').onchange = () => { if ($('[data-out]').value <= $('[data-in]').value) $('[data-out]').value = addDays($('[data-in]').value, 1); loadRooms(); };
   $('[data-out]').onchange = loadRooms;
   sheet.body.addEventListener('change', e => { if (e.target.matches('[data-addon]')) updateTotal(); });
+  sheet.body.addEventListener('input', e => { if (e.target.matches('[data-deposit], [data-f="pet_name"]')) updateTotal(); });
   loadRooms();
 
   sheet.foot.querySelector('[data-save]').onclick = async e => {
@@ -541,7 +661,7 @@ async function openBookingDetail(id, { focusLog = false } = {}) {
   sheet.root.querySelector('.sh-title').textContent = `${b.pet_name} · ${T('room')} ${b.hotel_rooms?.room_number || '—'}`;
   sheet.body.innerHTML = `
     <div class="st-detail-head">
-      <span class="st-avatar is-lg">${b.pets?.avatar_url ? `<img src="${esc(b.pets.avatar_url)}" alt="">` : speciesEmoji(b.species)}</span>
+      ${petAvatar(b.species, b.pets?.avatar_url, 'is-lg')}
       <div class="min-w-0 flex-1">
         <p class="st-strong">${esc(b.pet_name)} <span class="st-muted">· ${esc(speciesLabel(b.species))}</span> <span class="st-status is-${b.status}">${esc(T(`st_${b.status}`))}</span></p>
         <p class="st-muted">${esc([b.owner_name, b.owner_phone].filter(Boolean).join(' · ') || '—')}${b.owner_phone ? ` · <a class="st-link" href="tel:${esc(b.owner_phone.replace(/[^\d+]/g, ''))}">${esc(T('phone'))}</a>` : ''}</p>
@@ -559,7 +679,12 @@ async function openBookingDetail(id, { focusLog = false } = {}) {
       <div data-care-view>
         ${(b.feeding_schedule || []).length ? `<div class="st-kv"><span>${esc(T('feeding'))}</span><ul class="st-feed">${b.feeding_schedule.map(f => `<li><b>${esc(f.time || '')}</b> ${esc(f.food || '')} ${f.amount ? `· ${esc(f.amount)}` : ''}</li>`).join('')}</ul></div>` : ''}
         ${field(T('medications'), c.medications)}${field(T('temperament'), c.temperament)}${field(T('healthNotes'), c.health_notes)}
-        <div class="st-flags">${c.vaccines_checked ? `<span class="st-chip is-ok">✓ ${esc(T('vaccinesChecked'))}${c.vaccine_expiry ? ` · ${esc(fmtDay(c.vaccine_expiry, { day: 'numeric', month: 'short', year: 'numeric' }))}` : ''}</span>` : `<span class="st-chip is-warn">${esc(T('vaccinesChecked'))}?</span>`}${c.flea_tick_checked ? `<span class="st-chip is-ok">✓ ${esc(T('fleaChecked'))}</span>` : ''}${c.can_share_room ? `<span class="st-chip">${esc(T('canShare'))}</span>` : ''}${c.photo_updates ? `<span class="st-chip">📷 ${esc(T('photoUpdates'))}</span>` : ''}</div>
+        <ul class="st-checklist">
+          <li class="${c.vaccines_checked ? 'is-ok' : 'is-warn'}">${icon(c.vaccines_checked ? 'check-circle' : 'exclamation-triangle', 'w-4 h-4')}${esc(T(c.vaccines_checked ? 'vaccinesChecked' : 'vaccinesNotChecked'))}${c.vaccines_checked && c.vaccine_expiry ? ` <span class="st-muted">${esc(T('validUntil'))} ${esc(fmtDay(c.vaccine_expiry, { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</li>
+          ${c.flea_tick_checked ? `<li class="is-ok">${icon('check-circle', 'w-4 h-4')}${esc(T('fleaChecked'))}</li>` : ''}
+          ${c.can_share_room ? `<li>${icon('users', 'w-4 h-4')}${esc(T('canShare'))}</li>` : ''}
+          ${c.photo_updates ? `<li>${icon('bell', 'w-4 h-4')}${esc(T('photoUpdates'))}</li>` : ''}
+        </ul>
         ${field(T('vetName'), [c.vet_name, c.vet_phone].filter(Boolean).join(' · '))}${field(T('emergencyName'), [c.emergency_name, c.emergency_phone].filter(Boolean).join(' · '))}
         ${(b.belongings_log || []).length ? `<div class="st-kv"><span>${esc(T('belongings'))}</span><p>${b.belongings_log.map(i => `${esc(i.item)} ×${i.qty}`).join(', ')}</p></div>` : ''}
         ${field(T('special'), b.special_instructions)}${field(T('notes'), b.notes)}
@@ -569,7 +694,7 @@ async function openBookingDetail(id, { focusLog = false } = {}) {
     <section class="st-block">
       <p class="st-label">${esc(T('careLog'))}</p>
       ${b.status === 'checked_in' ? `<div class="st-log-add"><input class="cx-search" data-note maxlength="500" placeholder="${esc(T('addNote'))}"><button type="button" class="ph-btn is-primary" data-add-note>${esc(T('add'))}</button></div>` : ''}
-      <ol class="st-log">${(b.daily_notes || []).slice().reverse().map(n => { const [t, ...rest] = n.split(' · '); return `<li><time>${esc(t)}</time><p>${esc(rest.join(' · '))}</p></li>`; }).join('') || `<li class="st-muted">${esc(T('noNotes'))}</li>`}</ol>
+      <ol class="st-log">${(b.daily_notes || []).slice().reverse().map(n => { const [t, ...rest] = n.split(' · '); const [d, hm] = t.split(' '); const when = /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${fmtDay(d, { day: 'numeric', month: 'short' })} · ${hm || ''}` : t; return `<li><time>${esc(when)}</time><p>${esc(rest.join(' · '))}</p></li>`; }).join('') || `<li class="st-muted">${esc(T('noNotes'))}</li>`}</ol>
     </section>
     ${b.cancelled_reason ? field(T('reason'), b.cancelled_reason) : ''}`;
 

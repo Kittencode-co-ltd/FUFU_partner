@@ -56,7 +56,7 @@ router.get('/', requireRole(...STAFF), async (req, res) => {
   const [booked, walkIns, requests] = await Promise.all([
     req.supabase.from('grooming_sessions').select('*').eq('store_id', sid).gte('scheduled_at', from).lte('scheduled_at', to),
     req.supabase.from('grooming_sessions').select('*').eq('store_id', sid).is('scheduled_at', null).gte('created_at', from).lte('created_at', to),
-    req.supabase.from('appointments').select('id,pet_id,pet_name,user_id,starts_at,appt_date,appt_time,services,status,customer_notes,pets(name,species,breed,weight_kg,allergies)')
+    req.supabase.from('appointments').select('id,pet_id,pet_name,user_id,starts_at,appt_date,appt_time,services,status,customer_notes,care_profile,pets(name,species,breed,weight_kg,allergies)')
       .eq('store_id', sid).eq('category', 'Grooming').eq('appt_date', day).in('status', ['requested', 'confirmed', 'Pending', 'Confirmed']).order('starts_at'),
   ]);
   if (booked.error) return bad(res, booked.error.message, 'failed', 500);

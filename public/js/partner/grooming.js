@@ -7,9 +7,12 @@ import { STORAGE_KEYS } from '../utils/config.js';
 import { showToast } from '../utils/toast.js';
 import { openSheet } from './sheet.js';
 import { getLang } from './portal-i18n.js';
-import { T, addStrings, esc, baht, todayBkk, addDays, fmtDay, fmtTime, speciesEmoji, speciesLabel, petPicker, petFacts, askReason, apiError } from './stay-kit.js';
+import { T, addStrings, esc, baht, todayBkk, addDays, fmtDay, fmtTime, speciesLabel, petPicker, petFacts, askReason, apiError, petAvatar, petIcon, icon } from './stay-kit.js';
 
 addStrings({
+  bookingsWord: ['นัด', 'bookings', '个预约', '件の予約', '건 예약'], revenue: ['ยอด', 'Sales', '营业额', '売上', '매출'],
+  viewAs: ['มุมมอง', 'View', '视图', '表示', '보기'], vSchedule: ['ตารางเวลา', 'Schedule', '时间表', 'スケジュール', '일정표'], vBoard: ['บอร์ดงาน', 'Board', '看板', 'ボード', '보드'],
+  noGroomer: ['ยังไม่ระบุช่าง', 'No groomer yet', '未指定美容师', '担当未定', '미용사 미정'],
   gTitle: ['งานอาบน้ำตัดขน', 'Grooming', '美容', 'トリミング', '미용'],
   gSub: ['ตารางนัด คิวงาน และข้อมูลน้องแต่ละตัว', 'Schedule, work board and every pet’s notes', '预约、工作看板与宠物信息', '予約・作業ボード・ペット情報', '예약, 작업 보드, 반려동물 정보'],
   book: ['นัดหมาย', 'Book', '预约', '予約', '예약'], walkIn: ['รับ walk-in', 'Walk-in', '现场接待', '当日受付', '방문 접수'],
@@ -68,6 +71,7 @@ let _catalog = null;
 let _groomers = [];
 let _boardTab = 'booked';
 let _tick = null;
+let _view = (() => { try { return localStorage.getItem('fufu_groom_view') === 'board' ? 'board' : 'schedule'; } catch { return 'schedule'; } })();
 
 export async function renderGrooming(container) {
   _container = container;
@@ -109,7 +113,7 @@ function nextSlot() {
 
 async function load() {
   const el = _container.querySelector('[data-view]');
-  _container.querySelector('[data-day-label]').textContent = fmtDay(_date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  _container.querySelector('[data-day-label]').textContent = fmtDay(_date, { weekday: 'long', day: 'numeric', month: 'long' });
   el.innerHTML = '<div class="st-skeleton"></div><div class="st-skeleton"></div>';
   const res = await apiFetch(`/api/grooming?store_id=${_storeId}&date=${_date}`).catch(() => null);
   if (!res?.success) {
@@ -119,33 +123,36 @@ async function load() {
   }
   const sessions = res.data;
   _groomers = [...new Set(sessions.map(s => s.groomer_name).filter(Boolean))];
-  const by = Object.fromEntries([...COLS, 'closed'].map(c => [c, []]));
-  sessions.forEach(s => (COLS.includes(s.status) ? by[s.status] : by.closed).push(s));
-  if (!by[_boardTab]?.length) _boardTab = COLS.find(c => by[c].length) || 'booked';
+  const live = sessions.filter(s => !['cancelled', 'no_show'].includes(s.status));
+  const count = st => sessions.filter(s => s.status === st).length;
+  const revenue = live.reduce((n, s) => n + Number(s.total_amount || 0), 0);
 
   el.innerHTML = `
+    <div class="st-g-summary">
+      <p><b>${live.length}</b> ${esc(T('bookingsWord'))}</p>
+      <p class="st-muted">${esc(T('col_in_progress'))} ${count('in_progress')} · ${esc(T('col_done'))} ${count('done')} · ${esc(T('revenue'))} ${esc(baht(revenue))}</p>
+      <div class="st-seg" role="group" aria-label="${esc(T('viewAs'))}">
+        <button type="button" data-v="schedule" aria-pressed="${_view === 'schedule'}">${esc(T('vSchedule'))}</button>
+        <button type="button" data-v="board" aria-pressed="${_view === 'board'}">${esc(T('vBoard'))}</button>
+      </div>
+    </div>
     ${res.requests.length ? `<section class="st-section"><h2 class="st-h2">${esc(T('gRequests'))} <span class="st-count">${res.requests.length}</span></h2>
       <div class="st-list">${res.requests.map(a => `
         <article class="st-card is-request">
-          <span class="st-avatar">${speciesEmoji(a.pets?.species)}</span>
+          ${petAvatar(a.pets?.species || 'dog')}
           <div class="min-w-0 flex-1">
-            <p class="st-strong">${esc(a.pets?.name || a.pet_name)} <span class="st-chip is-app">${esc(T('fromApp'))}</span></p>
-            <p class="st-muted">${a.starts_at ? esc(fmtTime(a.starts_at)) : esc(a.appt_time || '')} · ${esc((a.services || []).join(', '))}${a.pets?.breed ? ` · ${esc(a.pets.breed)}` : ''}</p>
-            ${a.customer_notes ? `<p class="st-note">“${esc(a.customer_notes)}”</p>` : ''}
+            <p class="st-strong">${esc(a.pets?.name || a.pet_name)}${a.pets?.breed ? ` <span class="st-muted">${esc(a.pets.breed)}</span>` : ''}</p>
+            <p class="st-muted">${a.starts_at ? esc(fmtTime(a.starts_at)) : esc((a.appt_time || '').slice(0, 5))} · ${esc((a.services || []).join(', '))}</p>
+            ${a.customer_notes ? `<p class="st-note">${esc(a.customer_notes)}</p>` : ''}
+            ${a.care_profile?.style ? `<p class="st-muted">${esc(T('style'))}: ${esc(a.care_profile.style)}</p>` : ''}
           </div>
           <button type="button" class="ph-btn is-primary" data-accept="${a.id}">${esc(T('accept'))}</button>
         </article>`).join('')}</div></section>` : ''}
-    ${sessions.length ? `
-      <nav class="so-tabs st-board-tabs">${COLS.map(c => `<button type="button" class="so-tab" data-col-tab="${c}" aria-pressed="${_boardTab === c}">${esc(T(`col_${c}`))} <span>${by[c].length}</span></button>`).join('')}</nav>
-      <div class="st-board">${COLS.map(c => `
-        <section class="st-col ${_boardTab === c ? 'is-active' : ''}" data-col="${c}">
-          <h2 class="st-col-head">${esc(T(`col_${c}`))} <span class="st-count">${by[c].length}</span></h2>
-          ${by[c].map(sessionCard).join('') || `<p class="st-muted st-col-empty">${esc(T('emptyCol'))}</p>`}
-        </section>`).join('')}</div>
-      ${by.closed.length ? `<details class="st-details st-closed"><summary>${esc(T('col_closed'))} (${by.closed.length})</summary><div class="st-list">${by.closed.map(sessionCard).join('')}</div></details>` : ''}`
-    : `<div class="st-empty"><p>${esc(T('emptyDay'))}</p><button type="button" class="ph-btn is-primary" data-empty-book>${esc(T('book'))}</button></div>`}`;
+    ${!sessions.length ? `<div class="st-empty"><span class="st-empty__icon">${icon('cut', 'w-6 h-6')}</span><p>${esc(T('emptyDay'))}</p><button type="button" class="ph-btn is-primary" data-empty-book>${esc(T('book'))}</button></div>`
+      : _view === 'board' ? boardView(sessions) : scheduleView(sessions)}`;
 
   el.querySelector('[data-empty-book]')?.addEventListener('click', () => openBookingSheet({ when: `${_date}T${nextSlot()}` }));
+  el.querySelectorAll('[data-v]').forEach(b => { b.onclick = () => { _view = b.dataset.v; try { localStorage.setItem('fufu_groom_view', _view); } catch { /* ignore */ } load(); }; });
   el.querySelectorAll('[data-col-tab]').forEach(b => {
     b.onclick = () => { _boardTab = b.dataset.colTab; el.querySelectorAll('[data-col-tab]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); el.querySelectorAll('[data-col]').forEach(c => c.classList.toggle('is-active', c.dataset.col === _boardTab)); };
   });
@@ -155,18 +162,104 @@ async function load() {
       openBookingSheet({
         appointmentId: a.id, when: a.starts_at ? toLocalInput(a.starts_at) : `${_date}T${(a.appt_time || '10:00').slice(0, 5)}`,
         pet: { pet_id: a.pet_id, pet_name: a.pets?.name || a.pet_name, species: a.pets?.species || 'dog', owner_name: '', owner_phone: '', pet: a.pets },
-        services: (a.services || []).map(n => ({ name: n, price: 0 })), notes: a.customer_notes,
+        services: (a.services || []).map(n => ({ name: n, price: 0 })), notes: a.customer_notes, care: a.care_profile || {},
       });
     };
   });
+  el.querySelectorAll('[data-slot]').forEach(b => { b.onclick = () => openBookingSheet({ when: `${_date}T${b.dataset.slot}`, groomer: b.dataset.groomer || '' }); });
   const byId = Object.fromEntries(sessions.map(s => [s.id, s]));
   el.querySelectorAll('[data-step]').forEach(b => { b.onclick = e => { e.stopPropagation(); step(byId[b.dataset.id], b.dataset.step, b); }; });
   el.querySelectorAll('[data-pct]').forEach(b => { b.onclick = e => { e.stopPropagation(); setProgress(byId[b.dataset.id], Number(b.dataset.pct)); }; });
   el.querySelectorAll('[data-open]').forEach(card => {
-    const open = () => openDetail(byId[card.dataset.open]);
+    const open = e => { e.stopPropagation(); openDetail(byId[card.dataset.open]); };
     card.onclick = open;
-    card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+    card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } };
   });
+  updateElapsed();
+  el.querySelector('.st-sched-now')?.scrollIntoView({ block: 'center', behavior: 'instant' });
+}
+
+const NEXT = { booked: ['arrive', 'arrived'], waiting: ['start', 'start'], in_progress: ['complete', 'finish'], done: ['pickup', 'pickedUp'] };
+const minutesOf = iso => { const d = new Date(new Date(iso).getTime() + 7 * 3600000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const servicesText = s => (s.services || []).map(x => (typeof x === 'string' ? x : x.name)).filter(Boolean).join(', ');
+
+/** Tablet/desktop: a time grid with one column per groomer. Phones: the same day as a list by time. */
+function scheduleView(sessions) {
+  const timed = sessions.filter(s => s.scheduled_at);
+  const SLOT = 30, PX = 34;
+  const starts = timed.map(s => minutesOf(s.scheduled_at));
+  const ends = timed.map(s => minutesOf(s.scheduled_at) + Number(s.estimated_minutes || 60));
+  const from = Math.min(9 * 60, ...starts.map(m => Math.floor(m / 60) * 60));
+  const to = Math.max(19 * 60, ...ends.map(m => Math.ceil(m / 60) * 60));
+  const cols = [...new Set(timed.map(s => s.groomer_name || ''))].sort((a, b) => (a === '') - (b === '') || a.localeCompare(b));
+  if (!cols.length) cols.push('');
+  const hours = [];
+  for (let m = from; m < to; m += 60) hours.push(m);
+  const nowMin = _date === todayBkk() ? minutesOf(new Date().toISOString()) : null;
+
+  const block = s => {
+    const top = ((minutesOf(s.scheduled_at) - from) / SLOT) * PX;
+    const h = Math.max(PX - 4, (Number(s.estimated_minutes || 60) / SLOT) * PX - 4);
+    const next = NEXT[s.status];
+    const care = s.care_profile || {};
+    const warn = care.muzzle || care.sensitive_skin || care.senior || care.matted;
+    return `
+      <article class="st-blk is-${s.status}" style="top:${top}px;height:${h}px" data-open="${s.id}" tabindex="0" role="button" aria-label="${esc(`${fmtTime(s.scheduled_at)} ${s.pet_name}`)}">
+        <p class="st-blk__time">${esc(fmtTime(s.scheduled_at))}–${esc(hhmm(minutesOf(s.scheduled_at) + Number(s.estimated_minutes || 60)))}${warn ? icon('exclamation-triangle', 'w-3.5 h-3.5 st-blk__warn') : ''}</p>
+        <p class="st-blk__pet">${petIcon(s.species, 'w-3.5 h-3.5')}${esc(s.pet_name)}</p>
+        ${h > 60 ? `<p class="st-blk__svc">${esc(servicesText(s))}</p>` : ''}
+        ${s.status === 'in_progress' ? `<span class="st-blk__bar"><i style="width:${s.progress || 0}%"></i></span>` : ''}
+        ${next && h > 86 ? `<button type="button" class="st-blk__act" data-step="${next[0]}" data-id="${s.id}">${esc(T(next[1]))}</button>` : ''}
+      </article>`;
+  };
+
+  const grid = `
+    <div class="st-sched" style="--rows:${(to - from) / SLOT};--px:${PX}px;--cols:${cols.length}">
+      <div class="st-sched-head"><span></span>${cols.map(c => `<p>${c ? `${icon('cut', 'w-3.5 h-3.5')}${esc(c)}` : esc(T('noGroomer'))}</p>`).join('')}</div>
+      <div class="st-sched-body">
+        <div class="st-sched-times">${hours.map(m => `<span style="top:${((m - from) / SLOT) * PX}px">${hhmm(m)}</span>`).join('')}</div>
+        ${cols.map(c => `
+          <div class="st-sched-col">
+            ${Array.from({ length: (to - from) / SLOT }, (_, i) => `<button type="button" class="st-sched-slot" style="top:${i * PX}px" data-slot="${hhmm(from + i * SLOT)}" data-groomer="${esc(c)}" aria-label="${esc(`${T('book')} ${hhmm(from + i * SLOT)}${c ? ` ${c}` : ''}`)}"></button>`).join('')}
+            ${timed.filter(s => (s.groomer_name || '') === c).map(block).join('')}
+          </div>`).join('')}
+        ${nowMin !== null && nowMin >= from && nowMin <= to ? `<div class="st-sched-now" style="top:${((nowMin - from) / SLOT) * PX}px"><span>${hhmm(nowMin)}</span></div>` : ''}
+      </div>
+    </div>`;
+
+  const agenda = `
+    <ol class="st-agenda">${sessions.map(s => {
+      const next = NEXT[s.status];
+      return `
+      <li class="st-agenda__row is-${s.status}" data-open="${s.id}" tabindex="0" role="button">
+        <span class="st-agenda__time">${s.scheduled_at ? esc(fmtTime(s.scheduled_at)) : '—'}<small>${esc(s.estimated_minutes)}′</small></span>
+        <span class="st-agenda__main">
+          <b>${esc(s.pet_name)}</b>
+          <span class="st-muted">${esc(servicesText(s) || speciesLabel(s.species))}</span>
+          <span class="st-agenda__meta"><span class="st-dot is-${s.status}"></span>${esc(T(`col_${['booked', 'waiting', 'in_progress', 'done'].includes(s.status) ? s.status : 'closed'}`))}${s.groomer_name ? ` · ${esc(s.groomer_name)}` : ''}</span>
+        </span>
+        ${next ? `<button type="button" class="ph-btn ${s.status === 'booked' ? '' : 'is-primary'}" data-step="${next[0]}" data-id="${s.id}">${esc(T(next[1]))}</button>` : ''}
+      </li>`;
+    }).join('')}</ol>`;
+
+  const untimed = sessions.filter(s => !s.scheduled_at);
+  return `<div class="st-sched-wrap">${grid}</div><div class="st-agenda-wrap">${agenda}</div>
+    ${untimed.length ? `<section class="st-section st-sched-wrap"><h2 class="st-h2">${esc(T('walkIn'))}</h2><div class="st-list">${untimed.map(sessionCard).join('')}</div></section>` : ''}`;
+}
+
+function boardView(sessions) {
+  const by = Object.fromEntries([...COLS, 'closed'].map(c => [c, []]));
+  sessions.forEach(s => (COLS.includes(s.status) ? by[s.status] : by.closed).push(s));
+  if (!by[_boardTab]?.length) _boardTab = COLS.find(c => by[c].length) || 'booked';
+  return `
+    <nav class="so-tabs st-board-tabs">${COLS.map(c => `<button type="button" class="so-tab" data-col-tab="${c}" aria-pressed="${_boardTab === c}">${esc(T(`col_${c}`))} <span>${by[c].length}</span></button>`).join('')}</nav>
+    <div class="st-board">${COLS.map(c => `
+      <section class="st-col ${_boardTab === c ? 'is-active' : ''}" data-col="${c}">
+        <h2 class="st-col-head">${esc(T(`col_${c}`))} <span class="st-count">${by[c].length}</span></h2>
+        ${by[c].map(sessionCard).join('') || `<p class="st-muted st-col-empty">—</p>`}
+      </section>`).join('')}</div>
+    ${by.closed.length ? `<details class="st-details st-closed"><summary>${esc(T('col_closed'))} (${by.closed.length})</summary><div class="st-list">${by.closed.map(sessionCard).join('')}</div></details>` : ''}`;
 }
 
 const toLocalInput = iso => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 16);
@@ -181,7 +274,7 @@ function sessionCard(s) {
     <article class="st-card is-session is-${s.status}" data-open="${s.id}" tabindex="0" role="button">
       <div class="st-session-top">
         <span class="st-time">${s.scheduled_at ? esc(fmtTime(s.scheduled_at)) : '—'}</span>
-        <span class="st-avatar is-sm">${speciesEmoji(s.species)}</span>
+        ${petAvatar(s.species, null, 'is-sm')}
         <div class="min-w-0 flex-1">
           <p class="st-strong">${esc(s.pet_name)}${s.appointment_id ? ` <span class="st-chip is-app">${esc(T('fromApp'))}</span>` : ''}</p>
           <p class="st-muted truncate">${esc([s.owner_name, s.owner_phone].filter(Boolean).join(' · ') || speciesLabel(s.species))}</p>
@@ -189,7 +282,7 @@ function sessionCard(s) {
       </div>
       ${list.length ? `<p class="st-services">${list.map(n => `<span>${esc(n)}</span>`).join('')}</p>` : ''}
       ${flags.length || care.temperament ? `<p class="st-flags">${flags.map(f => `<span class="st-chip is-warn">${esc(f)}</span>`).join('')}${care.temperament ? `<span class="st-chip">${esc(care.temperament)}</span>` : ''}</p>` : ''}
-      <p class="st-meta">${s.groomer_name ? `✂ ${esc(s.groomer_name)} · ` : ''}${esc(s.estimated_minutes)}′${Number(s.total_amount) ? ` · ${esc(baht(s.total_amount))}` : ''}</p>
+      <p class="st-meta">${s.groomer_name ? `${icon('cut', 'w-3.5 h-3.5')}${esc(s.groomer_name)} · ` : ''}${esc(s.estimated_minutes)}′${Number(s.total_amount) ? ` · ${esc(baht(s.total_amount))}` : ''}</p>
       ${s.status === 'in_progress' ? `
         <div class="st-progress"><i style="width:${s.progress || 0}%"></i></div>
         <div class="st-progress-row"><span class="st-muted" data-elapsed="${esc(s.start_time || '')}"></span>${[50, 75].map(p => `<button type="button" class="so-tab" data-pct="${p}" data-id="${s.id}">${p}%</button>`).join('')}</div>` : ''}
@@ -233,13 +326,13 @@ async function catalog() {
   return _catalog;
 }
 
-async function openBookingSheet({ when = null, walkIn = false, appointmentId = null, pet = null, services = [], notes = '', session = null } = {}) {
+async function openBookingSheet({ when = null, walkIn = false, appointmentId = null, pet = null, services = [], notes = '', session = null, groomer = '', care: initialCare = {} } = {}) {
   const editing = Boolean(session);
   const sheet = openSheet({ title: editing ? `${T('edit')} · ${session.pet_name}` : walkIn ? T('walkIn') : appointmentId ? T('accept') : T('book'), wide: true });
   const items = await catalog();
   const selected = new Map((session?.services || services).map(s => (typeof s === 'string' ? [s, 0] : [s.name, Number(s.price || 0)])));
   for (const [n, p] of selected) { const c = items.find(i => i.name === n); if (c && !p) selected.set(n, c.price); }
-  const care = session?.care_profile || {};
+  const care = session?.care_profile || initialCare || {};
   const allServices = [...items, ...[...selected.keys()].filter(n => !items.some(i => i.name === n)).map(n => ({ name: n, price: selected.get(n) }))];
 
   sheet.body.innerHTML = `
@@ -253,7 +346,7 @@ async function openBookingSheet({ when = null, walkIn = false, appointmentId = n
       <div class="st-log-add"><input class="cx-search" data-custom placeholder="${esc(T('customService').replace('+ ', ''))}" maxlength="80"><button type="button" class="ph-btn" data-add-custom>${esc(T('add'))}</button></div>
     </section>
     <section class="st-block st-grid2">
-      <label class="cx-field"><span>${esc(T('groomer'))}</span><input data-groomer list="st-groomers" maxlength="80" value="${esc(session?.groomer_name || '')}"><datalist id="st-groomers">${_groomers.map(g => `<option value="${esc(g)}">`).join('')}</datalist></label>
+      <label class="cx-field"><span>${esc(T('groomer'))}</span><input data-groomer list="st-groomers" maxlength="80" value="${esc(session?.groomer_name || groomer || '')}"><datalist id="st-groomers">${_groomers.map(g => `<option value="${esc(g)}">`).join('')}</datalist></label>
       ${walkIn ? `<label class="cx-field"><span>${esc(T('duration'))}</span><input type="number" min="15" max="600" step="15" data-min value="60"></label>` : ''}
     </section>
     <details class="st-details" ${editing || pet ? 'open' : ''}><summary>${esc(T('groomNotes'))}</summary>
@@ -338,7 +431,7 @@ async function openDetail(s) {
   const kv = (l, v) => v ? `<div class="st-kv"><span>${esc(l)}</span><p>${esc(v)}</p></div>` : '';
   sheet.body.innerHTML = `
     <div class="st-detail-head">
-      <span class="st-avatar is-lg">${full.pets?.avatar_url ? `<img src="${esc(full.pets.avatar_url)}" alt="">` : speciesEmoji(full.species)}</span>
+      ${petAvatar(full.species, full.pets?.avatar_url, 'is-lg')}
       <div class="min-w-0 flex-1">
         <p class="st-strong">${esc(full.pet_name)} <span class="st-muted">· ${esc(speciesLabel(full.species))}</span> <span class="st-status is-g-${full.status}">${esc(T(`col_${COLS.includes(full.status) ? full.status : 'closed'}`))}</span></p>
         <p class="st-muted">${esc([full.owner_name, full.owner_phone].filter(Boolean).join(' · ') || '—')}${full.owner_phone ? ` · <a class="st-link" href="tel:${esc(full.owner_phone.replace(/[^\d+]/g, ''))}">${esc(T('phone'))}</a>` : ''}</p>
@@ -347,7 +440,7 @@ async function openDetail(s) {
     </div>
     <section class="st-block"><p class="st-label">${esc(T('services'))}</p>
       <dl class="st-bill">${list.map(x => `<div><dt>${esc(x.name)}</dt><dd>${esc(baht(x.price))}</dd></div>`).join('')}<div class="is-total"><dt>${esc(T('total'))}</dt><dd>${esc(baht(full.total_amount))}</dd></div></dl>
-      <p class="st-meta">${full.groomer_name ? `✂ ${esc(full.groomer_name)} · ` : ''}${esc(full.estimated_minutes)}′</p>
+      <p class="st-meta">${full.groomer_name ? `${icon('cut', 'w-3.5 h-3.5')}${esc(full.groomer_name)} · ` : ''}${esc(full.estimated_minutes)}′</p>
     </section>
     <section class="st-block"><p class="st-label">${esc(T('groomNotes'))}</p>
       ${kv(T('coat'), care.coat)}${kv(T('size'), care.size ? T(`size${care.size}`) : '')}${kv(T('style'), care.style)}${kv(T('temper'), care.temperament)}${kv(T('skin'), care.skin_notes)}
