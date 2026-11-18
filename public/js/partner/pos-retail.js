@@ -120,7 +120,7 @@ const CAT_ORDER = {
   grooming: ['grooming', 'accessory', 'food', 'medicine'],
 };
 const CAT_ICON = { room: 'bed', boarding: 'bed', consultation: 'stethoscope', vaccination: 'syringe', vaccine: 'syringe', procedure: 'tools', medicine: 'pills', laboratory: 'file-alt', imaging: 'file-alt', surgery: 'hospital', grooming: 'cut', food: 'bone', accessory: 'box', custom: 'pen' };
-const ROOM_LABEL = { standard: 'Standard', deluxe: 'Deluxe', suite: 'Suite' };
+const ROOM_LABEL = { standard: 'Standard', deluxe: 'Deluxe', suite: 'Suite', vip: 'VIP', cat: 'Cat room', small: 'Small', large: 'Large' };
 const METHODS = [['cash', 'money-bill-wave'], ['transfer', 'exchange-alt'], ['qr', 'qrcode'], ['card', 'credit-card']];
 
 const T = () => TEXT[getLang()] || TEXT.th;
@@ -186,7 +186,7 @@ async function loadCatalog() {
   // Hotel: one item per room type and nightly rate, so a stay is "room × nights"
   const seenRooms = new Set();
   for (const r of rows(rooms)) {
-    const price = Number(r.price_per_night) || 0;
+    const price = Number(r.daily_rate ?? r.price_per_night) || 0;
     const type = r.room_type || r.type || 'standard';
     const id = `room-${type}-${price}`;
     if (!price || seenRooms.has(id)) continue;

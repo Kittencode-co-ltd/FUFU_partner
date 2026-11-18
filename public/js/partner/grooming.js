@@ -1,510 +1,411 @@
-﻿import { apiFetch }  from '../utils/api-client.js';
-import { storage }   from '../utils/storage.js';
-import { showToast } from '../utils/toast.js';
-import { bindPrintButton } from '../utils/print-docs.js';
+﻿// Grooming: day schedule + work board. Book ahead (time, groomer, services, pet care notes),
+// take walk-ins, pull in App bookings, then move each pet booked → arrived → grooming → done → picked up.
+// API: server/routes/grooming.js. Styles: .st-* in src/css/input.css.
+import { apiFetch } from '../utils/api-client.js';
+import { storage } from '../utils/storage.js';
 import { STORAGE_KEYS } from '../utils/config.js';
+import { showToast } from '../utils/toast.js';
+import { openSheet } from './sheet.js';
+import { getLang } from './portal-i18n.js';
+import { T, addStrings, esc, baht, todayBkk, addDays, fmtDay, fmtTime, speciesEmoji, speciesLabel, petPicker, petFacts, askReason, apiError } from './stay-kit.js';
 
-// Also used by the POS (pos-retail.js) as the grooming menu when the store has no grooming service items yet
-export const SERVICES = [
-  { id: 'bath',       name: 'อาบน้ำ',             icon: '', price: 200 },
-  { id: 'nail',       name: 'ตัดเล็บ',             icon: '', price: 80  },
-  { id: 'ear',        name: 'ทำความสะอาดหู',       icon: '', price: 100 },
-  { id: 'teeth',      name: 'แปรงฟัน',             icon: '', price: 120 },
-  { id: 'spa',        name: 'สปาผิว',              icon: '', price: 350 },
-  { id: 'haircut',    name: 'ตัดขน',               icon: '', price: 300 },
-  // add-ons
-  { id: 'cologne',    name: 'น้ำหอม',              icon: '', price: 50  },
-  { id: 'blueberry',  name: 'สระบลูเบอร์รี่',      icon: '', price: 150 },
-  { id: 'detangle',   name: 'แก้ขนพัน',            icon: '', price: 200 },
-  { id: 'anal',       name: 'บีบต่อมกลิ่น',        icon: '', price: 80  },
-  { id: 'bandana',    name: 'ผ้าพันคอ',             icon: '', price: 30  },
+addStrings({
+  gTitle: ['งานอาบน้ำตัดขน', 'Grooming', '美容', 'トリミング', '미용'],
+  gSub: ['ตารางนัด คิวงาน และข้อมูลน้องแต่ละตัว', 'Schedule, work board and every pet’s notes', '预约、工作看板与宠物信息', '予約・作業ボード・ペット情報', '예약, 작업 보드, 반려동물 정보'],
+  book: ['นัดหมาย', 'Book', '预约', '予約', '예약'], walkIn: ['รับ walk-in', 'Walk-in', '现场接待', '当日受付', '방문 접수'],
+  today: ['วันนี้', 'Today', '今天', '今日', '오늘'],
+  gRequests: ['นัดจากแอป รอรับเข้าตาราง', 'App bookings to add', '应用预约待加入', 'アプリ予約（未登録）', '앱 예약 (등록 대기)'],
+  accept: ['รับเข้าตาราง', 'Add to schedule', '加入日程', 'スケジュールに追加', '일정에 추가'],
+  col_booked: ['นัดไว้', 'Booked', '已预约', '予約', '예약'], col_waiting: ['มาถึงแล้ว รอคิว', 'Arrived', '已到达', '到着', '도착'],
+  col_in_progress: ['กำลังทำ', 'Grooming', '进行中', '施術中', '진행 중'], col_done: ['เสร็จ รอรับกลับ', 'Ready for pickup', '待取回', 'お迎え待ち', '픽업 대기'],
+  col_closed: ['รับกลับแล้ว / ยกเลิก', 'Picked up / cancelled', '已取回 / 已取消', 'お迎え済み・キャンセル', '픽업 완료 / 취소'],
+  emptyDay: ['ยังไม่มีนัดในวันนี้', 'No bookings for this day', '这天没有预约', 'この日の予約はありません', '이 날 예약이 없어요'],
+  emptyCol: ['—', '—', '—', '—', '—'],
+  arrived: ['มาถึงแล้ว', 'Arrived', '已到达', '到着', '도착'], start: ['เริ่มทำ', 'Start', '开始', '開始', '시작'],
+  finish: ['เสร็จแล้ว', 'Finish', '完成', '完了', '완료'], pickedUp: ['รับกลับแล้ว', 'Picked up', '已取回', 'お迎え済み', '픽업 완료'],
+  noShow: ['ไม่มา', 'No-show', '未到', '来店なし', '노쇼'], cancelAppt: ['ยกเลิกนัด', 'Cancel booking', '取消预约', '予約をキャンセル', '예약 취소'],
+  when: ['วันเวลา', 'Date & time', '日期时间', '日時', '날짜와 시간'], date: ['วันที่', 'Date', '日期', '日付', '날짜'], time: ['เวลา', 'Time', '时间', '時間', '시간'],
+  duration: ['ใช้เวลา (นาที)', 'Duration (min)', '时长（分钟）', '所要時間（分）', '소요 시간 (분)'], groomer: ['ช่างตัดขน', 'Groomer', '美容师', 'トリマー', '미용사'],
+  services: ['บริการ', 'Services', '服务', 'サービス', '서비스'], price: ['ราคา', 'Price', '价格', '料金', '가격'],
+  customService: ['+ บริการอื่น', '+ Other service', '+ 其他服务', '+ その他', '+ 기타 서비스'],
+  groomNotes: ['ข้อมูลสำหรับช่าง', 'Notes for the groomer', '美容注意事项', 'トリマーへのメモ', '미용사 메모'],
+  coat: ['ลักษณะขน', 'Coat', '毛质', '毛質', '털 상태'], size: ['ขนาดตัว', 'Size', '体型', 'サイズ', '크기'], style: ['ทรงที่ต้องการ', 'Style wanted', '想要的造型', '希望のスタイル', '원하는 스타일'],
+  temper: ['นิสัย / ข้อควรระวัง', 'Temperament / cautions', '性格 / 注意事项', '性格・注意点', '성격 / 주의사항'], skin: ['ผิวหนัง / จุดที่ระวัง', 'Skin / sore spots', '皮肤 / 注意部位', '皮膚・注意箇所', '피부 / 주의 부위'],
+  sizeS: ['เล็ก', 'Small', '小', '小型', '소형'], sizeM: ['กลาง', 'Medium', '中', '中型', '중형'], sizeL: ['ใหญ่', 'Large', '大', '大型', '대형'], sizeXL: ['ใหญ่มาก', 'Extra large', '特大', '超大型', '초대형'],
+  muzzle: ['ต้องใส่ตะกร้อปาก', 'Needs a muzzle', '需戴嘴套', '口輪が必要', '입마개 필요'], sensitive: ['ผิวแพ้ง่าย', 'Sensitive skin', '皮肤敏感', '敏感肌', '민감성 피부'],
+  senior: ['สูงวัย', 'Senior', '老年', 'シニア', '노령'], matted: ['ขนพันกัน', 'Matted coat', '毛打结', '毛玉あり', '털 엉킴'],
+  total: ['รวม', 'Total', '合计', '合計', '합계'], saveBooking: ['บันทึกนัด', 'Save booking', '保存预约', '予約を保存', '예약 저장'],
+  overlap: ['ช่าง {g} มีนัดชนเวลา {t}', '{g} already has a booking at {t}', '{g} 在 {t} 已有预约', '{g} は {t} に予約があります', '{g}님은 {t}에 예약이 있어요'],
+  report: ['รายงานหลังทำ', 'Grooming report', '美容报告', 'トリミング報告', '미용 리포트'],
+  rSkin: ['ผิวหนัง', 'Skin', '皮肤', '皮膚', '피부'], rEars: ['หู', 'Ears', '耳朵', '耳', '귀'], rNails: ['เล็บ', 'Nails', '指甲', '爪', '발톱'], rTeeth: ['ฟัน', 'Teeth', '牙齿', '歯', '이빨'],
+  rParasites: ['เห็บ หมัด', 'Fleas / ticks', '跳蚤 / 蜱虫', 'ノミ・ダニ', '벼룩·진드기'], rNote: ['ฝากถึงเจ้าของ', 'Message for the owner', '给主人的留言', '飼い主へのメッセージ', '보호자에게 전할 말'],
+  normal: ['ปกติ', 'Normal', '正常', '正常', '정상'], printReport: ['พิมพ์รายงาน', 'Print report', '打印报告', '報告を印刷', '리포트 인쇄'],
+  progress: ['ความคืบหน้า', 'Progress', '进度', '進捗', '진행률'], elapsed: ['ผ่านไป {m} นาที', '{m} min so far', '已过 {m} 分钟', '{m} 分経過', '{m}분 경과'],
+  details: ['รายละเอียด', 'Details', '详情', '詳細', '상세'],
+  invalid_transition: ['ขั้นตอนนี้ทำไม่ได้แล้ว รีเฟรชหน้า', 'That step is no longer possible. Refresh', '此步骤不可用，请刷新', 'この操作はできません', '이 단계는 할 수 없어요'],
+  already_assigned: ['นัดนี้อยู่ในตารางแล้ว', 'This booking is already on the schedule', '该预约已在日程中', '既に登録済みです', '이미 일정에 있어요'],
+  pet_required: ['กรอกชื่อน้องก่อน', 'Enter the pet name', '请输入宠物名', 'ペット名を入力', '반려동물 이름을 입력하세요'],
+  cancelPresets: [['ลูกค้าขอยกเลิก', 'น้องไม่สบาย', 'ช่างไม่ว่าง'], ['Customer cancelled', 'Pet is unwell', 'Groomer unavailable'], ['顾客取消', '宠物生病', '美容师没空'], ['お客様都合', '体調不良', 'トリマー不在'], ['고객 취소', '반려동물 아픔', '미용사 부재']],
+});
+
+const PRESETS = [
+  { name: ['อาบน้ำ', 'Bath', '洗澡', 'シャンプー', '목욕'], price: 300 },
+  { name: ['ตัดขนทั้งตัว', 'Full haircut', '全身剪毛', '全身カット', '전체 미용'], price: 600 },
+  { name: ['ตัดเล็บ', 'Nail trim', '剪指甲', '爪切り', '발톱 정리'], price: 100 },
+  { name: ['เช็ดหู', 'Ear cleaning', '清洁耳朵', '耳掃除', '귀 청소'], price: 80 },
+  { name: ['แปรงฟัน', 'Teeth brushing', '刷牙', '歯みがき', '양치'], price: 100 },
+  { name: ['สปาขน', 'Coat spa', '护毛 SPA', 'スパ', '스파'], price: 350 },
+  { name: ['กำจัดเห็บหมัด', 'Flea & tick bath', '除跳蚤蜱虫', 'ノミ・ダニ駆除', '진드기 목욕'], price: 250 },
 ];
+/** Default grooming menu (Thai names), also used by the POS when the shop has no grooming service items. */
+export const SERVICES = PRESETS.map((p, i) => ({ id: `g${i + 1}`, name: p.name[0], price: p.price }));
+const COLS = ['booked', 'waiting', 'in_progress', 'done'];
 
-let _storeId     = '';
-let _refreshTimer = null;
-let _selPet      = null; // { pet_id, pet_name, owner_name, species } | null
+let _storeId = null;
+let _date = null;
+let _container = null;
+let _catalog = null;
+let _groomers = [];
+let _boardTab = 'booked';
+let _tick = null;
 
 export async function renderGrooming(container) {
+  _container = container;
   _storeId = storage.get(STORAGE_KEYS.STORE_ID);
-  await _render(container);
-  clearInterval(_refreshTimer);
-  _refreshTimer = setInterval(() => _render(container), 30000);
-}
-
-async function _render(container) {
-  const res      = await apiFetch(`/api/grooming?store_id=${_storeId}`);
-  const sessions = res?.data || [];
-
-  const waiting = sessions.filter(s => s.status === 'waiting').length;
-  const inProg  = sessions.filter(s => s.status === 'in_progress').length;
-  const done    = sessions.filter(s => s.status === 'done').length;
-
+  _date = _date || todayBkk();
+  clearInterval(_tick);
+  _tick = setInterval(() => { if (!document.hidden && _container?.isConnected) updateElapsed(); else if (!_container?.isConnected) clearInterval(_tick); }, 60000);
   container.innerHTML = `
-    <div class="space-y-5 w-full">
-
-      <!-- Walk-in bar -->
-      <div class="card p-4">
-        <div class="flex flex-wrap gap-3 items-end">
-          <div class="relative flex-1 min-w-52">
-            <label class="input-label">ค้นหาสัตว์เลี้ยง / เจ้าของ / เบอร์โทร</label>
-            <input id="ga-search" class="input-field" placeholder="บัดดี้ หรือ 0812345678..." autocomplete="off">
-            <div id="ga-dropdown"
-                 class="hidden absolute z-30 left-0 right-0 top-full mt-1 bg-white rounded-xl
-                        shadow-card-hover border border-slate-100 max-h-56 overflow-y-auto text-sm"></div>
-          </div>
-          <div class="flex-1 min-w-28">
-            <label class="input-label">เวลาโดยประมาณ (นาที)</label>
-            <input id="ga-time" class="input-field" type="number" value="60" min="15">
-          </div>
-          <button id="ga-submit" class="btn-primary whitespace-nowrap">+ รับลูกค้า</button>
+    <div class="st-page">
+      <header class="so-head">
+        <div class="min-w-0"><h1 class="so-title">${esc(T('gTitle'))}</h1><p class="so-sub">${esc(T('gSub'))}</p></div>
+        <div class="flex gap-2"><button type="button" class="ph-btn" data-walkin>${esc(T('walkIn'))}</button><button type="button" class="ph-btn is-primary" data-book>${esc(T('book'))}</button></div>
+      </header>
+      <div class="st-cal-bar">
+        <div class="flex gap-2 items-center">
+          <button type="button" class="ph-btn" data-day="-1" aria-label="${esc(T('date'))} -1">‹</button>
+          <input type="date" class="st-date" data-date value="${_date}">
+          <button type="button" class="ph-btn" data-day="1" aria-label="${esc(T('date'))} +1">›</button>
+          <button type="button" class="ph-btn" data-day="0">${esc(T('today'))}</button>
         </div>
-        <div class="flex items-center justify-between mt-2 min-h-6">
-          <div id="ga-selected" class="hidden items-center gap-2">
-            <span id="ga-chip" class="text-xs bg-primary-subtle text-primary-dark rounded-lg px-3 py-1.5 font-semibold"></span>
-            <button id="ga-deselect" class="text-xs text-slate-400 hover:text-red-500 transition-colors">× เปลี่ยน</button>
-          </div>
-          <button id="ga-register" class="text-xs text-primary hover:underline font-body ml-auto">
-            + ลูกค้าใหม่
-          </button>
-        </div>
+        <p class="st-muted" data-day-label></p>
       </div>
-
-      <!-- Stats -->
-      <div class="grid grid-cols-3 gap-2">
-        ${[['','รอ',waiting,'text-amber-500'],['','กำลังทำ',inProg,'text-primary'],['','เสร็จ',done,'text-slate-400']]
-          .map(([i,l,v,c])=>`<div class="card p-2 sm:p-3 text-center"><div class="text-xl sm:text-2xl">${i}</div><div class="text-xs text-slate-400 font-body mt-0.5 truncate">${l}</div><div class="text-xl sm:text-2xl font-bold ${c} mt-1">${v}</div></div>`).join('')}
-      </div>
-
-      <!-- Sessions -->
-      <div id="groom-sessions" class="space-y-3">
-        ${sessions.length === 0
-          ? `<div class="card p-10 text-center text-slate-400 font-body">ยังไม่มีลูกค้าในวันนี้</div>`
-          : sessions.map(s => _sessionCard(s)).join('')}
-      </div>
+      <div data-view></div>
     </div>`;
+  container.querySelector('[data-book]').onclick = () => openBookingSheet({ when: `${_date}T${nextSlot()}` });
+  container.querySelector('[data-walkin]').onclick = () => openBookingSheet({ walkIn: true });
+  container.querySelectorAll('[data-day]').forEach(b => { b.onclick = () => { const n = Number(b.dataset.day); _date = n ? addDays(_date, n) : todayBkk(); container.querySelector('[data-date]').value = _date; load(); }; });
+  container.querySelector('[data-date]').onchange = e => { if (e.target.value) { _date = e.target.value; load(); } };
+  await load();
+}
 
-  _selPet = null;
-  _bindGroomSearch(container);
-  container.querySelector('#ga-submit')?.addEventListener('click', () => _handleGroomWalkin(container));
-  container.querySelector('#ga-register')?.addEventListener('click', () => _groomRegister(container));
+function nextSlot() {
+  if (_date !== todayBkk()) return '10:00';
+  const now = new Date(Date.now() + 7 * 3600000);
+  const m = now.getUTCHours() * 60 + now.getUTCMinutes() + 30;
+  const h = Math.min(20, Math.max(9, Math.ceil(m / 30) * 30 / 60));
+  return `${String(Math.floor(h)).padStart(2, '0')}:${h % 1 ? '30' : '00'}`;
+}
 
-  container.querySelector('#groom-sessions')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const id = btn.dataset.id;
-    const s  = sessions.find(x => x.id === id);
-    if (btn.dataset.action === 'start')    _startSession(id, container);
-    if (btn.dataset.action === 'services') _openServicesModal(s, container);
-    if (btn.dataset.action === 'complete') _openCompleteModal(s, container);
-    if (btn.dataset.action === 'progress') _updateProgress(id, parseInt(btn.dataset.pct), container);
-    if (btn.dataset.action === 'print')    _printGroomReport(s);
+async function load() {
+  const el = _container.querySelector('[data-view]');
+  _container.querySelector('[data-day-label]').textContent = fmtDay(_date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  el.innerHTML = '<div class="st-skeleton"></div><div class="st-skeleton"></div>';
+  const res = await apiFetch(`/api/grooming?store_id=${_storeId}&date=${_date}`).catch(() => null);
+  if (!res?.success) {
+    el.innerHTML = `<div class="st-empty"><p>${esc(T('loadFail'))}</p><button type="button" class="ph-btn" data-retry>${esc(T('retry'))}</button></div>`;
+    el.querySelector('[data-retry]').onclick = load;
+    return;
+  }
+  const sessions = res.data;
+  _groomers = [...new Set(sessions.map(s => s.groomer_name).filter(Boolean))];
+  const by = Object.fromEntries([...COLS, 'closed'].map(c => [c, []]));
+  sessions.forEach(s => (COLS.includes(s.status) ? by[s.status] : by.closed).push(s));
+  if (!by[_boardTab]?.length) _boardTab = COLS.find(c => by[c].length) || 'booked';
+
+  el.innerHTML = `
+    ${res.requests.length ? `<section class="st-section"><h2 class="st-h2">${esc(T('gRequests'))} <span class="st-count">${res.requests.length}</span></h2>
+      <div class="st-list">${res.requests.map(a => `
+        <article class="st-card is-request">
+          <span class="st-avatar">${speciesEmoji(a.pets?.species)}</span>
+          <div class="min-w-0 flex-1">
+            <p class="st-strong">${esc(a.pets?.name || a.pet_name)} <span class="st-chip is-app">${esc(T('fromApp'))}</span></p>
+            <p class="st-muted">${a.starts_at ? esc(fmtTime(a.starts_at)) : esc(a.appt_time || '')} · ${esc((a.services || []).join(', '))}${a.pets?.breed ? ` · ${esc(a.pets.breed)}` : ''}</p>
+            ${a.customer_notes ? `<p class="st-note">“${esc(a.customer_notes)}”</p>` : ''}
+          </div>
+          <button type="button" class="ph-btn is-primary" data-accept="${a.id}">${esc(T('accept'))}</button>
+        </article>`).join('')}</div></section>` : ''}
+    ${sessions.length ? `
+      <nav class="so-tabs st-board-tabs">${COLS.map(c => `<button type="button" class="so-tab" data-col-tab="${c}" aria-pressed="${_boardTab === c}">${esc(T(`col_${c}`))} <span>${by[c].length}</span></button>`).join('')}</nav>
+      <div class="st-board">${COLS.map(c => `
+        <section class="st-col ${_boardTab === c ? 'is-active' : ''}" data-col="${c}">
+          <h2 class="st-col-head">${esc(T(`col_${c}`))} <span class="st-count">${by[c].length}</span></h2>
+          ${by[c].map(sessionCard).join('') || `<p class="st-muted st-col-empty">${esc(T('emptyCol'))}</p>`}
+        </section>`).join('')}</div>
+      ${by.closed.length ? `<details class="st-details st-closed"><summary>${esc(T('col_closed'))} (${by.closed.length})</summary><div class="st-list">${by.closed.map(sessionCard).join('')}</div></details>` : ''}`
+    : `<div class="st-empty"><p>${esc(T('emptyDay'))}</p><button type="button" class="ph-btn is-primary" data-empty-book>${esc(T('book'))}</button></div>`}`;
+
+  el.querySelector('[data-empty-book]')?.addEventListener('click', () => openBookingSheet({ when: `${_date}T${nextSlot()}` }));
+  el.querySelectorAll('[data-col-tab]').forEach(b => {
+    b.onclick = () => { _boardTab = b.dataset.colTab; el.querySelectorAll('[data-col-tab]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); el.querySelectorAll('[data-col]').forEach(c => c.classList.toggle('is-active', c.dataset.col === _boardTab)); };
+  });
+  el.querySelectorAll('[data-accept]').forEach(b => {
+    b.onclick = () => {
+      const a = res.requests.find(r => r.id === b.dataset.accept);
+      openBookingSheet({
+        appointmentId: a.id, when: a.starts_at ? toLocalInput(a.starts_at) : `${_date}T${(a.appt_time || '10:00').slice(0, 5)}`,
+        pet: { pet_id: a.pet_id, pet_name: a.pets?.name || a.pet_name, species: a.pets?.species || 'dog', owner_name: '', owner_phone: '', pet: a.pets },
+        services: (a.services || []).map(n => ({ name: n, price: 0 })), notes: a.customer_notes,
+      });
+    };
+  });
+  const byId = Object.fromEntries(sessions.map(s => [s.id, s]));
+  el.querySelectorAll('[data-step]').forEach(b => { b.onclick = e => { e.stopPropagation(); step(byId[b.dataset.id], b.dataset.step, b); }; });
+  el.querySelectorAll('[data-pct]').forEach(b => { b.onclick = e => { e.stopPropagation(); setProgress(byId[b.dataset.id], Number(b.dataset.pct)); }; });
+  el.querySelectorAll('[data-open]').forEach(card => {
+    const open = () => openDetail(byId[card.dataset.open]);
+    card.onclick = open;
+    card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
   });
 }
 
-function _sessionCard(s) {
-  const elapsed = s.start_time ? _elapsed(new Date(s.start_time)) : null;
-  const progress = s.progress || 0;
-  const svcs  = Array.isArray(s.services) ? s.services : [];
-  const total = svcs.reduce((sum, sv) => sum + (sv.price || 0), 0);
+const toLocalInput = iso => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 16);
+const fromLocalInput = v => (v ? new Date(`${v}:00+07:00`).toISOString() : null);
 
-  const STATUS = {
-    waiting:     { label: 'รอ',         cls: 'badge-gold',                    border: 'border-l-amber-400' },
-    in_progress: { label: 'กำลังทำ',   cls: 'bg-primary-subtle text-primary', border: 'border-l-primary' },
-    done:        { label: 'เสร็จแล้ว', cls: 'badge-navy',                     border: 'border-l-slate-300' },
-  };
-  const cfg = STATUS[s.status] || STATUS.waiting;
-
+function sessionCard(s) {
+  const care = s.care_profile || {};
+  const list = (s.services || []).map(x => (typeof x === 'string' ? x : x.name)).filter(Boolean);
+  const flags = [care.muzzle && T('muzzle'), care.sensitive_skin && T('sensitive'), care.senior && T('senior'), care.matted && T('matted')].filter(Boolean);
+  const next = { booked: [['arrive', 'arrived', 'is-primary']], waiting: [['start', 'start', 'is-primary']], in_progress: [['complete', 'finish', 'is-primary']], done: [['pickup', 'pickedUp', 'is-primary']] }[s.status] || [];
   return `
-    <div class="card border-l-4 ${cfg.border} p-4 ${s.status==='done' ? 'opacity-60' : ''}">
-      <div class="flex items-start gap-3">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-semibold text-navy">${s.pet_name || '—'}</span>
-            <span class="badge ${cfg.cls} text-xs">${cfg.label}</span>
-          </div>
-          <div class="text-sm text-slate-500 font-body mt-0.5">
-            ${s.owner_name ? `เจ้าของ: ${s.owner_name} · ` : ''}${s.estimated_minutes} นาที
-            ${elapsed ? `· เริ่มมา ${elapsed}` : ''}
-          </div>
-          ${svcs.length ? `<div class="flex flex-wrap gap-1 mt-2">
-            ${svcs.map(sv=>`<span class="badge badge-navy text-xs">${sv.icon||''} ${sv.name}</span>`).join('')}
-            <span class="text-xs text-primary font-semibold ml-1">฿${total.toLocaleString()}</span>
-          </div>` : ''}
-          ${s.status === 'in_progress' ? `
-            <div class="mt-2">
-              <div class="flex justify-between text-xs text-slate-400 font-body mb-1">
-                <span>ความคืบหน้า</span><span>${progress}%</span>
-              </div>
-              <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all duration-500 ${progress<50?'bg-primary':progress<80?'bg-amber-400':'bg-orange-500'}"
-                     style="width:${progress}%"></div>
-              </div>
-            </div>` : ''}
-        </div>
-        <div class="flex flex-col gap-2 flex-shrink-0">
-          ${s.status === 'waiting' ? `
-            <button data-action="services" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">บริการ</button>
-            <button data-action="start" data-id="${s.id}" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">เริ่ม</button>` : ''}
-          ${s.status === 'in_progress' ? `
-            <button data-action="services" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">แก้ไขบริการ</button>
-            <div class="flex gap-1">
-              ${[25,50,75].map(p => `<button data-action="progress" data-id="${s.id}" data-pct="${p}"
-                class="text-xs border border-slate-200 text-slate-500 px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors
-                       ${progress >= p ? 'bg-primary-subtle border-primary text-primary' : ''}">${p}%</button>`).join('')}
-            </div>
-            <button data-action="complete" data-id="${s.id}" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">✓ เสร็จสิ้น</button>` : ''}
-          ${s.status === 'done' ? `
-            <button data-action="print" data-id="${s.id}" class="text-xs border border-slate-200 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">รายงาน</button>` : ''}
+    <article class="st-card is-session is-${s.status}" data-open="${s.id}" tabindex="0" role="button">
+      <div class="st-session-top">
+        <span class="st-time">${s.scheduled_at ? esc(fmtTime(s.scheduled_at)) : '—'}</span>
+        <span class="st-avatar is-sm">${speciesEmoji(s.species)}</span>
+        <div class="min-w-0 flex-1">
+          <p class="st-strong">${esc(s.pet_name)}${s.appointment_id ? ` <span class="st-chip is-app">${esc(T('fromApp'))}</span>` : ''}</p>
+          <p class="st-muted truncate">${esc([s.owner_name, s.owner_phone].filter(Boolean).join(' · ') || speciesLabel(s.species))}</p>
         </div>
       </div>
-    </div>`;
+      ${list.length ? `<p class="st-services">${list.map(n => `<span>${esc(n)}</span>`).join('')}</p>` : ''}
+      ${flags.length || care.temperament ? `<p class="st-flags">${flags.map(f => `<span class="st-chip is-warn">${esc(f)}</span>`).join('')}${care.temperament ? `<span class="st-chip">${esc(care.temperament)}</span>` : ''}</p>` : ''}
+      <p class="st-meta">${s.groomer_name ? `✂ ${esc(s.groomer_name)} · ` : ''}${esc(s.estimated_minutes)}′${Number(s.total_amount) ? ` · ${esc(baht(s.total_amount))}` : ''}</p>
+      ${s.status === 'in_progress' ? `
+        <div class="st-progress"><i style="width:${s.progress || 0}%"></i></div>
+        <div class="st-progress-row"><span class="st-muted" data-elapsed="${esc(s.start_time || '')}"></span>${[50, 75].map(p => `<button type="button" class="so-tab" data-pct="${p}" data-id="${s.id}">${p}%</button>`).join('')}</div>` : ''}
+      ${s.status === 'picked_up' || s.status === 'cancelled' || s.status === 'no_show' ? `<p class="st-muted">${esc(s.status === 'picked_up' ? T('pickedUp') : s.status === 'no_show' ? T('noShow') : `${T('cancel')}${s.cancelled_reason ? ` · ${s.cancelled_reason}` : ''}`)}</p>` : ''}
+      ${next.length ? `<div class="st-card-actions">${next.map(([a, l, c]) => `<button type="button" class="ph-btn ${c}" data-step="${a}" data-id="${s.id}">${esc(T(l))}</button>`).join('')}</div>` : ''}
+    </article>`;
 }
 
-async function _updateProgress(id, pct, container) {
-  const res = await apiFetch(`/api/grooming/${id}`, { method: 'PATCH', body: JSON.stringify({ progress: pct }) });
-  if (res?.success) await _render(container);
-  else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
+function updateElapsed() {
+  _container?.querySelectorAll('[data-elapsed]').forEach(e => {
+    if (!e.dataset.elapsed) return;
+    e.textContent = T('elapsed', { m: Math.max(0, Math.round((Date.now() - Date.parse(e.dataset.elapsed)) / 60000)) });
+  });
 }
 
-async function _startSession(id, container) {
-  const res = await apiFetch(`/api/grooming/${id}/start`, { method: 'PATCH', body: '{}' });
-  if (res?.success) { await _render(container); showToast('เริ่มบริการแล้ว'); }
-  else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
+async function call(s, action, body = {}) {
+  const res = await apiFetch(`/api/grooming/${s.id}/${action}`, { method: 'PATCH', body: JSON.stringify({ store_id: _storeId, ...body }) }).catch(() => null);
+  if (!res?.success) { showToast(apiError(res), 'error'); return null; }
+  showToast(res.appointment_sync_error ? T('appSyncFail') : T('saved'), res.appointment_sync_error ? 'info' : 'success');
+  return res.data;
 }
 
-function _openServicesModal(session, container) {
-  const selected = new Set((session.services || []).map(s => s.id));
-  const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
-  modal.innerHTML = `
-    <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
-      <h3 class="font-bold text-navy text-lg">บริการ — ${session.pet_name}</h3>
-      <div class="space-y-2">
-        ${SERVICES.map(sv => `
-          <label class="flex items-center justify-between p-3 rounded-xl border cursor-pointer
-                         ${selected.has(sv.id) ? 'border-primary bg-primary-subtle' : 'border-slate-100 hover:border-primary'} transition-all">
-            <div class="flex items-center gap-2">
-              <input type="checkbox" value="${sv.id}" ${selected.has(sv.id) ? 'checked' : ''} class="w-4 h-4 accent-primary">
-              <span class="text-lg">${sv.icon}</span>
-              <span class="font-semibold text-navy text-sm">${sv.name}</span>
-            </div>
-            <span class="text-sm font-semibold text-primary">฿${sv.price}</span>
-          </label>`).join('')}
+async function step(s, action, btn) {
+  if (action === 'complete') { openReport(s); return; }
+  if (btn) btn.disabled = true;
+  const done = await call(s, action);
+  if (done) { if (action === 'arrive') _boardTab = 'waiting'; if (action === 'start') _boardTab = 'in_progress'; if (action === 'pickup') _boardTab = 'done'; load(); } else if (btn) btn.disabled = false;
+}
+
+async function setProgress(s, pct) {
+  const res = await apiFetch(`/api/grooming/${s.id}`, { method: 'PATCH', body: JSON.stringify({ store_id: _storeId, progress: pct }) }).catch(() => null);
+  if (res?.success) load(); else showToast(apiError(res), 'error');
+}
+
+async function catalog() {
+  if (_catalog) return _catalog;
+  const r = await apiFetch(`/api/service-items?store_id=${_storeId}&category=grooming`).catch(() => null);
+  const items = (r?.data || []).map(s => ({ name: s.name, price: Number(s.price || 0) }));
+  const li = ['th', 'en', 'zh', 'ja', 'ko'].indexOf(getLang());
+  _catalog = items.length ? items : PRESETS.map(p => ({ name: p.name[li] || p.name[0], price: p.price }));
+  return _catalog;
+}
+
+async function openBookingSheet({ when = null, walkIn = false, appointmentId = null, pet = null, services = [], notes = '', session = null } = {}) {
+  const editing = Boolean(session);
+  const sheet = openSheet({ title: editing ? `${T('edit')} · ${session.pet_name}` : walkIn ? T('walkIn') : appointmentId ? T('accept') : T('book'), wide: true });
+  const items = await catalog();
+  const selected = new Map((session?.services || services).map(s => (typeof s === 'string' ? [s, 0] : [s.name, Number(s.price || 0)])));
+  for (const [n, p] of selected) { const c = items.find(i => i.name === n); if (c && !p) selected.set(n, c.price); }
+  const care = session?.care_profile || {};
+  const allServices = [...items, ...[...selected.keys()].filter(n => !items.some(i => i.name === n)).map(n => ({ name: n, price: selected.get(n) }))];
+
+  sheet.body.innerHTML = `
+    ${walkIn ? '' : `<section class="st-block"><p class="st-label">${esc(T('when'))}</p>
+      <div class="st-grid2"><label class="cx-field"><span>${esc(T('date'))} · ${esc(T('time'))}</span><input type="datetime-local" step="900" data-when value="${esc(session?.scheduled_at ? toLocalInput(session.scheduled_at) : when || '')}"></label>
+      <label class="cx-field"><span>${esc(T('duration'))}</span><input type="number" min="15" max="600" step="15" data-min value="${session?.estimated_minutes || 60}"></label></div>
+      <p class="st-warn" data-overlap hidden></p></section>`}
+    <section class="st-block"><p class="st-label">${esc(T('pet'))}</p><div data-picker></div></section>
+    <section class="st-block"><p class="st-label">${esc(T('services'))}</p>
+      <div class="st-service-pick">${allServices.map((s, i) => `<label><input type="checkbox" data-svc="${i}" ${selected.has(s.name) ? 'checked' : ''}><span>${esc(s.name)}</span><input type="number" min="0" step="10" data-svc-price="${i}" value="${selected.get(s.name) ?? s.price}" aria-label="${esc(T('price'))}"></label>`).join('')}</div>
+      <div class="st-log-add"><input class="cx-search" data-custom placeholder="${esc(T('customService').replace('+ ', ''))}" maxlength="80"><button type="button" class="ph-btn" data-add-custom>${esc(T('add'))}</button></div>
+    </section>
+    <section class="st-block st-grid2">
+      <label class="cx-field"><span>${esc(T('groomer'))}</span><input data-groomer list="st-groomers" maxlength="80" value="${esc(session?.groomer_name || '')}"><datalist id="st-groomers">${_groomers.map(g => `<option value="${esc(g)}">`).join('')}</datalist></label>
+      ${walkIn ? `<label class="cx-field"><span>${esc(T('duration'))}</span><input type="number" min="15" max="600" step="15" data-min value="60"></label>` : ''}
+    </section>
+    <details class="st-details" ${editing || pet ? 'open' : ''}><summary>${esc(T('groomNotes'))}</summary>
+      <div class="st-grid2">
+        <label class="cx-field"><span>${esc(T('coat'))}</span><input data-c="coat" maxlength="200" value="${esc(care.coat || '')}"></label>
+        <label class="cx-field"><span>${esc(T('size'))}</span><select class="st-select" data-c="size">${['', 'S', 'M', 'L', 'XL'].map(z => `<option value="${z}" ${care.size === z ? 'selected' : ''}>${z ? esc(T(`size${z}`)) : '—'}</option>`).join('')}</select></label>
+        <label class="cx-field"><span>${esc(T('style'))}</span><input data-c="style" maxlength="200" value="${esc(care.style || '')}"></label>
+        <label class="cx-field"><span>${esc(T('temper'))}</span><input data-c="temperament" maxlength="200" value="${esc(care.temperament || '')}"></label>
+        <label class="cx-field"><span>${esc(T('skin'))}</span><input data-c="skin_notes" maxlength="300" value="${esc(care.skin_notes || '')}"></label>
       </div>
-      <div id="svc-total" class="text-right font-bold text-primary text-lg"></div>
-      <div class="flex gap-3">
-        <button id="svc-cancel" class="btn-outline flex-1">ยกเลิก</button>
-        <button id="svc-save"   class="btn-primary flex-1">บันทึก</button>
-      </div>
-    </div>`;
+      <div class="st-checks">${[['muzzle', 'muzzle'], ['sensitive_skin', 'sensitive'], ['senior', 'senior'], ['matted', 'matted']].map(([k, l]) => `<label><input type="checkbox" data-c="${k}" ${care[k] ? 'checked' : ''}> ${esc(T(l))}</label>`).join('')}</div>
+      <label class="cx-field"><span>${esc(T('notes'))}</span><textarea rows="2" data-notes maxlength="2000">${esc(session?.notes || notes || '')}</textarea></label>
+    </details>`;
+  sheet.foot.innerHTML = `<p class="st-total" data-total></p><span class="flex-1"></span><button type="button" class="ph-btn" data-sh-close>${esc(T('cancel'))}</button><button type="button" class="ph-btn is-primary" data-save>${esc(editing ? T('save') : walkIn ? T('arrived') : T('saveBooking'))}</button>`;
+  const $ = s => sheet.body.querySelector(s);
 
-  const calcTotal = () => {
-    const checked = [...modal.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
-    const total   = SERVICES.filter(s => checked.includes(s.id)).reduce((sum, s) => sum + s.price, 0);
-    modal.querySelector('#svc-total').textContent = `รวม ฿${total.toLocaleString()}`;
+  const picker = petPicker({ storeId: _storeId, initial: session ? { pet_id: session.pet_id, pet_name: session.pet_name, species: session.species, owner_name: session.owner_name, owner_phone: session.owner_phone, pet: session.pets } : pet });
+  $('[data-picker]').appendChild(picker.el);
+
+  const readServices = () => allServices.map((s, i) => ($(`[data-svc="${i}"]`)?.checked ? { name: s.name, price: Number($(`[data-svc-price="${i}"]`).value || 0) } : null)).filter(Boolean);
+  const total = () => { sheet.foot.querySelector('[data-total]').innerHTML = `${esc(T('total'))} <b>${esc(baht(readServices().reduce((n, s) => n + s.price, 0)))}</b>`; };
+  sheet.body.addEventListener('input', e => { if (e.target.matches('[data-svc],[data-svc-price]')) total(); if (e.target.matches('[data-when],[data-min],[data-groomer]')) checkOverlap(); });
+  sheet.body.addEventListener('change', e => { if (e.target.matches('[data-svc]')) total(); });
+  $('[data-add-custom]').onclick = () => {
+    const name = $('[data-custom]').value.trim();
+    if (!name) return;
+    allServices.push({ name, price: 0 });
+    const i = allServices.length - 1;
+    $('.st-service-pick').insertAdjacentHTML('beforeend', `<label><input type="checkbox" data-svc="${i}" checked><span>${esc(name)}</span><input type="number" min="0" step="10" data-svc-price="${i}" value="0" aria-label="${esc(T('price'))}"></label>`);
+    $('[data-custom]').value = '';
+    total();
   };
-  modal.querySelectorAll('input[type=checkbox]').forEach(c => c.addEventListener('change', calcTotal));
-  calcTotal();
-  document.body.appendChild(modal);
+  total();
 
-  modal.querySelector('#svc-cancel').addEventListener('click', () => modal.remove());
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  modal.querySelector('#svc-save').addEventListener('click', async () => {
-    const checked  = [...modal.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
-    const services = SERVICES.filter(s => checked.includes(s.id));
-    const res = await apiFetch(`/api/grooming/${session.id}`, { method: 'PATCH', body: JSON.stringify({ services }) });
-    if (res?.success) { modal.remove(); await _render(container); showToast('บันทึกบริการแล้ว'); }
-    else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
-  });
+  let others = [];
+  async function checkOverlap() {
+    const box = $('[data-overlap]');
+    if (!box) return;
+    const at = $('[data-when]').value, g = $('[data-groomer]').value.trim();
+    if (!at || !g) { box.hidden = true; return; }
+    const day = at.slice(0, 10);
+    if (!others.day || others.day !== day) {
+      const r = await apiFetch(`/api/grooming?store_id=${_storeId}&date=${day}`).catch(() => null);
+      others = Object.assign(r?.data || [], { day });
+    }
+    const start = Date.parse(fromLocalInput(at)), end = start + Number($('[data-min]').value || 60) * 60000;
+    const hit = others.find(o => o.id !== session?.id && o.groomer_name === g && o.scheduled_at && !['cancelled', 'no_show', 'picked_up'].includes(o.status)
+      && Date.parse(o.scheduled_at) < end && Date.parse(o.scheduled_at) + o.estimated_minutes * 60000 > start);
+    box.hidden = !hit;
+    if (hit) box.textContent = T('overlap', { g, t: fmtTime(hit.scheduled_at) });
+  }
+
+  sheet.foot.querySelector('[data-save]').onclick = async e => {
+    const p = picker.get();
+    if (!p) { showToast(T('pet_required'), 'error'); return; }
+    const careOut = {};
+    sheet.body.querySelectorAll('[data-c]').forEach(i => { careOut[i.dataset.c] = i.type === 'checkbox' ? i.checked : i.value.trim(); });
+    const body = {
+      store_id: _storeId, pet_id: p.pet_id, pet_name: p.pet_name, species: p.species, owner_name: p.owner_name, owner_phone: p.owner_phone,
+      services: readServices(), groomer_name: $('[data-groomer]').value.trim(), estimated_minutes: Number($('[data-min]')?.value || 60),
+      care_profile: careOut, notes: $('[data-notes]').value.trim(),
+    };
+    if (!walkIn) body.scheduled_at = fromLocalInput($('[data-when]').value);
+    if (!editing) { body.appointment_id = appointmentId; body.arrived_now = walkIn; }
+    e.target.disabled = true;
+    const res = await apiFetch(editing ? `/api/grooming/${session.id}` : '/api/grooming', { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(body) }).catch(() => null);
+    if (!res?.success) { showToast(apiError(res), 'error'); e.target.disabled = false; return; }
+    showToast(res.appointment_sync_error ? T('appSyncFail') : T('saved'), res.appointment_sync_error ? 'info' : 'success');
+    if (!editing && body.scheduled_at) { _date = toLocalInput(body.scheduled_at).slice(0, 10); _container.querySelector('[data-date]').value = _date; }
+    _boardTab = walkIn ? 'waiting' : _boardTab;
+    sheet.close(); load();
+  };
 }
 
-function _openCompleteModal(session, container) {
-  const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
-  modal.innerHTML = `
-    <div class="bg-white rounded-xl2 shadow-card-hover p-6 w-full max-w-md space-y-4">
-      <h3 class="font-bold text-navy text-lg">รายงานสุขภาพหลัง Grooming</h3>
-      <p class="text-sm text-slate-500 font-body">สัตว์เลี้ยง: <strong>${session.pet_name}</strong></p>
-      <div class="space-y-2">
-        ${[['skin','ผิวหนัง'],['coat','ขน'],['ear','หู'],['nail','เล็บ'],['eye','ตา']].map(([k,l]) => `
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold text-navy">${l}</span>
-            <div class="flex gap-2">
-              <label class="flex items-center gap-1 text-sm cursor-pointer">
-                <input type="radio" name="${k}" value="normal" checked class="accent-primary"> ปกติ
-              </label>
-              <label class="flex items-center gap-1 text-sm cursor-pointer text-orange-500">
-                <input type="radio" name="${k}" value="abnormal" class="accent-orange-500"> ผิดปกติ
-              </label>
-            </div>
-          </div>`).join('')}
+async function openDetail(s) {
+  const sheet = openSheet({ title: `${s.pet_name}`, subtitle: s.scheduled_at ? `${fmtDay(toLocalInput(s.scheduled_at).slice(0, 10), { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.scheduled_at)}` : '', wide: true });
+  const r = await apiFetch(`/api/grooming/${s.id}?store_id=${_storeId}`).catch(() => null);
+  const full = r?.data || s;
+  const care = full.care_profile || {};
+  const list = (full.services || []).map(x => (typeof x === 'string' ? { name: x, price: 0 } : x));
+  const rep = full.health_report || null;
+  const kv = (l, v) => v ? `<div class="st-kv"><span>${esc(l)}</span><p>${esc(v)}</p></div>` : '';
+  sheet.body.innerHTML = `
+    <div class="st-detail-head">
+      <span class="st-avatar is-lg">${full.pets?.avatar_url ? `<img src="${esc(full.pets.avatar_url)}" alt="">` : speciesEmoji(full.species)}</span>
+      <div class="min-w-0 flex-1">
+        <p class="st-strong">${esc(full.pet_name)} <span class="st-muted">· ${esc(speciesLabel(full.species))}</span> <span class="st-status is-g-${full.status}">${esc(T(`col_${COLS.includes(full.status) ? full.status : 'closed'}`))}</span></p>
+        <p class="st-muted">${esc([full.owner_name, full.owner_phone].filter(Boolean).join(' · ') || '—')}${full.owner_phone ? ` · <a class="st-link" href="tel:${esc(full.owner_phone.replace(/[^\d+]/g, ''))}">${esc(T('phone'))}</a>` : ''}</p>
+        ${petFacts(full.pets)}
       </div>
-      <div>
-        <label class="input-label">หมายเหตุ</label>
-        <textarea id="complete-notes" rows="2" class="input-field resize-none" placeholder="ข้อสังเกตอื่นๆ..."></textarea>
-      </div>
-      <div class="flex gap-3">
-        <button id="complete-cancel" class="btn-outline flex-1">ยกเลิก</button>
-        <button id="complete-confirm" class="btn-primary flex-1">✓ เสร็จสิ้น</button>
-      </div>
-    </div>`;
+    </div>
+    <section class="st-block"><p class="st-label">${esc(T('services'))}</p>
+      <dl class="st-bill">${list.map(x => `<div><dt>${esc(x.name)}</dt><dd>${esc(baht(x.price))}</dd></div>`).join('')}<div class="is-total"><dt>${esc(T('total'))}</dt><dd>${esc(baht(full.total_amount))}</dd></div></dl>
+      <p class="st-meta">${full.groomer_name ? `✂ ${esc(full.groomer_name)} · ` : ''}${esc(full.estimated_minutes)}′</p>
+    </section>
+    <section class="st-block"><p class="st-label">${esc(T('groomNotes'))}</p>
+      ${kv(T('coat'), care.coat)}${kv(T('size'), care.size ? T(`size${care.size}`) : '')}${kv(T('style'), care.style)}${kv(T('temper'), care.temperament)}${kv(T('skin'), care.skin_notes)}
+      <p class="st-flags">${[care.muzzle && T('muzzle'), care.sensitive_skin && T('sensitive'), care.senior && T('senior'), care.matted && T('matted')].filter(Boolean).map(f => `<span class="st-chip is-warn">${esc(f)}</span>`).join('')}</p>
+      ${kv(T('notes'), full.notes)}
+    </section>
+    ${rep ? `<section class="st-block"><p class="st-label">${esc(T('report'))}</p>${['skin', 'ears', 'nails', 'teeth', 'parasites'].map(k => kv(T(`r${k[0].toUpperCase()}${k.slice(1)}`), rep[k])).join('')}${kv(T('rNote'), rep.note)}</section>` : ''}`;
 
-  document.body.appendChild(modal);
-  modal.querySelector('#complete-cancel').addEventListener('click', () => modal.remove());
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  modal.querySelector('#complete-confirm').addEventListener('click', async () => {
-    const report = { checklist: {}, notes: modal.querySelector('#complete-notes').value.trim() };
-    ['skin','coat','ear','nail','eye'].forEach(k => {
-      report.checklist[k] = modal.querySelector(`input[name="${k}"]:checked`)?.value || 'normal';
-    });
-    report.referred_to_clinic = Object.values(report.checklist).some(v => v === 'abnormal');
-    const res = await apiFetch(`/api/grooming/${session.id}/complete`, { method: 'PATCH', body: JSON.stringify({ health_report: report }) });
-    if (res?.success) { modal.remove(); await _render(container); showToast('บันทึกเสร็จสิ้นแล้ว' + (report.referred_to_clinic ? 'พบความผิดปกติ' : '')); }
-    else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
-  });
-}
-
-function _elapsed(since) {
-  const mins = Math.floor((Date.now() - since) / 60000);
-  if (mins < 60) return `${mins} นาที`;
-  return `${Math.floor(mins/60)} ชม. ${mins%60} นาที`;
-}
-
-// ─── Pet search (walk-in) ─────────────────────────────────────────────────────
-
-function _bindGroomSearch(container) {
-  const input    = container.querySelector('#ga-search');
-  const dropdown = container.querySelector('#ga-dropdown');
-  if (!input || !dropdown) return;
-  const EMOJI = { dog: '', cat: '', rabbit: '', bird: '', other: '' };
-  let timer;
-
-  input.addEventListener('input', () => {
-    _selPet = null; _updateGroomChip(container);
-    clearTimeout(timer);
-    const q = input.value.trim();
-    if (q.length < 2) { dropdown.classList.add('hidden'); return; }
-
-    timer = setTimeout(async () => {
-      const res    = await apiFetch(`/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`);
-      const owners = res?.data || [];
-      if (!owners.length) {
-        dropdown.innerHTML = `<div class="px-4 py-3 text-slate-400 font-body text-sm">ไม่พบ "${q}" — <button id="gg-reg" class="text-primary underline text-xs">ลงทะเบียนใหม่</button></div>`;
-        dropdown.classList.remove('hidden');
-        dropdown.querySelector('#gg-reg')?.addEventListener('click', () => { dropdown.classList.add('hidden'); _groomRegister(container); });
+  const acts = [];
+  if (['booked', 'waiting'].includes(full.status)) acts.push(`<button type="button" class="ph-btn is-danger" data-a="cancel">${esc(T('cancelAppt'))}</button>`);
+  if (full.status === 'booked') acts.push(`<button type="button" class="ph-btn" data-a="no-show">${esc(T('noShow'))}</button>`);
+  acts.push('<span class="flex-1"></span>');
+  if (rep) acts.push(`<button type="button" class="ph-btn" data-a="print">${esc(T('printReport'))}</button>`);
+  if (!['picked_up', 'cancelled', 'no_show'].includes(full.status)) acts.push(`<button type="button" class="ph-btn" data-a="edit">${esc(T('edit'))}</button>`);
+  const next = { booked: ['arrive', 'arrived'], waiting: ['start', 'start'], in_progress: ['complete', 'finish'], done: ['pickup', 'pickedUp'] }[full.status];
+  if (next) acts.push(`<button type="button" class="ph-btn is-primary" data-a="${next[0]}">${esc(T(next[1]))}</button>`);
+  sheet.foot.innerHTML = acts.join('');
+  sheet.foot.querySelectorAll('[data-a]').forEach(b => {
+    b.onclick = async () => {
+      const a = b.dataset.a;
+      if (a === 'edit') { sheet.close(); openBookingSheet({ session: full }); return; }
+      if (a === 'print') { printReport(full); return; }
+      if (a === 'complete') { sheet.close(); openReport(full); return; }
+      if (a === 'cancel') {
+        const reason = await askReason(openSheet, { title: T('cancelAppt'), presets: T('cancelPresets').split(',') });
+        if (!reason) return;
+        if (await call(full, 'cancel', { reason })) { sheet.close(); load(); }
         return;
       }
-      const rows = [];
-      for (const o of owners) {
-        for (const p of (o.pets || [])) rows.push({ pet_id: p.id, pet_name: p.name, species: p.species, owner_name: o.name });
-        if (!(o.pets || []).length) rows.push({ _no_pet: true, owner_name: o.name });
-      }
-      dropdown.innerHTML = rows.map((r, i) => r._no_pet
-        ? `<div class="px-4 py-2 text-xs text-slate-400 font-body">${r.owner_name} — ยังไม่มีสัตว์เลี้ยง</div>`
-        : `<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-primary-subtle cursor-pointer transition-colors" data-ri="${i}">
-             <span>${EMOJI[r.species]||''}</span>
-             <div><div class="font-semibold text-navy text-sm">${r.pet_name}</div>
-             <div class="text-xs text-slate-400 font-body">เจ้าของ: ${r.owner_name}</div></div>
-           </div>`).join('')
-        + `<div class="border-t px-4 py-2"><button id="gg-reg2" class="text-xs text-primary hover:underline font-body">+ ลูกค้าใหม่</button></div>`;
-      dropdown.classList.remove('hidden');
-      dropdown.querySelectorAll('[data-ri]').forEach(el => {
-        el.addEventListener('click', () => {
-          const r = rows[parseInt(el.dataset.ri)];
-          _selPet = r; input.value = r.pet_name; _updateGroomChip(container); dropdown.classList.add('hidden');
-        });
-      });
-      dropdown.querySelector('#gg-reg2')?.addEventListener('click', () => { dropdown.classList.add('hidden'); _groomRegister(container); });
-    }, 300);
-  });
-  input.addEventListener('blur', () => setTimeout(() => dropdown.classList.add('hidden'), 200));
-  container.querySelector('#ga-deselect')?.addEventListener('click', () => {
-    _selPet = null; input.value = ''; _updateGroomChip(container); input.focus();
+      b.disabled = true;
+      if (await call(full, a)) { sheet.close(); load(); } else b.disabled = false;
+    };
   });
 }
 
-function _updateGroomChip(container) {
-  const el   = container.querySelector('#ga-selected');
-  const chip = container.querySelector('#ga-chip');
-  if (!el || !chip) return;
-  if (_selPet) {
-    chip.textContent = `${_selPet.pet_name} · ${_selPet.owner_name}`;
-    el.classList.remove('hidden'); el.classList.add('flex');
-  } else {
-    el.classList.add('hidden'); el.classList.remove('flex');
-  }
+function openReport(s) {
+  const sheet = openSheet({ title: `${T('report')} · ${s.pet_name}` });
+  const rows = [['skin', 'rSkin'], ['ears', 'rEars'], ['nails', 'rNails'], ['teeth', 'rTeeth'], ['parasites', 'rParasites']];
+  sheet.body.innerHTML = `${rows.map(([k, l]) => `<label class="cx-field"><span>${esc(T(l))}</span><input data-r="${k}" placeholder="${esc(T('normal'))}" maxlength="200"></label>`).join('')}
+    <label class="cx-field"><span>${esc(T('rNote'))}</span><textarea rows="3" data-r="note" maxlength="1000"></textarea></label>`;
+  sheet.foot.innerHTML = `<span class="flex-1"></span><button type="button" class="ph-btn" data-sh-close>${esc(T('cancel'))}</button><button type="button" class="ph-btn is-primary" data-ok>${esc(T('finish'))}</button>`;
+  sheet.foot.querySelector('[data-ok]').onclick = async e => {
+    e.target.disabled = true;
+    const report = Object.fromEntries([...sheet.body.querySelectorAll('[data-r]')].map(i => [i.dataset.r, i.value.trim() || (i.dataset.r === 'note' ? '' : T('normal'))]));
+    if (await call(s, 'complete', { health_report: report })) { _boardTab = 'done'; sheet.close(); load(); } else e.target.disabled = false;
+  };
 }
 
-async function _handleGroomWalkin(container) {
-  const search = container.querySelector('#ga-search');
-  const freeText = search?.value.trim() || '';
-  const pet_name   = _selPet?.pet_name   || freeText;
-  const owner_name = _selPet?.owner_name || '';
-  if (!pet_name) { showToast('กรุณาค้นหาหรือกรอกชื่อสัตว์เลี้ยง', 'error'); return; }
-
-  const btn = container.querySelector('#ga-submit');
-  if (btn) { btn.disabled = true; btn.textContent = '...'; }
-
-  const res = await apiFetch('/api/grooming', { method: 'POST', body: JSON.stringify({
-    store_id: _storeId,
-    pet_id:   _selPet?.pet_id   || null,
-    pet_name,
-    owner_name,
-    species:  _selPet?.species  || 'dog',
-    estimated_minutes: parseInt(container.querySelector('#ga-time')?.value) || 60,
-  })});
-
-  if (btn) { btn.disabled = false; btn.textContent = '+ รับลูกค้า'; }
-  if (res?.success) {
-    if (search) search.value = '';
-    _selPet = null; _updateGroomChip(container);
-    await _render(container); showToast(`รับ ${pet_name} แล้ว`);
-  } else showToast(res?.error || 'เกิดข้อผิดพลาด', 'error');
-}
-
-function _groomRegister(container) {
-  // reuse same 2-step owner+pet registration pattern
-  const m = document.createElement('div');
-  m.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
-  m.innerHTML = `
-    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
-      <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 1/2 เจ้าของ</h3>
-      <div><label class="input-label">ชื่อ *</label><input id="rg-name" class="input-field" placeholder="คุณสมชาย" autofocus></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="input-label">เบอร์โทร *</label><input id="rg-phone" class="input-field" type="tel" placeholder="0812345678"></div>
-        <div><label class="input-label">อีเมล</label><input id="rg-email" class="input-field" type="email"></div>
-      </div>
-      <div class="flex gap-3">
-        <button id="rg-cancel" class="btn-outline flex-1">ยกเลิก</button>
-        <button id="rg-next" class="btn-primary flex-1">ถัดไป →</button>
-      </div>
-    </div>`;
-  document.body.appendChild(m);
-  m.querySelector('#rg-cancel').addEventListener('click', () => m.remove());
-  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
-
-  m.querySelector('#rg-next').addEventListener('click', async () => {
-    const name = m.querySelector('#rg-name').value.trim();
-    const phone= m.querySelector('#rg-phone').value.trim();
-    if (!name || !phone) { showToast('กรุณากรอกชื่อและเบอร์', 'error'); return; }
-    const btn = m.querySelector('#rg-next');
-    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-    const res = await apiFetch('/api/pets/owners', { method: 'POST', body: JSON.stringify({ name, phone, email: m.querySelector('#rg-email').value.trim()||null, store_id: _storeId }) });
-    if (!res?.success) { showToast(res?.error||'เกิดข้อผิดพลาด','error'); btn.disabled=false; btn.textContent='ถัดไป →'; return; }
-    m.remove();
-    const owner = res.data;
-    const m2 = document.createElement('div');
-    m2.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto';
-    m2.innerHTML = `
-      <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
-        <h3 class="font-bold text-navy text-lg">ลูกค้าใหม่ — 2/2 สัตว์เลี้ยง</h3>
-        <div class="bg-primary-subtle rounded-xl px-4 py-2 text-sm text-primary-dark font-semibold">${owner.name} · ${owner.phone||''}</div>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="input-label">ชื่อสัตว์เลี้ยง *</label><input id="rp-name" class="input-field" placeholder="บัดดี้" autofocus></div>
-          <div><label class="input-label">ชนิด</label>
-            <select id="rp-species" class="input-field">
-              <option value="dog">สุนัข</option><option value="cat">แมว</option><option value="rabbit">กระต่าย</option><option value="bird">นก</option><option value="other">อื่นๆ</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex gap-3">
-          <button id="rp-cancel" class="btn-outline flex-1">ยกเลิก</button>
-          <button id="rp-save" class="btn-primary flex-1">บันทึก + เลือก</button>
-        </div>
-      </div>`;
-    document.body.appendChild(m2);
-    m2.querySelector('#rp-cancel').addEventListener('click', () => m2.remove());
-    m2.addEventListener('click', e => { if (e.target === m2) m2.remove(); });
-    m2.querySelector('#rp-save').addEventListener('click', async () => {
-      const petName = m2.querySelector('#rp-name').value.trim();
-      const species = m2.querySelector('#rp-species').value;
-      if (!petName) { showToast('กรุณากรอกชื่อสัตว์', 'error'); return; }
-      const b2 = m2.querySelector('#rp-save'); b2.disabled=true; b2.textContent='กำลังบันทึก...';
-      const pr = await apiFetch('/api/pets', { method:'POST', body: JSON.stringify({ owner_id: owner.id, store_id: _storeId, name: petName, species }) });
-      if (!pr?.success) { showToast(pr?.error||'เกิดข้อผิดพลาด','error'); b2.disabled=false; b2.textContent='บันทึก + เลือก'; return; }
-      const pet = pr.data;
-      _selPet = { pet_id: pet.id, pet_name: pet.name, species: pet.species, owner_name: owner.name };
-      const search = container.querySelector('#ga-search');
-      if (search) search.value = pet.name;
-      _updateGroomChip(container);
-      showToast(`ลงทะเบียน ${petName} แล้ว — กด "+ รับลูกค้า"`);
-      m2.remove();
-    });
-  });
-}
-
-// ─── Print grooming session report ───────────────────────────────────────────
-
-function _printGroomReport(session) {
-  const svcs    = Array.isArray(session.services) ? session.services : [];
-  const total   = svcs.reduce((s, v) => s + (v.price || 0), 0);
-  const report  = session.health_report || {};
-  const checks  = report.checklist || {};
-  const dateStr = new Date(session.end_time || session.created_at).toLocaleString('th-TH', {
-    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-  const checkLabels = { skin: 'ผิวหนัง', coat: 'ขน', ear: 'หู', nail: 'เล็บ', eye: 'ตา' };
-
-  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const storeName = localStorage.getItem('fufu_store_name') || 'ร้าน';
-
-  const html = `<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<title>รายงาน Grooming — ${esc(session.pet_name)}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Noto Sans Thai','Tahoma',sans-serif; font-size:12pt; color:#111;
-         padding:20mm; max-width:210mm; margin:auto; }
-  h1  { font-size:18pt; text-align:center; }
-  .sub{ text-align:center; font-size:10pt; color:#555; margin-bottom:6mm; }
-  hr  { border:none; border-top:1px solid #ccc; margin:5mm 0; }
-  h2  { font-size:13pt; border-left:4px solid #2A6374; padding-left:6px; margin:4mm 0 2mm; }
-  .svc-row { display:flex; justify-content:space-between; font-size:11pt; padding:2px 0; }
-  .total   { font-weight:bold; font-size:14pt; border-top:1px solid #ccc; padding-top:4px; margin-top:4px; }
-  .check   { display:flex; justify-content:space-between; padding:3px 0; font-size:11pt; }
-  .ok      { color:#2A6374; }
-  .abnormal{ color:#dc2626; font-weight:bold; }
-  .footer  { text-align:center; color:#aaa; font-size:10pt; margin-top:12mm; }
-  .print-btn { display:block; margin:8mm auto; padding:8px 24px; background:#2A6374;
-               color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-family:inherit; }
-  @media print { .print-btn { display:none !important; } body { padding:10mm; } }
-</style>
-</head>
-<body>
-  <h1>${esc(storeName)}</h1>
-  <p class="sub">ใบรายงานการ Grooming · ${dateStr}</p>
-  <hr>
-
-  <h2>ข้อมูลสัตว์เลี้ยง</h2>
-  <div class="svc-row"><span>ชื่อ</span><span>${esc(session.pet_name)}</span></div>
-  ${session.owner_name ? `<div class="svc-row"><span>เจ้าของ</span><span>${esc(session.owner_name)}</span></div>` : ''}
-  ${session.groomer_name ? `<div class="svc-row"><span>ช่าง Grooming</span><span>${esc(session.groomer_name)}</span></div>` : ''}
-
-  <h2>รายการบริการ</h2>
-  ${svcs.length ? svcs.map(s => `<div class="svc-row"><span>${esc(s.icon||'')} ${esc(s.name)}</span><span>฿${(s.price||0).toLocaleString('th-TH')}</span></div>`).join('')
-               : '<p style="color:#888">ไม่มีบริการ</p>'}
-  <div class="svc-row total"><span>รวม</span><span>฿${total.toLocaleString('th-TH')}</span></div>
-
-  ${Object.keys(checks).length ? `
-  <h2>รายงานสุขภาพ</h2>
-  ${Object.entries(checkLabels).map(([k, l]) =>
-    `<div class="check"><span>${l}</span>
-     <span class="${checks[k]==='abnormal'?'abnormal':'ok'}">${checks[k]==='abnormal'?'ผิดปกติ':'✓ ปกติ'}</span></div>`
-  ).join('')}
-  ${report.notes ? `<p style="margin-top:4px;font-size:10pt;color:#555;">หมายเหตุ: ${esc(report.notes)}</p>` : ''}
-  ${report.referred_to_clinic ? `<p style="margin-top:4px;color:#dc2626;font-weight:bold;">แนะนำพาพบสัตวแพทย์</p>` : ''}` : ''}
-
-  <div class="footer">ขอบคุณที่ใช้บริการ · Powered by FUFU Partner</div>
-  <button class="print-btn" data-print>พิมพ์ / บันทึก PDF</button>
-</body>
-</html>`;
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const tab  = window.open(url, '_blank');
-  bindPrintButton(tab);
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  if (!tab) showToast('กรุณาอนุญาต Pop-up', 'error');
+function printReport(s) {
+  const rep = s.health_report || {};
+  const w = window.open('', '_blank', 'noopener,width=480,height=640');
+  if (!w) return;
+  const row = (l, v) => v ? `<tr><th>${esc(l)}</th><td>${esc(v)}</td></tr>` : '';
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(T('report'))}</title>
+    <style>body{font:14px/1.6 system-ui,sans-serif;padding:24px;color:#1d3640}h1{font-size:18px;margin:0 0 4px}p{margin:0 0 16px;color:#5e7379}table{width:100%;border-collapse:collapse}th{text-align:left;width:40%;color:#5e7379;font-weight:500}th,td{padding:6px 0;border-bottom:1px solid #e4eae9}</style>
+    <h1>${esc(T('report'))} · ${esc(s.pet_name)}</h1><p>${esc(fmtDay(todayBkk(), { day: 'numeric', month: 'long', year: 'numeric' }))}${s.groomer_name ? ` · ${esc(s.groomer_name)}` : ''}</p>
+    <table>${row(T('services'), (s.services || []).map(x => (typeof x === 'string' ? x : x.name)).join(', '))}${row(T('rSkin'), rep.skin)}${row(T('rEars'), rep.ears)}${row(T('rNails'), rep.nails)}${row(T('rTeeth'), rep.teeth)}${row(T('rParasites'), rep.parasites)}${row(T('rNote'), rep.note)}</table>`);
+  w.document.close();
+  w.focus();
+  w.print();
 }
