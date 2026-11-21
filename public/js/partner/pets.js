@@ -4,6 +4,7 @@ import { speciesIcon } from '../utils/icons.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { formatHN, escapeHtml } from '../utils/formatters.js';
+import { openInviteSheet, openSharedSheet, openEmergencySheet, linkedOwnerIds, isClinicStore, linkText } from './clinic-link.js';
 
 const SPECIES = {
   dog:    { label: 'สุนัข',      emoji: '' },
@@ -73,6 +74,7 @@ function _shellHTML(activeTab) {
   const userIco     = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>`;
   return `
     <div class="space-y-4 w-full">
+      <div class="cl-pets-head">
       <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         ${[
           { id: 'appointments', label: 'นัดหมาย',     ico: calendarIco },
@@ -85,11 +87,14 @@ function _shellHTML(activeTab) {
             ${t.ico} ${t.label}
           </button>`).join('')}
       </div>
+      ${isClinicStore() ? `<button type="button" class="ph-btn cl-em-btn" data-emergency>${escapeHtml(linkText('emBtn'))}</button>` : ''}
+      </div>
       <div id="pets-content"></div>
     </div>`;
 }
 
 function _bindTabEvents(container) {
+  container.querySelector('[data-emergency]')?.addEventListener('click', () => openEmergencySheet());
   container.querySelector('.flex').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-tab]');
     if (!btn) return;
@@ -882,7 +887,8 @@ async function _renderOwnersList(el) {
     const url = q.length >= 2
       ? `/api/pets/owners/search?store_id=${_storeId}&q=${encodeURIComponent(q)}`
       : `/api/pets/owners/search?store_id=${_storeId}`;
-    const res = await apiFetch(url);
+    const clinic = isClinicStore();
+    const [res, linked] = await Promise.all([apiFetch(url), clinic ? linkedOwnerIds() : Promise.resolve(new Map())]);
     const owners = res?.data || [];
     if (!owners.length) {
       resultsEl.innerHTML = `<div class="card p-6 text-center text-slate-400 font-body">${q ? `ไม่พบ "${q}"` : 'ยังไม่มีข้อมูลเจ้าของในระบบ'}</div>`;
@@ -897,12 +903,17 @@ async function _renderOwnersList(el) {
              data-owner-id="${o.id}">
           <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl flex-shrink-0"><svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg></div>
           <div class="flex-1 min-w-0">
-            <div class="font-semibold text-navy">${o.name}</div>
+            <div class="font-semibold text-navy">${escapeHtml(o.name || '')}</div>
             <div class="text-sm text-slate-500 font-body truncate">
-              ${o.phone || ''}${o.email ? ` · ${o.email}` : ''}
+              ${escapeHtml(o.phone || '')}${o.email ? ` · ${escapeHtml(o.email)}` : ''}
               · สัตว์เลี้ยง ${pets.length} ตัว
             </div>
           </div>
+          ${clinic ? (linked.has(o.id) || o.auth_user_id
+            ? (linked.get(o.id)
+              ? `<button type="button" class="cl-onapp is-btn" data-shared="${o.id}" title="${escapeHtml(linkText('sharedTitle').replace('{name}', o.name || ''))}">${escapeHtml(linkText('onApp'))}</button>`
+              : `<span class="cl-onapp">${escapeHtml(linkText('onApp'))}</span>`)
+            : (hasPets ? `<button type="button" class="ph-btn cl-invite-btn" data-invite="${o.id}">${escapeHtml(linkText('sendInvite'))}</button>` : '')) : ''}
           ${hasPets ? `<svg class="owner-chevron flex-shrink-0 transition-transform duration-200"
                width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:var(--color-fg-subtle,#94a3b8);min-width:16px">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
@@ -921,8 +932,8 @@ async function _renderOwnersList(el) {
                   : speciesIcon(p.species, "w-4 h-4 text-slate-400")}
               </div>
               <div class="flex-1 min-w-0">
-                <div class="font-semibold text-sm text-navy">${p.name}</div>
-                <div class="text-xs text-slate-400 font-body">${sp.label}${p.breed ? ` · ${p.breed}` : ''}</div>
+                <div class="font-semibold text-sm text-navy">${escapeHtml(p.name || "")}</div>
+                <div class="text-xs text-slate-400 font-body">${sp.label}${p.breed ? ` · ${escapeHtml(p.breed)}` : ''}</div>
               </div>
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:var(--color-line-strong,#cbd5e1);flex-shrink:0;min-width:14px">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
@@ -932,6 +943,24 @@ async function _renderOwnersList(el) {
         </div>` : ''}
       </div>`;
     }).join('');
+
+    // Send an App link code for this customer record
+    resultsEl.querySelectorAll('[data-invite]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const owner = owners.find(x => x.id === btn.dataset.invite);
+        if (owner) openInviteSheet(owner);
+      });
+    });
+
+    // Linked to the App: see what the customer shares
+    resultsEl.querySelectorAll('[data-shared]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const owner = owners.find(x => x.id === btn.dataset.shared);
+        if (owner && linked.get(owner.id)) openSharedSheet({ userId: linked.get(owner.id), name: owner.name || '' });
+      });
+    });
 
     // Toggle pet dropdown
     resultsEl.querySelectorAll('.owner-row').forEach(row => {

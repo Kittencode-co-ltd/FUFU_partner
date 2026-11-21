@@ -3,6 +3,8 @@ import { STORAGE_KEYS } from '../utils/config.js';
 import { storage } from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { escapeHtml } from '../utils/formatters.js';
+import { renderClinicLinkCard, isClinicStore } from './clinic-link.js';
+import { renderBillingCard } from './clinic-billing.js';
 
 const DAYS = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
 
@@ -30,6 +32,7 @@ function render(container, state) {
   container.innerHTML = `
     <div class="space-y-5">
       ${readinessCard(profile, hours, services, category)}
+      ${isClinicStore() ? '<div data-clinic-billing></div><div data-clinic-link></div>' : ''}
       <div class="card p-5 space-y-4">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <div><h2 class="text-lg font-bold text-navy">ตั้งค่า</h2><p class="text-sm text-slate-400">ข้อมูลร้านที่แสดงใน FUFU</p></div>
@@ -83,6 +86,10 @@ function render(container, state) {
       </div>
     </div>`;
   bind(container, state);
+  const linkEl = container.querySelector('[data-clinic-link]');
+  const billingEl = container.querySelector('[data-clinic-billing]');
+  if (billingEl) renderBillingCard(billingEl, { isOwner: state.canEdit });
+  if (linkEl) renderClinicLinkCard(linkEl, { canEdit: state.canEdit });
 }
 
 // What a store still needs before customers can book it in the FUFU app (mirrors create_service_booking checks)

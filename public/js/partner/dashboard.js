@@ -13,7 +13,7 @@ import { disablePushQuietly, listenForPushNavigation } from './push-notification
 import { buildPortalGuideSteps, maybeShowGuide, openGuide } from './welcome-guide.js';
 import { initInstallBanner } from './install-app.js';
 
-const PUSH_PAGES = new Set(['appointments', 'reviews']);
+const PUSH_PAGES = new Set(['appointments', 'reviews', 'chat']);
 
 // ─── Staff Mode config ────────────────────────────────────────────────────────
 
@@ -121,6 +121,7 @@ const MVP_NAV = [
   { id: 'home',         icon: 'chart-bar',      label: 'ภาพรวม' },
   { id: 'appointments', icon: 'clipboard-list', label: 'นัดหมาย' },
   { id: 'calendar',     icon: 'calendar-alt',   label: 'ปฏิทิน' },
+  { id: 'chat',         icon: 'chat',           label: 'แชทลูกค้า' },
   { id: 'patients',     icon: 'paw',            label: 'สัตว์ที่เข้ารับบริการ' },
   { id: 'summaries',    icon: 'folder-open',    label: 'สรุปการเข้ารับบริการ' },
   { id: 'clinic',       icon: 'hospital-alt',   label: 'ร้านและการรับจอง' },
@@ -137,6 +138,7 @@ const BUSINESS_NAV = {
     { id: 'home', icon: 'chart-bar', label: 'ภาพรวม', group: 'today' },
     { id: 'appointments', icon: 'calendar-alt', label: 'นัดหมาย', group: 'intake' },
     { id: 'screenings', icon: 'stethoscope', label: 'เคส AI ส่งต่อ', group: 'intake' },
+    { id: 'chat', icon: 'chat', label: 'แชทลูกค้า', group: 'intake' },
     { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน', group: 'intake' },
     { id: 'queue', icon: 'clipboard-list', label: 'คิวตรวจ', group: 'care' },
     { id: 'opd', icon: 'stethoscope', label: 'OPD · ห้องตรวจ', group: 'care' },
@@ -155,6 +157,7 @@ const BUSINESS_NAV = {
     { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS', group: 'sales' },
     { id: 'orders', icon: 'receipt', label: 'คำสั่งซื้อออนไลน์', group: 'sales' },
     { id: 'delivery', icon: 'exchange-alt', label: 'จัดส่ง', group: 'sales' },
+    { id: 'chat', icon: 'chat', label: 'แชทลูกค้า', group: 'sales' },
     { id: 'inventory', icon: 'box', label: 'คลังสินค้า', group: 'stock' },
     { id: 'income', icon: 'coins', label: 'ยอดขายและรายได้', group: 'money' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
@@ -164,6 +167,7 @@ const BUSINESS_NAV = {
     { id: 'home', icon: 'chart-bar', label: 'ภาพรวมโรงแรม', group: 'today' },
     { id: 'appointments', icon: 'calendar-alt', label: 'การจอง', group: 'booking' },
     { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน', group: 'booking' },
+    { id: 'chat', icon: 'chat', label: 'แชทลูกค้า', group: 'booking' },
     { id: 'queue', icon: 'clipboard-list', label: 'คิวเช็กอิน / เช็กเอาต์', group: 'stay' },
     { id: 'hotel', icon: 'bed', label: 'ห้องพักและการดูแล', group: 'stay' },
     { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
@@ -178,6 +182,7 @@ const BUSINESS_NAV = {
     { id: 'home', icon: 'chart-bar', label: 'ภาพรวมร้าน', group: 'today' },
     { id: 'appointments', icon: 'calendar-alt', label: 'นัดหมาย', group: 'booking' },
     { id: 'calendar', icon: 'calendar-alt', label: 'ปฏิทิน', group: 'booking' },
+    { id: 'chat', icon: 'chat', label: 'แชทลูกค้า', group: 'booking' },
     { id: 'queue', icon: 'clipboard-list', label: 'คิวบริการ', group: 'service' },
     { id: 'grooming', icon: 'cut', label: 'งานอาบน้ำตัดขน', group: 'service' },
     { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
@@ -213,21 +218,21 @@ const MVP_NAV_PAGES = new Set([
 ]);
 const MVP_ROLE_PAGES = {
   owner: new Set([...MVP_NAV_PAGES]),
-  reception: new Set(['screenings', 'home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews']),
-  vet: new Set(['screenings', 'home', 'queue', 'cashier', 'pos', 'opd', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews']),
+  reception: new Set(['screenings', 'home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews', 'chat']),
+  vet: new Set(['screenings', 'home', 'queue', 'cashier', 'pos', 'opd', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'reviews', 'chat']),
 };
 const BUSINESS_ROLE_PAGES = {
   shop: {
-    reception: new Set(['home', 'inventory', 'pos', 'orders', 'delivery', 'reviews']),
-    vet: new Set(['home', 'inventory', 'pos', 'orders', 'delivery', 'reviews']),
+    reception: new Set(['home', 'inventory', 'pos', 'orders', 'delivery', 'reviews', 'chat']),
+    vet: new Set(['home', 'inventory', 'pos', 'orders', 'delivery', 'reviews', 'chat']),
   },
   hotel: {
-    reception: new Set(['home', 'hotel', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'pets', 'reviews']),
-    vet: new Set(['home', 'hotel', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'pets', 'reviews']),
+    reception: new Set(['home', 'hotel', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'pets', 'reviews', 'chat']),
+    vet: new Set(['home', 'hotel', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'pets', 'reviews', 'chat']),
   },
   grooming: {
-    reception: new Set(['home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'grooming', 'pets', 'reviews']),
-    vet: new Set(['home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'grooming', 'pets', 'reviews']),
+    reception: new Set(['home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'grooming', 'pets', 'reviews', 'chat']),
+    vet: new Set(['home', 'queue', 'cashier', 'pos', 'appointments', 'calendar', 'grooming', 'pets', 'reviews', 'chat']),
   },
 };
 
@@ -280,7 +285,7 @@ const PAGE_TITLES = {
 
 // Pages that are safe to restore on refresh (no mandatory detail context needed)
 const _RESTORABLE_PAGES = new Set([
-  'home','queue','medical','pets','hotel','grooming',
+  'home','queue','chat','medical','pets','hotel','grooming',
   'inventory','finance','ipd','documents','kanban','settings','users','staff','opd',
   'appointments','calendar','patients','summaries','clinic','orders','delivery','cashier','pos','income',
 ]);
@@ -582,9 +587,14 @@ export async function initDashboard() {
   // A push notification opens /dashboard?page=appointments|reviews (see public/sw.js).
   const pushPage = page => PUSH_PAGES.has(page) && _navItemsForRole(role).some(item => item.id === page);
   const linkedPage = new URLSearchParams(location.search).get('page');
-  if (linkedPage) history.replaceState(null, '', location.pathname);
+  // The customer's emergency QR opens /dashboard?page=patients&emergency=CODE (FUFU App, phase 4)
+  const emergencyCode = (new URLSearchParams(location.search).get('emergency') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  if (linkedPage || emergencyCode) history.replaceState(null, '', location.pathname);
   listenForPushNavigation(page => { if (pushPage(page)) navigate(page); });
   navigate(pushPage(linkedPage) ? linkedPage : canRestore ? lastPage : defaultPage);
+  if (emergencyCode.length === 6) {
+    import('./clinic-link.js').then(m => { if (m.isClinicStore()) m.openEmergencySheet(emergencyCode); }).catch(() => {});
+  }
 
   _initOfflineBadge();
   if (isStoreActive) startSyncEngine();
@@ -758,6 +768,7 @@ function _buildNav(role) {
       <span class="nav-item__icon">${icon(item.icon, 'w-4 h-4')}</span>
       <span class="flex-1 text-left truncate">${pageLabel(item.id, item.label)}</span>
       ${item.id === 'appointments' ? '<span id="appt-nav-badge" class="nav-badge" hidden></span>' : ''}
+      ${item.id === 'chat' ? '<span id="chat-nav-badge" class="nav-badge" hidden></span>' : ''}
     </button>`;
   }).join('');
 
@@ -771,6 +782,7 @@ function _buildNav(role) {
   _navItems = items;
   _navRole = role;
   _loadApptBadge();
+  import('./chat.js').then(m => m.startChatBadge()).catch(() => {});
 }
 
 // Short names for the bottom bar (full names stay in the side menu)
@@ -876,6 +888,11 @@ async function _renderPage(pageId, detail = null) {
   if (pageId === 'home') {
     const { renderHome } = await import('./home.js');
     await renderHome(document.getElementById('page-home'));
+    return;
+  }
+  if (pageId === 'chat') {
+    const { renderChat } = await import('./chat.js');
+    await renderChat(document.getElementById('page-chat'), detail);
     return;
   }
   if (pageId === 'reviews') {

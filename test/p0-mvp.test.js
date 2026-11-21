@@ -17,7 +17,7 @@ test('MVP navigation contains the production clinic workflow destinations', asyn
   const dashboard = await read('../public/js/partner/dashboard.js');
   const block = dashboard.match(/const MVP_NAV = \[([\s\S]*?)\n\];/)?.[1] || '';
   const ids = [...block.matchAll(/id: '([^']+)'/g)].map(match => match[1]);
-  assert.deepEqual(ids, ['screenings', 'home', 'appointments', 'calendar', 'patients', 'summaries', 'clinic', 'users']);
+  assert.deepEqual(ids, ['screenings', 'home', 'appointments', 'calendar', 'chat', 'patients', 'summaries', 'clinic', 'users']);
   assert.match(dashboard, /MVP_NAV_PAGES\.has\(pageId\)/);
   assert.match(dashboard, /MVP_ROLE_PAGES/);
 });
