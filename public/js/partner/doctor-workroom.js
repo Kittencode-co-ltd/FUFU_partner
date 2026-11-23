@@ -4,6 +4,7 @@ import { apiFetch } from '../utils/api-client.js';
 import { storage } from '../utils/storage.js';
 import { formatThaiDate, formatHN } from '../utils/formatters.js';
 import { can } from '../utils/permissions.js';
+import { openLabelSheet, openCertificateSheet } from './print-tools.js';
 
 // Delegated focus helpers (inline onclick is blocked by the portal CSP)
 document.addEventListener('click', (e) => {
@@ -1292,6 +1293,16 @@ async function _renderInvoiceTab(content) {
                  padding:10px;font-size:13px;font-weight:600;color:var(--color-fg-muted,#64748b);cursor:pointer;">
          พิมพ์ใบสั่งยา
         </button>
+        <button id="wr-print-labels"
+          style="flex:1;background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
+                 padding:10px;font-size:13px;font-weight:600;color:var(--color-fg-muted,#64748b);cursor:pointer;">
+         ฉลากยา
+        </button>
+        <button id="wr-cert"
+          style="flex:1;background:var(--color-surface,#fff);border:1px solid var(--color-line,#e2e8f0);border-radius:8px;
+                 padding:10px;font-size:13px;font-weight:600;color:var(--color-fg-muted,#64748b);cursor:pointer;">
+         ใบรับรอง
+        </button>
         <button id="wr-send-pay"
           style="flex:2;background:${isDone ? '#0369a1' : '#94a3b8'};color:var(--color-fg-inverse,#fff);border:none;
                  border-radius:8px;padding:10px;font-size:13px;font-weight:600;
@@ -1307,6 +1318,14 @@ async function _renderInvoiceTab(content) {
     </div>`;
 
   content.querySelector('#wr-print-rx')?.addEventListener('click', () => window.print());
+  content.querySelector('#wr-print-labels')?.addEventListener('click', () => openLabelSheet({
+    prescriptions: _prescriptions, petName: _petData?.name || _queueItem?.pet_name || '', ownerName: _petData?.owner_name || _queueItem?.owner_name || '',
+    hn: _petData?.hn ? formatHN(_petData.hn) : '',
+  }));
+  content.querySelector('#wr-cert')?.addEventListener('click', () => {
+    if (!_petData?.id) { showToast('ผู้ป่วยรายนี้ยังไม่มีแฟ้มสัตว์ในระบบ', 'error'); return; }
+    openCertificateSheet({ pet: _petData, owner: _petData.pet_owners || { name: _petData.owner_name, phone: _petData.owner_phone } });
+  });
   content.querySelector('#wr-send-pay')?.addEventListener('click', _sendToPayment);
 }
 

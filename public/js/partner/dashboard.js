@@ -537,6 +537,7 @@ export async function initDashboard() {
 
   _buildNav(role);
   _renderModeSwitcher(role);
+  if (isStoreActive) _showPlanBanner();
 
   if (!isStoreActive) {
     const main = q('app-main');
@@ -882,6 +883,31 @@ function _renderModeSwitcher(role) {
   };
 }
 
+// ─── Clinic package banner (grace period / read-only) ─────────────────────────
+async function _showPlanBanner(retry = true) {
+  try {
+    const { isClinicStore } = await import('./clinic-link.js');
+    if (!isClinicStore()) return;
+    const { clinicBilling, billingText } = await import('./clinic-billing.js');
+    const b = await clinicBilling();
+    if (!b) { if (retry) setTimeout(() => _showPlanBanner(false), 4000); return; }
+    if (!b.applies || b.phase === 'ok' || document.getElementById('plan-banner')) return;
+    const main = document.getElementById('app-main');
+    if (!main) return;
+    const paused = b.phase === 'paused';
+    const day = iso => new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' });
+    const banner = document.createElement('section');
+    banner.id = 'plan-banner';
+    banner.className = `plan-banner ${paused ? 'is-bad' : 'is-warn'}`;
+    banner.setAttribute('role', 'status');
+    banner.innerHTML = `<div class="min-w-0 flex-1"><strong>${paused ? billingText('readOnlyTitle') : billingText('graceTitle', { date: day(b.grace_ends_at) })}</strong>
+      <p>${paused ? billingText('readOnlyBody') : billingText('graceBody')}</p></div>
+      <button type="button" class="ph-btn is-primary" data-plan-go>${billingText('choosePlan')}</button>`;
+    banner.querySelector('[data-plan-go]').onclick = () => navigate('clinic', { focus: 'billing' });
+    main.prepend(banner);
+  } catch { /* the banner is a hint; the API enforces read-only */ }
+}
+
 // ─── Lazy page renderer ───────────────────────────────────────────────────────
 
 async function _renderPage(pageId, detail = null) {
@@ -923,7 +949,7 @@ async function _renderPage(pageId, detail = null) {
   }
   if (pageId === 'clinic') {
     const { renderClinicProfile } = await import('./clinic-profile.js');
-    await renderClinicProfile(document.getElementById('page-clinic'));
+    await renderClinicProfile(document.getElementById('page-clinic'), detail);
     return;
   }
   if (pageId === 'users') {

@@ -340,7 +340,7 @@ const extra = {
         { title: 'ลดงานหน้าร้าน', body: 'นัดหมาย ปฏิทิน และการยืนยันอยู่ในที่เดียว ไม่ต้องโทรตามทีละคน' },
         { title: 'ดูแลต่อเนื่อง', body: 'ส่งสรุปการรักษาและนัดติดตามกลับเข้าแอปของเจ้าของโดยตรง' },
       ],
-      freeChip: 'ใช้ฟรีช่วงเปิดตัว', login: 'เข้าสู่ระบบพาร์ทเนอร์', join: 'สมัครเป็นพาร์ทเนอร์',
+      freeChip: 'คลินิกทดลองฟรี 3 เดือน', login: 'เข้าสู่ระบบพาร์ทเนอร์', join: 'สมัครเป็นพาร์ทเนอร์',
       mock: { today: 'นัดวันนี้', pending: 'รอยืนยัน', referrals: 'เคส AI ใหม่', referralTitle: 'เคสส่งต่อจาก FUFU App', pet: 'มะลิ · แมว 3 ปี', concern: 'ผื่นแดงบริเวณใบหู', urgency: 'พบสัตวแพทย์ใน 24–48 ชม.', accept: 'รับเคส', schedule: 'นัดหมายวันนี้', week: 'นัดหมาย 7 วัน', confirmed: 'ยืนยันแล้ว', waiting: 'รอยืนยัน' },
     },
     mascots: { hint: 'แตะที่น้องดูสิ', dogSays: ['ถึงเวลากินยาแล้วนะ!', 'วันนี้ไปเดินเล่นกัน!', 'อย่าลืมนัดฉีดวัคซีนนะ'], catSays: ['ผื่นแปลก ๆ? สแกนดูก่อนเลย', 'ถาม AI Vet ได้ตลอดเวลา', 'เหมียว~ ดูแลกันดีมาก'] },
@@ -357,7 +357,7 @@ const extra = {
         { title: 'Less admin', body: 'Appointments, calendar and confirmations in one place — no more call-backs.' },
         { title: 'Continuous care', body: 'Send visit summaries and follow-ups straight to the owner’s app.' },
       ],
-      freeChip: 'Free during launch', login: 'Partner login', join: 'Become a partner',
+      freeChip: 'Clinics: 3 months free', login: 'Partner login', join: 'Become a partner',
       mock: { today: 'Today', pending: 'Pending', referrals: 'New AI cases', referralTitle: 'Referral from FUFU App', pet: 'Mali · cat, 3 yrs', concern: 'Red rash on the ear', urgency: 'See a vet in 24–48 h', accept: 'Accept', schedule: 'Today’s appointments', week: '7-day bookings', confirmed: 'Confirmed', waiting: 'Pending' },
     },
     mascots: { hint: 'Tap them!', dogSays: ['Time for medicine!', 'Walk time today!', 'Vaccine visit soon!'], catSays: ['Odd rash? Scan it first', 'Ask AI Vet any time', 'Meow~ great job!'] },
@@ -374,7 +374,7 @@ const extra = {
         { title: '减少前台工作', body: '预约、日历和确认集中管理，无需逐一致电。' },
         { title: '持续关怀', body: '诊疗摘要和随访提醒直接发送到主人的应用。' },
       ],
-      freeChip: '上线期间免费', login: '合作伙伴登录', join: '成为合作伙伴',
+      freeChip: '诊所免费试用 3 个月', login: '合作伙伴登录', join: '成为合作伙伴',
       mock: { today: '今日预约', pending: '待确认', referrals: '新 AI 病例', referralTitle: '来自 FUFU App 的转诊', pet: 'Mali · 猫 3 岁', concern: '耳部红疹', urgency: '24–48 小时内就医', accept: '接收', schedule: '今日预约', week: '7 天预约', confirmed: '已确认', waiting: '待确认' },
     },
     mascots: { hint: '点点它们！', dogSays: ['该吃药啦！', '今天去散步吧！', '别忘了打疫苗哦'], catSays: ['皮疹奇怪？先扫一扫', '随时问 AI 兽医', '喵~ 照顾得真好'] },
@@ -391,7 +391,7 @@ const extra = {
         { title: '受付業務を削減', body: '予約・カレンダー・確認を一元化。電話での確認は不要です。' },
         { title: '継続的なケア', body: '診療サマリーと再診案内を飼い主のアプリへ直接送信。' },
       ],
-      freeChip: 'リリース期間中は無料', login: 'パートナーログイン', join: 'パートナー登録',
+      freeChip: '病院は3か月無料', login: 'パートナーログイン', join: 'パートナー登録',
       mock: { today: '本日の予約', pending: '確認待ち', referrals: '新しい AI 症例', referralTitle: 'FUFU App からの紹介', pet: 'マリ · 猫 3歳', concern: '耳の赤い発疹', urgency: '24〜48時間以内に受診', accept: '受け付ける', schedule: '本日の予約', week: '7日間の予約', confirmed: '確定', waiting: '確認待ち' },
     },
     mascots: { hint: 'タップしてみて！', dogSays: ['お薬の時間だよ！', '今日はお散歩しよう！', 'ワクチンを忘れずに'], catSays: ['気になる発疹？まずスキャン', 'AI 獣医にいつでも相談', 'にゃ〜 よくできました'] },
@@ -408,7 +408,7 @@ const extra = {
         { title: '접수 업무 감소', body: '예약, 캘린더, 확인을 한곳에서. 일일이 전화할 필요가 없습니다.' },
         { title: '지속적인 관리', body: '진료 요약과 재진 알림을 보호자 앱으로 바로 보냅니다.' },
       ],
-      freeChip: '출시 기간 무료', login: '파트너 로그인', join: '파트너 가입',
+      freeChip: '병원 3개월 무료 체험', login: '파트너 로그인', join: '파트너 가입',
       mock: { today: '오늘 예약', pending: '확인 대기', referrals: '새 AI 케이스', referralTitle: 'FUFU App 의뢰', pet: '말리 · 고양이 3살', concern: '귀 부위 붉은 발진', urgency: '24–48시간 내 진료', accept: '접수', schedule: '오늘 예약', week: '7일 예약', confirmed: '확정', waiting: '대기' },
     },
     mascots: { hint: '눌러 보세요!', dogSays: ['약 먹을 시간이야!', '오늘 산책 가자!', '예방접종 잊지 마'], catSays: ['이상한 발진? 먼저 스캔해요', 'AI 수의사에게 언제든 질문', '냐옹~ 잘하고 있어'] },
@@ -426,6 +426,51 @@ for (const [code, add] of Object.entries(extra)) {
 
 const NAV_TRUST = { th: 'ลิขสิทธิ์', en: 'IP', zh: '著作权', ja: '著作権', ko: '저작권' }
 for (const [code, label] of Object.entries(NAV_TRUST)) messages[code].nav.trust = label
+
+// ── Pricing for clinics (website section #pricing; prices come from /api/public/plans) ──
+const PRICING = {
+  th: {
+    nav: 'ราคา', title: 'แพ็กเกจสำหรับคลินิก', titleEm: 'ทดลองฟรี 3 เดือน',
+    lede: 'ใช้ระบบคลินิกครบทุกเมนู ลูกค้าของคุณใช้แอป FUFU ฟรี แพ็กเกจต่างกันที่จำนวนผู้ใช้เท่านั้น',
+    monthly: 'รายเดือน', yearly: 'รายปี', save: 'ฟรี 2 เดือน', perMonth: '/เดือน', perYear: '/ปี', eq: 'เฉลี่ย {price}/เดือน',
+    users: 'ผู้ใช้ {n} คน', unlimited: 'ผู้ใช้ไม่จำกัด', popular: 'แนะนำ', cta: 'เริ่มทดลองฟรี',
+    features: ['ระบบคลินิกครบทุกเมนู: นัดหมาย คิว OPD IPD POS สต็อก', 'ลูกค้าใช้แอป FUFU ฟรี เชื่อมกับคลินิกได้ไม่จำกัด', 'แชทและโทรหาลูกค้า', 'รับเคสสแกน AI และการแชร์ฉุกเฉิน'],
+    notes: ['ทดลองฟรี 3 เดือน ไม่ต้องใช้บัตร', 'ร้านค้า grooming และโรงแรมสัตว์เลี้ยงใช้ฟรี', 'ราคายังไม่รวม VAT 7%', 'หมดอายุแล้วข้อมูลไม่หาย ดูย้อนหลังได้เสมอ'],
+  },
+  en: {
+    nav: 'Pricing', title: 'Packages for clinics', titleEm: '3 months free',
+    lede: 'The full clinic system, and your customers use the FUFU app free. Packages differ only by the number of users.',
+    monthly: 'Monthly', yearly: 'Yearly', save: '2 months free', perMonth: '/month', perYear: '/year', eq: '{price}/month',
+    users: '{n} users', unlimited: 'Unlimited users', popular: 'Popular', cta: 'Start free trial',
+    features: ['Full clinic system: bookings, queue, OPD, IPD, POS, stock', 'Customers use the FUFU app free, unlimited links', 'Chat and call customers', 'AI scan referrals and emergency sharing'],
+    notes: ['3-month free trial, no card needed', 'Shops, grooming and pet hotels are free', 'Prices exclude 7% VAT', 'Your data stays readable after expiry'],
+  },
+  zh: {
+    nav: '价格', title: '诊所套餐', titleEm: '免费试用 3 个月',
+    lede: '完整的诊所系统，顾客免费使用 FUFU 应用。套餐仅按用户数区分。',
+    monthly: '按月', yearly: '按年', save: '免 2 个月', perMonth: '/月', perYear: '/年', eq: '折合 {price}/月',
+    users: '{n} 位用户', unlimited: '不限用户', popular: '推荐', cta: '开始免费试用',
+    features: ['完整诊所系统：预约、排队、门诊、住院、收银、库存', '顾客免费使用 FUFU 应用，连接不限', '与顾客聊天和通话', 'AI 扫描转诊与紧急分享'],
+    notes: ['免费试用 3 个月，无需信用卡', '宠物店、美容和宠物酒店免费', '价格不含 7% 增值税', '到期后数据仍可查看'],
+  },
+  ja: {
+    nav: '料金', title: '動物病院向けプラン', titleEm: '3か月無料',
+    lede: '病院システムの全機能。お客様は FUFU アプリを無料で使えます。プランの違いはユーザー数だけです。',
+    monthly: '月払い', yearly: '年払い', save: '2か月無料', perMonth: '/月', perYear: '/年', eq: '月あたり {price}',
+    users: 'ユーザー {n} 人', unlimited: 'ユーザー無制限', popular: 'おすすめ', cta: '無料で試す',
+    features: ['病院システム全機能：予約・受付・外来・入院・POS・在庫', 'お客様はアプリ無料、連携数無制限', 'お客様とチャット・電話', 'AIスキャンの紹介と緊急共有'],
+    notes: ['3か月無料、カード不要', 'ショップ・トリミング・ペットホテルは無料', '価格は税抜（VAT 7%）', '期限後もデータは閲覧できます'],
+  },
+  ko: {
+    nav: '요금', title: '동물병원 패키지', titleEm: '3개월 무료',
+    lede: '병원 시스템 전체 기능, 고객은 FUFU 앱을 무료로 사용해요. 패키지는 사용자 수만 달라요.',
+    monthly: '월간', yearly: '연간', save: '2개월 무료', perMonth: '/월', perYear: '/년', eq: '월 {price}',
+    users: '사용자 {n}명', unlimited: '사용자 무제한', popular: '추천', cta: '무료 체험 시작',
+    features: ['병원 시스템 전체: 예약, 대기, 외래, 입원, POS, 재고', '고객은 FUFU 앱 무료, 연결 무제한', '고객과 채팅·전화', 'AI 스캔 의뢰와 긴급 공유'],
+    notes: ['3개월 무료 체험, 카드 불필요', '펫숍·미용·호텔은 무료', '가격은 VAT 7% 별도', '만료 후에도 데이터는 열람 가능'],
+  },
+}
+for (const [code, copy] of Object.entries(PRICING)) { messages[code].pricing = copy; messages[code].nav.pricing = copy.nav }
 
 // ── Ecosystem diagram (second slide of the "flow" section) ─────────────────────
 const ECO = {

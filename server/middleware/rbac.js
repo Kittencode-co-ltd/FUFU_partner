@@ -9,7 +9,7 @@
 
 import { toRbacRole } from '../config/roles.js';
 
-const STORE_ACCESS_FIELDS = 'owner_id, owner_email, verification_status, is_verified, is_active';
+const STORE_ACCESS_FIELDS = 'owner_id, owner_email, verification_status, is_verified, is_active, category';
 
 /** Reads the store row once per request; later middleware in the same request reuses it. */
 async function loadStoreForRequest(req, storeId) {
@@ -80,6 +80,9 @@ export async function attachStoreRole(req, res, next) {
 }
 
 /** Prevent write requests for a deactivated store while preserving read access. */
+const CLINIC_CATEGORIES = new Set(['vet_clinic', 'vet_hospital']);
+const PLAN_EXEMPT = ['/api/clinic-links/billing', '/api/clinic-links/emergency', '/api/auth', '/api/push'];
+
 export async function guardInactiveStoreMutations(req, res, next) {
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
   if (!req.headers.authorization?.startsWith('Bearer ')) return next();
@@ -97,6 +100,18 @@ export async function guardInactiveStoreMutations(req, res, next) {
           code: 'PARTNER_STORE_DEACTIVATED',
           error: 'ร้านค้านี้ถูกระงับการใช้งานชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
         });
+      }
+      // Clinics whose package (or trial) ended more than 14 days ago are read-only until they pay.
+      // Paying and emergency sharing (a pet's safety) stay open. See supabase migration clinic_plans_b2b.
+      if (store && CLINIC_CATEGORIES.has(String(store.category || '').toLowerCase()) && !PLAN_EXEMPT.some(p => req.originalUrl.startsWith(p))) {
+        const { data: writable, error } = await req.supabase.rpc('clinic_plan_writable', { p_store_id: storeId });
+        if (!error && writable === false) {
+          return res.status(402).json({
+            success: false,
+            code: 'PLAN_READ_ONLY',
+            error: 'แพ็กเกจของคลินิกหมดอายุ ระบบอยู่ในโหมดดูอย่างเดียว ชำระค่าบริการเพื่อใช้งานต่อ (ตั้งค่าร้าน > แพ็กเกจ FUFU)',
+          });
+        }
       }
       next();
     });

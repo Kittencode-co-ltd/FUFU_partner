@@ -853,3 +853,31 @@ button.free-donate:hover { transform: translateY(-2px); box-shadow: var(--shadow
 .donate-save { margin-top: 10px; }
 @media (max-width: 1080px) { .donate-panel { grid-template-columns: 1fr 1fr; } .donate-side { grid-column: 1 / -1; } }
 @media (max-width: 760px) { .donate-panel { grid-template-columns: 1fr; } }
+
+/* ── Pricing (clinics) ── */
+.pricing { background: var(--cream); }
+.pricing-inner { display: grid; justify-items: center; gap: 20px; max-width: 1120px; margin: 0 auto; }
+.pricing-lede { text-align: center; margin: 0 auto; }
+.pricing-cycle { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); }
+.pricing-cycle button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 14px var(--font); cursor: pointer; }
+.pricing-cycle button[aria-checked="true"] { background: var(--brand); color: #fff; }
+.pricing-cycle em { font-style: normal; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--brand-50); color: var(--brand-700); }
+.pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; width: 100%; margin-top: 8px; }
+@media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; max-width: 440px; } }
+.price-card { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 28px 24px 24px; border-radius: 24px; background: var(--paper); border: 1px solid var(--line); min-width: 0; }
+.price-card.is-popular { border-color: var(--brand); box-shadow: 0 18px 40px rgba(42, 99, 116, .16); }
+.price-flag { position: absolute; top: -12px; left: 24px; padding: 3px 12px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 12px; font-weight: 700; }
+.price-card h3 { margin: 0; font: 700 22px/1.2 var(--font-latin); color: var(--ink); }
+.price-desc { margin: 0; font-size: 14px; color: var(--muted); }
+.price-amount { margin: 12px 0 0; display: flex; align-items: baseline; gap: 4px; }
+.price-amount b { font: 700 40px/1 var(--font-latin); letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.price-amount span { font-size: 14px; color: var(--muted); }
+.price-eq { margin: 0; min-height: 1.6em; font-size: 13px; color: var(--brand-700); }
+.price-users { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; padding: 10px 12px; border-radius: 14px; background: var(--brand-50); font-weight: 700; color: var(--brand-700); }
+.price-card ul { display: grid; gap: 8px; margin: 8px 0 20px; padding: 0; list-style: none; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.price-card li { display: flex; gap: 8px; }
+.price-card li svg { flex-shrink: 0; margin-top: 4px; color: var(--brand); }
+.price-card .btn { margin-top: auto; width: 100%; }
+.pricing-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted); }
+.pricing-notes li { display: inline-flex; align-items: center; gap: 6px; }
+.pricing-notes svg { color: var(--brand); }

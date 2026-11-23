@@ -110,4 +110,15 @@ router.get('/billing', requireRole(...STAFF), async (req, res) => {
   res.json({ success: true, data: req.staffRole === 'owner' ? data : { ...data, invoices: undefined } });
 });
 
+// POST /api/clinic-links/billing/order { store_id, plan_id, cycle } — the owner picks a package; an invoice is issued
+// at once with FUFU's payment details. FUFU confirms the transfer in Admin, which activates the package.
+router.post('/billing/order', requireRole('owner'), async (req, res) => {
+  const cycle = req.body.cycle === 'yearly' ? 'yearly' : 'monthly';
+  if (!UUID.test(req.body.plan_id || '')) return res.status(400).json({ success: false, code: 'invalid', error: 'plan_id required' });
+  const { data, error } = await req.supabase.rpc('clinic_order_plan', { p_store_id: req.body.store_id, p_plan_id: req.body.plan_id, p_cycle: cycle });
+  if (error) return fail(res, error);
+  res.set('Cache-Control', 'private, no-store');
+  res.json({ success: true, data });
+});
+
 export default router;

@@ -30,6 +30,7 @@ import rewardsRoutes        from './routes/rewards.js';
 import clinicRoutes         from './routes/clinic.js';
 import reviewRoutes         from './routes/reviews.js';
 import publicClinicRoutes   from './routes/public-clinics.js';
+import publicPlanRoutes     from './routes/public-plans.js';
 import visitsRoutes         from './routes/visits.js';
 import screeningsRoutes     from './routes/screenings.js';
 import cashierRoutes        from './routes/cashier.js';
@@ -37,6 +38,8 @@ import pushRoutes           from './routes/push.js';
 import ordersRoutes         from './routes/orders.js';
 import clinicLinksRoutes    from './routes/clinic-links.js';
 import chatRoutes           from './routes/chat.js';
+import reminderRoutes       from './routes/reminders.js';
+import certificateRoutes    from './routes/certificates.js';
 import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
 import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
 import { validateEnvironment } from './config/env.js';
@@ -59,6 +62,7 @@ export function createApiApp({ withFallback = true } = {}) {
 
   app.use('/api/auth',            authRoutes);
   app.use('/api/public/clinics',  publicClinicRoutes);
+  app.use('/api/public/plans',    publicPlanRoutes);
   app.use('/api/push',            pushRoutes);
   app.use('/api', guardInactiveStoreMutations);
   app.use('/api/clinic',          clinicRoutes);
@@ -89,6 +93,8 @@ export function createApiApp({ withFallback = true } = {}) {
   app.use('/api/orders',          ordersRoutes);
   app.use('/api/clinic-links',    clinicLinksRoutes);
   app.use('/api/chat',            chatRoutes);
+  app.use('/api/reminders',       reminderRoutes);
+  app.use('/api/certificates',    certificateRoutes);
 
   if (withFallback) {
     app.use('/api', (req, res) => res.status(404).json({

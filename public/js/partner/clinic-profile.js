@@ -5,10 +5,11 @@ import { showToast } from '../utils/toast.js';
 import { escapeHtml } from '../utils/formatters.js';
 import { renderClinicLinkCard, isClinicStore } from './clinic-link.js';
 import { renderBillingCard } from './clinic-billing.js';
+import { renderReminderCard } from './reminders.js';
 
 const DAYS = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
 
-export async function renderClinicProfile(container) {
+export async function renderClinicProfile(container, detail = null) {
   const storeId = storage.get(STORAGE_KEYS.STORE_ID);
   const role = storage.get(STORAGE_KEYS.STAFF_ROLE) || 'owner';
   const canEdit = role === 'owner';
@@ -21,7 +22,7 @@ export async function renderClinicProfile(container) {
     apiFetch(`/api/clinic/${storeId}/services`),
   ]);
   if (!profileRes?.success) return renderError(container, profileRes?.error || 'โหลดการตั้งค่าไม่สำเร็จ');
-  render(container, { storeId, canEdit, profile: profileRes.data, hours: hoursRes?.data || [], holidays: holidaysRes?.data || [], services: servicesRes?.data || [] });
+  render(container, { storeId, canEdit, focus: detail?.focus, profile: profileRes.data, hours: hoursRes?.data || [], holidays: holidaysRes?.data || [], services: servicesRes?.data || [] });
 }
 
 function render(container, state) {
@@ -33,6 +34,7 @@ function render(container, state) {
     <div class="space-y-5">
       ${readinessCard(profile, hours, services, category)}
       ${isClinicStore() ? '<div data-clinic-billing></div><div data-clinic-link></div>' : ''}
+      <div data-reminders></div>
       <div class="card p-5 space-y-4">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <div><h2 class="text-lg font-bold text-navy">ตั้งค่า</h2><p class="text-sm text-slate-400">ข้อมูลร้านที่แสดงใน FUFU</p></div>
@@ -87,8 +89,10 @@ function render(container, state) {
     </div>`;
   bind(container, state);
   const linkEl = container.querySelector('[data-clinic-link]');
+  const remindersEl = container.querySelector('[data-reminders]');
+  if (remindersEl) renderReminderCard(remindersEl, { canEdit: state.canEdit, isClinic: isClinicStore() });
   const billingEl = container.querySelector('[data-clinic-billing]');
-  if (billingEl) renderBillingCard(billingEl, { isOwner: state.canEdit });
+  if (billingEl) renderBillingCard(billingEl, { isOwner: state.canEdit }).then(() => { if (state.focus === 'billing') billingEl.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
   if (linkEl) renderClinicLinkCard(linkEl, { canEdit: state.canEdit });
 }
 

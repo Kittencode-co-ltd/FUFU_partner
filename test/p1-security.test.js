@@ -6,11 +6,15 @@ const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('every non-auth route installs requireAuth', async () => {
   const directory = new URL('../server/routes/', import.meta.url);
-  const files = (await readdir(directory)).filter(name => name.endsWith('.js') && !['auth.js','public-clinics.js'].includes(name));
+  const files = (await readdir(directory)).filter(name => name.endsWith('.js') && !['auth.js','public-clinics.js','public-plans.js'].includes(name));
   for (const file of files) {
     const source = await read(`../server/routes/${file}`);
     assert.match(source, /router\.use\(requireAuth\)/, `${file} must require authentication`);
   }
+  // The public package list is read-only and uses the publishable key, never the service key
+  const plans = await read('../server/routes/public-plans.js');
+  assert.doesNotMatch(plans, /router\.(post|put|patch|delete)\(/);
+  assert.doesNotMatch(plans, /SERVICE_ROLE|service_role/i);
 });
 
 test('security foundation limits auth/mutations, restricts CORS and sets headers', async () => {

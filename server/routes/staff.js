@@ -5,6 +5,17 @@ import { createClient } from '@supabase/supabase-js';
 import { FIXED_ROLES, isValidRole, permissionsFor } from '../config/roles.js';
 
 const router = Router();
+
+/** Adding or re-activating staff beyond the clinic's package user limit (database trigger, errcode P0004). */
+function planLimitError(res, error) {
+  if (error?.code !== 'P0004') return false;
+  const m = /(\d+) of (\d+)/.exec(error.message || '');
+  res.status(402).json({
+    success: false, code: 'PLAN_USER_LIMIT',
+    error: `จำนวนผู้ใช้เต็มแพ็กเกจแล้ว${m ? ` (${m[1]}/${m[2]} คน)` : ''} ปิดการใช้งานผู้ใช้ที่ไม่ใช้แล้ว หรืออัปเกรดแพ็กเกจที่ ตั้งค่าร้าน > แพ็กเกจ FUFU`,
+  });
+  return true;
+}
 router.use(requireAuth);
 
 // ── Fixed roles ───────────────────────────────────────────────────────────────
@@ -45,6 +56,7 @@ router.get('/', requireRole('owner'), async (req, res) => {
     .eq('store_id', store_id)
     .order('created_at', { ascending: true });
 
+  if (planLimitError(res, error)) return;
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data: (data || []).map(normalize) });
 });
@@ -134,6 +146,7 @@ router.post('/', requireRole('owner'), async (req, res) => {
       .single());
   }
 
+  if (planLimitError(res, error)) return;
   if (error) return res.status(500).json({ error: error.message });
 
   res.json({
@@ -173,6 +186,7 @@ router.patch('/:id', resolveStoreId('staff'), requireRole('owner'), async (req, 
     .select()
     .single();
 
+  if (planLimitError(res, error)) return;
   if (error) return res.status(500).json({ error: error.message });
 
   res.json({ success: true, data: normalize(data) });
@@ -256,6 +270,7 @@ router.delete('/:id', resolveStoreId('staff'), requireRole('owner'), async (req,
     .select()
     .single();
 
+  if (planLimitError(res, error)) return;
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, data: normalize(data) });
 });

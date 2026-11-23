@@ -49,27 +49,60 @@ function _thaiDate(dateStr) {
   });
 }
 
-// ─── Drug Labels (58mm thermal) ───────────────────────────────────────────────
+// ─── Drug Labels: 50×30 mm sticker or 58 mm roll ─────────────────────────────
 
-export function printDrugLabels({ prescriptions, petName, ownerName, storeName, date }) {
+const ROUTE_VERB = { PO: 'กิน', oral: 'กิน', topical: 'ทา', ear: 'หยอดหู', eye: 'หยอดตา', SC: 'ฉีด', IM: 'ฉีด', IV: 'ฉีด' };
+
+/** "กินครั้งละ 1 เม็ด วันละ 2 ครั้ง" + "หลังอาหาร · 7 วัน" from a prescription row. */
+export function rxInstruction(rx) {
+  const verb = ROUTE_VERB[rx.route] || (rx.route && !/^[A-Z]{2,3}$/.test(rx.route) ? rx.route : 'ใช้');
+  const freq = FREQ_LABELS[rx.freq] || rx.freq || '';
+  const main = [rx.dose ? `${verb}ครั้งละ ${rx.dose}` : '', freq].filter(Boolean).join(' ');
+  const sub = [rx.timing || '', rx.days ? `${rx.days} วัน` : '', rx.qty ? `จำนวน ${rx.qty}` : ''].filter(Boolean).join(' · ');
+  return { main, sub };
+}
+
+export function printDrugLabels({ prescriptions, petName, ownerName, hn = '', storeName, storePhone = '', date, size = '50x30' }) {
   const si = _storeInfo();
   storeName = storeName || si.name || 'คลินิก';
+  storePhone = storePhone || si.phone || '';
   if (!prescriptions?.length) return false;
+  const day = new Date(date || Date.now()).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+  const sticker = size === '50x30';
 
   const labels = prescriptions.map(rx => {
-    const freq  = FREQ_LABELS[rx.freq] || rx.freq || '';
-    const days  = rx.days ? `${rx.days} วัน` : '';
-    const instr = [rx.dose, freq, days].filter(Boolean).join(' · ');
+    const { main, sub } = rxInstruction(rx);
     return `
-      <div class="label">
-        <div class="store">${_esc(storeName)}</div>
+      <section class="label">
+        <div class="store">${_esc(storeName)}${storePhone ? ` · ${_esc(storePhone)}` : ''}</div>
         <div class="drug">${_esc(rx.drug || rx.name || '—')}</div>
-        ${instr ? `<div class="instr">${_esc(instr)}</div>` : ''}
+        ${main ? `<div class="main">${_esc(main)}</div>` : ''}
+        ${sub ? `<div class="sub">${_esc(sub)}</div>` : ''}
         ${rx.note ? `<div class="note">${_esc(rx.note)}</div>` : ''}
-        <div class="patient">${_esc(petName)}${ownerName ? ` · ${_esc(ownerName)}` : ''}</div>
-        <div class="date">${_thaiDate(date)}</div>
-      </div>`;
+        <div class="foot"><span>${_esc(petName)}${hn ? ` · HN ${_esc(hn)}` : ''}${!sticker && ownerName ? ` · ${_esc(ownerName)}` : ''}</span><span>${_esc(day)}</span></div>
+      </section>`;
   }).join('');
+
+  const css = sticker ? `
+  @page { size: 50mm 30mm; margin: 0; }
+  .label { width: 50mm; height: 30mm; padding: 1.6mm 2.2mm; display: flex; flex-direction: column; overflow: hidden; page-break-after: always; break-after: page; }
+  .store { font-size: 6pt; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .drug  { font-size: 9.5pt; font-weight: 700; line-height: 1.15; margin-top: .4mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .main  { font-size: 8.2pt; font-weight: 700; line-height: 1.2; margin-top: .6mm; }
+  .sub   { font-size: 7pt; line-height: 1.2; color: #222; }
+  .note  { font-size: 6.5pt; line-height: 1.2; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .foot  { margin-top: auto; display: flex; justify-content: space-between; gap: 2mm; font-size: 6pt; color: #444; white-space: nowrap; }
+  .foot span:first-child { overflow: hidden; text-overflow: ellipsis; }
+  ` : `
+  @page { size: 58mm auto; margin: 0; }
+  .label { width: 58mm; padding: 3mm 3.5mm 4mm; border-bottom: 1px dashed #999; page-break-after: always; break-after: page; }
+  .store { font-size: 7.5pt; color: #444; }
+  .drug  { font-size: 12.5pt; font-weight: 700; line-height: 1.25; margin-top: 1mm; }
+  .main  { font-size: 10.5pt; font-weight: 700; line-height: 1.3; margin-top: 1.5mm; }
+  .sub   { font-size: 9pt; margin-top: .5mm; }
+  .note  { font-size: 8.5pt; margin-top: 1mm; color: #333; }
+  .foot  { margin-top: 2mm; display: flex; justify-content: space-between; gap: 2mm; font-size: 7.5pt; color: #444; }
+  `;
 
   const html = `<!DOCTYPE html>
 <html lang="th">
@@ -78,36 +111,139 @@ export function printDrugLabels({ prescriptions, petName, ownerName, storeName, 
 <title>ฉลากยา — ${_esc(petName)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Noto Sans Thai','Tahoma',sans-serif; background:#fff; }
-  .label {
-    width: 58mm;
-    padding: 4mm 4mm 3mm;
-    border: 1px dashed #aaa;
-    page-break-after: always;
-    font-size: 10pt;
-  }
-  .store  { font-size:8pt; color:#666; margin-bottom:2mm; }
-  .drug   { font-size:13pt; font-weight:bold; color:#111; line-height:1.3; }
-  .instr  { font-size:9.5pt; margin-top:2mm; color:#222; }
-  .note   { font-size:8.5pt; color:#555; margin-top:1mm; font-style:italic; }
-  .patient{ font-size:8.5pt; margin-top:2mm; color:#333; }
-  .date   { font-size:8pt; color:#888; margin-top:1mm; }
-  .print-btn { display:block; margin:6mm auto; padding:6px 20px; background:#2A6374;
-               color:#fff; border:none; border-radius:6px; font-size:13px;
-               cursor:pointer; font-family:inherit; }
-  @media print {
-    .print-btn { display:none !important; }
-    .label { border:none; }
-  }
+  body { font-family:'Noto Sans Thai','Sarabun','Tahoma',sans-serif; background:#fff; color:#111; -webkit-print-color-adjust:exact; }
+  ${css}
+  .bar { position: sticky; top: 0; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #F1F5F9; border-bottom: 1px solid #E2E8F0; font-size: 13px; color: #334155; }
+  .bar button { margin-left: auto; padding: 8px 18px; background:#2A6374; color:#fff; border:0; border-radius:999px; font: 600 13px inherit; font-family: inherit; cursor:pointer; }
+  .sheet { padding: 12px; display: grid; gap: 8px; justify-content: start; }
+  .sheet .label { outline: 1px solid #CBD5E1; background: #fff; }
+  @media print { .bar { display:none !important; } .sheet { padding: 0; gap: 0; display: block; } .sheet .label { outline: none; } }
 </style>
 </head>
 <body>
-  ${labels}
-  <button class="print-btn" data-print>พิมพ์ฉลาก</button>
+  <div class="bar">${sticker ? 'สติ๊กเกอร์ 50×30 มม.' : 'กระดาษม้วน 58 มม.'} · ${prescriptions.length} ฉลาก · ตั้งค่าเครื่องพิมพ์เป็นขนาดเดียวกัน ขอบ 0<button data-print>พิมพ์ฉลาก</button></div>
+  <div class="sheet">${labels}</div>
 </body>
 </html>`;
 
   return _openPrintWindow(html, `ฉลากยา ${petName}`);
+}
+
+// ─── Certificates (A4): vaccination, health, medical opinion ───────────────────
+
+const CERT_TITLE = {
+  vaccine: ['ใบรับรองการฉีดวัคซีน', 'Vaccination Certificate'],
+  health: ['ใบรับรองสุขภาพสัตว์', 'Animal Health Certificate'],
+  medical: ['ใบรับรองแพทย์', 'Veterinary Medical Certificate'],
+};
+const SPECIES_TH = { dog: 'สุนัข', cat: 'แมว', rabbit: 'กระต่าย', bird: 'นก', other: 'อื่น ๆ' };
+
+export function printCertificate({ type, certNo, store = {}, pet = {}, owner = {}, vet = {}, fields = {}, vaccinations = [] }) {
+  const si = _storeInfo();
+  const st = { name: store.name || si.name || 'คลินิก', address: store.address || si.address || '', phone: store.phone || si.phone || '', tax_id: store.tax_id || si.tax_id || '', logo: store.logo_url || '' };
+  const [titleTh, titleEn] = CERT_TITLE[type] || CERT_TITLE.health;
+  const d = s => (s ? _thaiDate(s) : '—');
+  const row = (k, v) => `<div class="kv"><dt>${k}</dt><dd>${_esc(v || '—')}</dd></div>`;
+  const age = pet.dob ? (() => { const m = Math.floor((Date.now() - new Date(pet.dob)) / (30.44 * 864e5)); return m >= 12 ? `${Math.floor(m / 12)} ปี ${m % 12 ? `${m % 12} เดือน` : ''}` : `${m} เดือน`; })() : '';
+
+  let body = '';
+  if (type === 'vaccine') {
+    body = `
+      <h3>ประวัติการได้รับวัคซีน</h3>
+      ${vaccinations.length ? `<table>
+        <thead><tr><th>วันที่ฉีด</th><th>วัคซีน</th><th>Lot / Batch</th><th>ครั้งถัดไป</th><th>สัตวแพทย์</th></tr></thead>
+        <tbody>${vaccinations.map(v => `<tr><td>${d(v.given_date)}</td><td>${_esc(v.vaccine_name)}</td><td>${_esc(v.batch_no || '—')}</td><td>${d(v.next_due_date)}</td><td>${_esc(v.vet_name || '—')}</td></tr>`).join('')}</tbody>
+      </table>` : '<p class="muted">ยังไม่มีประวัติวัคซีนในระบบ</p>'}
+      <p class="statement">ขอรับรองว่าสัตว์ตามรายละเอียดข้างต้นได้รับวัคซีนตามรายการที่ระบุจริง</p>`;
+  } else if (type === 'medical') {
+    body = `
+      <h3>การตรวจ</h3>
+      <dl class="grid">${row('วันที่ตรวจ', d(fields.exam_date))}${row('น้ำหนัก', fields.weight ? `${fields.weight} กก.` : '')}</dl>
+      <h3>ผลการตรวจ / การวินิจฉัย</h3><p class="text">${_esc(fields.diagnosis || '—')}</p>
+      <h3>ความเห็นของสัตวแพทย์</h3><p class="text">${_esc(fields.opinion || '—')}</p>
+      ${fields.recommendation ? `<h3>คำแนะนำ</h3><p class="text">${_esc(fields.recommendation)}</p>` : ''}`;
+  } else {
+    body = `
+      <h3>การตรวจ</h3>
+      <dl class="grid">${row('วันที่ตรวจ', d(fields.exam_date))}${row('น้ำหนัก', fields.weight ? `${fields.weight} กก.` : '')}${row('อุณหภูมิ', fields.temp ? `${fields.temp} °C` : '')}${row('วัตถุประสงค์', fields.purpose)}</dl>
+      <h3>ผลการตรวจร่างกาย</h3><p class="text">${_esc(fields.result || '')}</p>
+      ${vaccinations.length ? `<h3>วัคซีนล่าสุด</h3><p class="text">${vaccinations.slice(0, 6).map(v => `${_esc(v.vaccine_name)} (${d(v.given_date)})`).join(' · ')}</p>` : ''}
+      <p class="statement">ใบรับรองนี้มีอายุ ${_esc(fields.valid_days || 30)} วัน นับจากวันที่ตรวจ</p>`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>${titleTh} — ${_esc(pet.name || '')}</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Sarabun','Noto Sans Thai','Tahoma',sans-serif; color:#1E293B; font-size:11pt; line-height:1.6; background:#F1F5F9; }
+  .page { width: 210mm; min-height: 297mm; margin: 12px auto; padding: 16mm; background:#fff; box-shadow: 0 4px 20px rgba(15,23,42,.08); }
+  header { display:flex; gap:14px; align-items:center; padding-bottom:10px; border-bottom:2px solid #2A6374; }
+  header img { width:56px; height:56px; object-fit:cover; border-radius:12px; }
+  header h1 { font-size:15pt; color:#1D3640; }
+  header p { font-size:9pt; color:#475569; }
+  .title { margin:18px 0 4px; text-align:center; }
+  .title h2 { font-size:18pt; letter-spacing:.02em; color:#1D3640; }
+  .title p { font-size:10pt; color:#64748B; letter-spacing:.08em; text-transform:uppercase; }
+  .meta { display:flex; justify-content:space-between; font-size:9.5pt; color:#475569; margin:10px 0 14px; }
+  h3 { font-size:11pt; margin:14px 0 6px; color:#2A6374; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 24px; }
+  .kv { display:flex; gap:8px; border-bottom:1px dotted #CBD5E1; padding:3px 0; }
+  .kv dt { width:34%; flex-shrink:0; color:#64748B; font-size:10pt; }
+  .kv dd { font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:10pt; }
+  th, td { border:1px solid #CBD5E1; padding:6px 8px; text-align:left; }
+  th { background:#EEF6F6; color:#1D3640; font-weight:600; }
+  .text { white-space:pre-line; padding:8px 12px; border:1px solid #E2E8F0; border-radius:8px; min-height:48px; }
+  .statement { margin-top:16px; font-size:10.5pt; }
+  .muted { color:#94A3B8; }
+  .sign { margin-top:46px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .stamp { width:110px; height:110px; border:1.5px dashed #CBD5E1; border-radius:50%; display:grid; place-items:center; color:#CBD5E1; font-size:9pt; }
+  .signer { width:260px; text-align:center; font-size:10pt; }
+  .signer .line { border-top:1px solid #1E293B; margin-bottom:6px; padding-top:4px; }
+  .bar { position:sticky; top:0; display:flex; align-items:center; gap:10px; padding:10px 14px; background:#fff; border-bottom:1px solid #E2E8F0; font:13px 'Noto Sans Thai',sans-serif; color:#334155; z-index:2; }
+  .bar button { margin-left:auto; padding:8px 18px; background:#2A6374; color:#fff; border:0; border-radius:999px; font:600 13px 'Noto Sans Thai',sans-serif; cursor:pointer; }
+  @media print { body { background:#fff; } .bar { display:none !important; } .page { margin:0; padding:0; box-shadow:none; width:auto; min-height:auto; } }
+</style>
+</head>
+<body>
+  <div class="bar">${titleTh} · กด "พิมพ์" แล้วเลือก "บันทึกเป็น PDF" ได้<button data-print>พิมพ์ / PDF</button></div>
+  <div class="page">
+    <header>
+      ${st.logo ? `<img src="${_esc(st.logo)}" alt="">` : ''}
+      <div><h1>${_esc(st.name)}</h1><p>${[st.address, st.phone ? `โทร ${st.phone}` : '', st.tax_id ? `เลขประจำตัวผู้เสียภาษี ${st.tax_id}` : ''].filter(Boolean).map(_esc).join(' · ')}</p></div>
+    </header>
+    <div class="title"><h2>${titleTh}</h2><p>${titleEn}</p></div>
+    <div class="meta"><span>เลขที่ ${_esc(certNo || '—')}</span><span>ออกให้วันที่ ${_thaiDate(fields.issue_date || Date.now())}</span></div>
+
+    <h3>ข้อมูลสัตว์</h3>
+    <dl class="grid">
+      ${row('ชื่อ', pet.name)}${row('HN', pet.hn)}
+      ${row('ชนิด', SPECIES_TH[pet.species] || pet.species)}${row('สายพันธุ์', pet.breed)}
+      ${row('เพศ', pet.gender === 'male' ? 'เพศผู้' : pet.gender === 'female' ? 'เพศเมีย' : '')}${row('อายุ / วันเกิด', [age, pet.dob ? d(pet.dob) : ''].filter(Boolean).join(' · '))}
+      ${row('สี / ตำหนิ', pet.color)}${row('ไมโครชิป', pet.microchip_no)}
+    </dl>
+    <h3>เจ้าของ</h3>
+    <dl class="grid">${row('ชื่อ', owner.name)}${row('โทรศัพท์', owner.phone)}</dl>
+
+    ${body}
+
+    <div class="sign">
+      <div class="stamp">ตราประทับ</div>
+      <div class="signer">
+        <div class="line">ลงชื่อ</div>
+        <div>(${_esc(vet.name || '................................')})</div>
+        <div>สัตวแพทย์ผู้ตรวจ</div>
+        <div>ใบอนุญาตประกอบวิชาชีพเลขที่ ${_esc(vet.license_no || '................')}</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+  return _openPrintWindow(html, titleTh);
 }
 
 // ─── Referral Letter (A4) ─────────────────────────────────────────────────────

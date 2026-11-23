@@ -101,3 +101,53 @@ test('phase 6: chat is readable only by the customer and the store, and writes g
   const app = await read('../server/app.js');
   assert.match(app, /app\.use\('\/api\/chat',\s+chatRoutes\)/);
 });
+
+test('B2B packages: user limits in the database, read-only Portal after expiry, owner-only ordering', async () => {
+  const sql = await read('../supabase/migrations/20261124000100_clinic_plans_b2b.sql');
+  assert.match(sql, /create trigger staff_plan_limit before insert or update of is_active, store_id on public\.staff/);
+  assert.match(sql, /errcode = 'P0004'/);
+  assert.match(sql, /owner_id = auth\.uid\(\)\) then\s+raise exception 'only the clinic owner can order a package'/);
+  assert.match(sql, /create policy clinic_plans_public_read on public\.clinic_plans for select to anon using \(is_active\)/);
+  assert.match(sql, /alter table public\.billing_settings enable row level security/);
+  assert.doesNotMatch(sql, /on public\.billing_settings for/);
+  const rbac = await read('../server/middleware/rbac.js');
+  assert.match(rbac, /rpc\('clinic_plan_writable'/);
+  assert.match(rbac, /'\/api\/clinic-links\/billing', '\/api\/clinic-links\/emergency'/);
+  const route = await read('../server/routes/clinic-links.js');
+  assert.match(route, /router\.post\('\/billing\/order', requireRole\('owner'\)/);
+  const app = await read('../server/app.js');
+  assert.match(app, /app\.use\('\/api\/public\/plans',\s+publicPlanRoutes\)/);
+});
+
+test('care reminders: daily job is not callable by users, sends once, and only the owner changes settings', async () => {
+  const sql = await read('../supabase/migrations/20261124000200_care_reminders.sql');
+  assert.match(sql, /revoke all on function public\.run_care_reminders\(\) from public, anon, authenticated/);
+  assert.match(sql, /unique \(kind, ref_id, days_before\)/);
+  assert.match(sql, /on conflict \(kind, ref_id, days_before\) do nothing/);
+  assert.match(sql, /p\.user_id is not null/);
+  assert.match(sql, /cron\.schedule\('care-reminders-daily', '0 1 \* \* \*'/);
+  assert.match(sql, /owner_id = auth\.uid\(\)\) then\s+raise exception 'only the store owner can change reminders'/);
+  for (const table of ['reminder_settings', 'care_reminders']) {
+    assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`));
+    assert.doesNotMatch(sql, new RegExp(`on public\\.${table} for (insert|update|delete|all)`));
+  }
+  const route = await read('../server/routes/reminders.js');
+  assert.match(route, /router\.put\('\/settings', requireRole\('owner'\)/);
+});
+
+test('certificates: vet list needs a store member, licence edits are owner or the vet themself; labels escape drug text', async () => {
+  const route = await read('../server/routes/certificates.js');
+  assert.match(route, /router\.use\(requireAuth\)/);
+  for (const line of route.match(/router\.(get|post|put|patch|delete)\([^\n]+/g) || []) assert.match(line, /requireRole\(/, line);
+  assert.match(route, /req\.staffRole !== 'owner'/);
+  assert.doesNotMatch(route, /service_role|supabaseAdmin|createAdminClient/i);
+  const sql = await read('../supabase/migrations/20261124000300_staff_license.sql');
+  assert.match(sql, /license_no/);
+  assert.match(sql, /owner_license_no/);
+  const app = await read('../server/app.js');
+  assert.match(app, /app\.use\('\/api\/certificates',\s+\w+\)/);
+  const docs = await read('../public/js/utils/print-docs.js');
+  assert.match(docs, /export function printCertificate/);
+  assert.match(docs, /size: 50mm 30mm/);
+  assert.match(docs.slice(docs.indexOf('export function printDrugLabels')), /_esc\(rx\.drug/);
+});

@@ -277,7 +277,7 @@ function Heading({ title, em, id, center = false, light = false }) {
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
 
-const NAV_IDS = ['features', 'flow', 'partners', 'trust']
+const NAV_IDS = ['features', 'flow', 'partners', 'pricing', 'trust']
 
 // Which section is in the middle of the viewport right now
 function useActiveSection(ids) {
@@ -314,7 +314,7 @@ function Header() {
     const a = active && nav?.querySelector(`a[href="#${active}"]`)
     setPill(a ? { left: a.offsetLeft, width: a.offsetWidth } : null)
   }, [active, lang])
-  const links = [['#features', t.nav.features], ['#flow', t.nav.flow], ['#partners', t.nav.partners], ['#trust', t.nav.trust]]
+  const links = [['#features', t.nav.features], ['#flow', t.nav.flow], ['#partners', t.nav.partners], ['#pricing', t.nav.pricing], ['#trust', t.nav.trust]]
   return (
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}`}>
       <div className="header-inner">
@@ -1064,6 +1064,68 @@ function Partners() {
   )
 }
 
+/* ── Pricing (clinics) ───────────────────────────────────────────────────── */
+
+// Shown until /api/public/plans answers, and if it can't (same values as the seeded packages)
+const FALLBACK_PLANS = [
+  { code: 'starter', name: 'Starter', price_monthly: 990, price_yearly: 9900, max_users: 3, is_popular: false },
+  { code: 'pro', name: 'Pro', price_monthly: 1990, price_yearly: 19900, max_users: 10, is_popular: true },
+  { code: 'hospital', name: 'Hospital', price_monthly: 3990, price_yearly: 39900, max_users: null, is_popular: false },
+]
+
+function Pricing() {
+  const { t, lang } = useLang()
+  const p = t.pricing
+  const [plans, setPlans] = useState(FALLBACK_PLANS)
+  const [cycle, setCycle] = useState('monthly')
+  useEffect(() => {
+    let alive = true
+    fetch('/api/public/plans').then(r => (r.ok ? r.json() : null)).then(j => {
+      if (alive && Array.isArray(j?.data) && j.data.length) setPlans(j.data)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  const locale = lang === 'th' ? 'th-TH' : lang === 'zh' ? 'zh-CN' : lang === 'ja' ? 'ja-JP' : lang === 'ko' ? 'ko-KR' : 'en-GB'
+  const baht = n => '฿' + Math.round(Number(n) || 0).toLocaleString(locale)
+  return (
+    <section className="section pricing" id="pricing" aria-labelledby="pricing-title">
+      <div className="wrap pricing-inner">
+        <Heading title={p.title} em={p.titleEm} id="pricing-title" center />
+        <p className="lede pricing-lede" data-reveal="up">{p.lede}</p>
+        <div className="pricing-cycle" role="radiogroup" aria-label={p.title} data-reveal="up">
+          {['monthly', 'yearly'].map(c => (
+            <button key={c} type="button" role="radio" aria-checked={cycle === c} onClick={() => setCycle(c)}>
+              {p[c]}{c === 'yearly' && <em>{p.save}</em>}
+            </button>
+          ))}
+        </div>
+        <div className="pricing-grid">
+          {plans.map((plan, i) => {
+            const price = cycle === 'yearly' ? plan.price_yearly : plan.price_monthly
+            return (
+              <article key={plan.code} className={`price-card${plan.is_popular ? ' is-popular' : ''}`} data-reveal="up" style={{ '--d': `${i * 90}ms` }}>
+                {plan.is_popular && <span className="price-flag">{p.popular}</span>}
+                <h3>{plan.name}</h3>
+                {lang === 'th' && plan.description && <p className="price-desc">{plan.description}</p>}
+                <p className="price-amount"><b>{baht(price)}</b><span>{cycle === 'yearly' ? p.perYear : p.perMonth}</span></p>
+                <p className="price-eq">{cycle === 'yearly' ? p.eq.replace('{price}', baht(price / 12)) : ' '}</p>
+                <p className="price-users"><Users size={16} aria-hidden="true" />{plan.max_users ? p.users.replace('{n}', plan.max_users) : p.unlimited}</p>
+                <ul>
+                  {p.features.map(f => <li key={f}><Check size={15} aria-hidden="true" />{f}</li>)}
+                </ul>
+                <a className={`btn ${plan.is_popular ? 'btn-primary' : 'btn-ghost'}`} href="/register.html">{p.cta} <ArrowRight size={16} aria-hidden="true" /></a>
+              </article>
+            )
+          })}
+        </div>
+        <ul className="pricing-notes" data-reveal="up">
+          {p.notes.map(n => <li key={n}><Check size={14} aria-hidden="true" />{n}</li>)}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
 /* ── Copyright ────────────────────────────────────────────────────────────── */
 
 function Trust() {
@@ -1148,6 +1210,7 @@ function Page() {
         <Divider from="var(--cream)" to="var(--brand-900)" />
         <Partners />
         <Divider from="var(--brand-900)" to="var(--cream)" flip paws={false} />
+        <Pricing />
         <Trust />
         <Divider from="#f3efe7" to="var(--cream)" />
         <Mascots />

@@ -5,6 +5,8 @@ const router=Router(); router.use(requireAuth);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const transitions={requested:['confirmed','reschedule_proposed','rejected','cancelled'],reschedule_proposed:['confirmed','rejected','cancelled'],confirmed:['checked_in','cancelled','no_show'],checked_in:['completed','cancelled']};
 const actionRoles={confirmed:['owner','reception'],reschedule_proposed:['owner','reception'],rejected:['owner','reception'],checked_in:['owner','reception'],completed:['owner','vet'],cancelled:['owner','reception'],no_show:['owner','reception']};
+// The clinic's own records only (RLS): owner contact for calling back, pet species/breed, service name
+const APPT_FIELDS='*, owner:pet_owners(name,phone), pet:pets(species,breed), service:store_services(name)';
 const key=req=>String(req.get('Idempotency-Key')||req.body?.idempotency_key||'').trim();
 const legacyStatus={Pending:'requested',Confirmed:'confirmed',Rejected:'rejected',Completed:'completed',Cancelled:'cancelled',NoShow:'no_show'};
 const portalRow=row=>{
@@ -16,7 +18,7 @@ const portalRow=row=>{
 router.get('/',requireRole('owner','vet','reception'),async(req,res)=>{
  const {store_id,bucket='requested',search=''}=req.query;if(!UUID.test(store_id||''))return res.status(400).json({error:'valid store_id required'});
  const page=Math.max(parseInt(req.query.page,10)||1,1),limit=Math.min(Math.max(parseInt(req.query.limit,10)||20,1),100);
- let q=req.supabase.from('appointments').select('*',{count:'exact'}).eq('store_id',store_id);
+ let q=req.supabase.from('appointments').select(APPT_FIELDS,{count:'exact'}).eq('store_id',store_id);
  if(bucket==='requested')q=q.in('status',['requested','reschedule_proposed','Pending']);else if(bucket==='upcoming')q=q.in('status',['confirmed','checked_in','Confirmed']).gte('appt_date',new Date().toISOString().slice(0,10));else q=q.in('status',['completed','cancelled','no_show','rejected','Completed','Cancelled','NoShow','Rejected']);
  if(search.trim())q=q.ilike('pet_name',`%${search.trim().replaceAll('%','')}%`);
  const {data,error,count}=await q.order('appt_date',{ascending:bucket!=='history'}).order('appt_time_slot',{ascending:true}).range((page-1)*limit,page*limit-1);
@@ -25,7 +27,7 @@ router.get('/',requireRole('owner','vet','reception'),async(req,res)=>{
 router.get('/calendar',requireRole('owner','vet','reception'),async(req,res)=>{
  const {store_id,from,to}=req.query;if(!UUID.test(store_id||'')||!from||!to)return res.status(400).json({error:'store_id, from and to required'});
  const fromDay=new Date(from).toISOString().slice(0,10),toDay=new Date(to).toISOString().slice(0,10);
- const {data,error}=await req.supabase.from('appointments').select('*').eq('store_id',store_id).gte('appt_date',fromDay).lt('appt_date',toDay).order('appt_date').order('appt_time_slot');
+ const {data,error}=await req.supabase.from('appointments').select(APPT_FIELDS).eq('store_id',store_id).gte('appt_date',fromDay).lt('appt_date',toDay).order('appt_date').order('appt_time_slot');
  if(error)return res.status(500).json({error:error.message});res.json({success:true,data:(data||[]).map(portalRow)});
 });
 router.post('/',async(req,res)=>{

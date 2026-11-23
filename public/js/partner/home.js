@@ -241,7 +241,7 @@ function _apptDate(item) {
   return item.starts_at ? _localDateKey(new Date(item.starts_at)) : '';
 }
 function _apptTime(item) {
-  if (item.appt_time_slot) return item.appt_time_slot;
+  if (item.appt_time || item.appt_time_slot) return String(item.appt_time || item.appt_time_slot).slice(0, 5);
   if (!item.starts_at) return 'ไม่ระบุเวลา';
   return new Date(item.starts_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
@@ -271,20 +271,22 @@ function _appointmentStatus(status) {
 
 async function _renderMvpHome(container, storeId) {
   container.innerHTML = `
-    <div class="space-y-4 sm:space-y-5">
-      <div class="ph-head"><div><h1 class="ph-title">สิ่งที่ต้องทำวันนี้</h1><p class="ph-sub">กำลังโหลดข้อมูล…</p></div></div>
+    <div class="hm-page">
+      <div class="ph-head"><div><h1 class="ph-title">${_greeting()}</h1><p class="ph-sub">กำลังโหลดงานวันนี้…</p></div></div>
       <div class="skeleton ph-skel" aria-hidden="true"></div>
-      <div class="skeleton ph-skel" style="height:180px" aria-hidden="true"></div>
+      <div class="skeleton ph-skel" style="height:260px" aria-hidden="true"></div>
     </div>`;
 
-  const [appointmentsResponse, upcomingResponse, screeningResponse] = await Promise.allSettled([
-    apiFetch(`/api/appointments?store_id=${encodeURIComponent(storeId)}&bucket=requested&limit=100`),
-    apiFetch(`/api/appointments?store_id=${encodeURIComponent(storeId)}&bucket=upcoming&limit=100`),
-    apiFetch(`/api/screenings?store_id=${encodeURIComponent(storeId)}&bucket=new`),
+  const today = _localDateKey(new Date());
+  const sid = encodeURIComponent(storeId);
+  const settled = await Promise.allSettled([
+    apiFetch(`/api/appointments?store_id=${sid}&bucket=requested&limit=100`),
+    apiFetch(`/api/appointments?store_id=${sid}&bucket=upcoming&limit=100`),
+    apiFetch(`/api/screenings?store_id=${sid}&bucket=new`),
+    apiFetch(`/api/queue?store_id=${sid}&date=${today}`),
+    apiFetch(`/api/chat/threads?store_id=${sid}`),
   ]);
-  const result = appointmentsResponse.status === 'fulfilled' ? appointmentsResponse.value : null;
-  const upcomingResult = upcomingResponse.status === 'fulfilled' ? upcomingResponse.value : null;
-  const screeningResult = screeningResponse.status === 'fulfilled' ? screeningResponse.value : null;
+  const [result, upcomingResult, screeningResult, queueResult, chatResult] = settled.map(x => (x.status === 'fulfilled' ? x.value : null));
 
   if (!result?.success) {
     container.innerHTML = `
@@ -299,59 +301,125 @@ async function _renderMvpHome(container, storeId) {
 
   // The two buckets can overlap; count each appointment once
   const appointments = _uniqueById([...(Array.isArray(result.data) ? result.data : []), ...(Array.isArray(upcomingResult?.data) ? upcomingResult.data : [])]);
-  const today = _localDateKey(new Date());
   const statusOf = item => String(item.status || '').toLowerCase();
   const requested = appointments.filter(item => ['pending', 'requested'].includes(statusOf(item)));
-  const todayAppointments = appointments.filter(item => _apptDate(item) === today);
-  const confirmedToday = todayAppointments.filter(item => statusOf(item) === 'confirmed');
+  const todayAppointments = appointments.filter(item => _apptDate(item) === today && !['cancelled', 'rejected'].includes(statusOf(item)))
+    .sort((x, y) => _apptTime(x).localeCompare(_apptTime(y)));
+  const arrived = todayAppointments.filter(item => ['checked_in', 'completed'].includes(statusOf(item)));
   const referrals = Array.isArray(screeningResult?.data) ? screeningResult.data : [];
   const urgentReferrals = referrals.filter(item => item.triage_level === 'emergency');
   const caseCount = screeningResult?.count ?? referrals.length;
+  const queue = Array.isArray(queueResult?.data) ? queueResult.data : [];
+  const waiting = queue.filter(q => q.status === 'waiting');
+  const inRoom = queue.filter(q => ['called', 'in_progress', 'in_consultation'].includes(q.status));
+  const chats = Array.isArray(chatResult?.data) ? chatResult.data : [];
+  const unreadChats = chats.filter(c => c.unread > 0);
+  const nowTime = new Date().toTimeString().slice(0, 5);
 
   container.innerHTML = `
-    <div class="space-y-4 sm:space-y-5">
-      <div class="ph-head">
+    <div class="hm-page">
+      <header class="ph-head">
         <div>
-          <h1 class="ph-title">สิ่งที่ต้องทำวันนี้</h1>
-          <p class="ph-sub">อัปเดตล่าสุด ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</p>
+          <h1 class="ph-title">${_greeting()}</h1>
+          <p class="ph-sub">${new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · อัปเดต ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</p>
         </div>
-        <button id="refresh-mvp-home" class="ph-btn">${icon('exchange-alt', 'w-3.5 h-3.5')}รีเฟรช</button>
-      </div>
-      <dl class="ph-stats">
-        ${_mvpMetric('นัดรอยืนยัน', requested.length, 'ควรตอบกลับก่อน', requested.length ? 'is-alert' : '')}
-        ${_mvpMetric('นัดวันนี้', todayAppointments.length, 'รายการทั้งหมดวันนี้')}
-        ${_mvpMetric('ยืนยันแล้ววันนี้', confirmedToday.length, 'เตรียมรับบริการ')}
-        ${_mvpMetric('เคส AI รอพิจารณา', caseCount, urgentReferrals.length ? `${urgentReferrals.length} เคสเร่งด่วน` : 'จากเจ้าของสัตว์', urgentReferrals.length ? 'is-urgent' : '')}
+        <div class="hm-actions">
+          <button type="button" class="ph-btn" id="refresh-mvp-home" aria-label="รีเฟรช">${icon('exchange-alt', 'w-4 h-4')}</button>
+          <button type="button" class="ph-btn" data-go="appointments">${icon('calendar-alt', 'w-4 h-4')}นัดหมาย</button>
+          <button type="button" class="ph-btn is-primary" data-go="queue">${icon('plus', 'w-4 h-4')}รับ Walk-in</button>
+        </div>
+      </header>
+
+      <dl class="hm-kpis">
+        ${_hmKpi('นัดวันนี้', todayAppointments.length, todayAppointments.length ? `มาแล้ว ${arrived.length}` : 'ยังไม่มีนัด', 'calendar-alt', 'appointments')}
+        ${_hmKpi('รอยืนยัน', requested.length, requested.length ? 'ควรตอบกลับก่อน' : 'ตอบครบแล้ว', 'clock', 'appointments', requested.length ? 'is-warn' : '')}
+        ${_hmKpi('รอในคิว', waiting.length, inRoom.length ? `ตรวจอยู่ ${inRoom.length}` : 'ห้องตรวจว่าง', 'clipboard-list', 'queue')}
+        ${_hmKpi('แชทยังไม่ตอบ', unreadChats.length, unreadChats.length ? 'ลูกค้ารอคำตอบ' : 'ตอบครบแล้ว', 'chat', 'chat', unreadChats.length ? 'is-warn' : '')}
+        ${_hmKpi('เคส AI', caseCount, urgentReferrals.length ? `เร่งด่วน ${urgentReferrals.length}` : 'จากเจ้าของสัตว์', 'stethoscope', 'screenings', urgentReferrals.length ? 'is-bad' : '')}
       </dl>
-      <div class="ph-grid is-2">
-        <section class="ph-section">
+
+      <div class="hm-grid">
+        <section class="ph-section hm-today">
           <div class="ph-section__head">
-            <div><h2 class="ph-section__title">เคสคัดกรองที่ควรดู</h2><p class="ph-section__hint">เรียงตามความเร่งด่วน</p></div>
-            <button id="open-screening-inbox" class="ph-link">ดูทั้งหมด ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
+            <div><h2 class="ph-section__title">ตารางวันนี้</h2><p class="ph-section__hint">${todayAppointments.length ? `${todayAppointments.length} นัด เรียงตามเวลา` : 'นัดที่ยืนยันแล้วจะเรียงตามเวลาที่นี่'}</p></div>
+            <button type="button" class="ph-link" data-go="calendar">ปฏิทิน ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
           </div>
-          ${referrals.length === 0
-            ? '<div class="ph-empty">ยังไม่มีเคส AI ที่รอพิจารณา</div>'
-            : _sortByTriage(referrals).slice(0, 4).map(_mvpReferralRow).join('')}
+          ${todayAppointments.length ? `<ol class="hm-timeline">${_hmTimeline(todayAppointments, nowTime)}</ol>` : `<div class="hm-empty">${icon('calendar-alt', 'w-6 h-6')}<p>วันนี้ยังไม่มีนัด รับ Walk-in ได้จากปุ่มด้านบน</p></div>`}
         </section>
-        <section class="ph-section">
-          <div class="ph-section__head">
-            <div><h2 class="ph-section__title">นัดรอยืนยัน</h2><p class="ph-section__hint">ตอบกลับเจ้าของสัตว์</p></div>
-            <button id="open-mvp-appointments" class="ph-link">ดูนัดหมาย ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
-          </div>
-          ${requested.length === 0
-            ? '<div class="ph-empty">ไม่มีนัดรอยืนยัน</div>'
-            : requested.slice(0, 5).map(_mvpAppointmentRow).join('')}
-        </section>
+
+        <div class="hm-side">
+          <section class="ph-section">
+            <div class="ph-section__head">
+              <div><h2 class="ph-section__title">นัดรอยืนยัน</h2><p class="ph-section__hint">ลูกค้ารอคำตอบจากคลินิก</p></div>
+              <button type="button" class="ph-link" data-go="appointments">ทั้งหมด ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
+            </div>
+            ${requested.length === 0 ? '<div class="ph-empty">ไม่มีนัดรอยืนยัน</div>' : requested.slice(0, 4).map(_mvpAppointmentRow).join('')}
+          </section>
+          <section class="ph-section">
+            <div class="ph-section__head">
+              <div><h2 class="ph-section__title">เคส AI ที่ควรดู</h2><p class="ph-section__hint">เรียงตามความเร่งด่วน</p></div>
+              <button type="button" class="ph-link" data-go="screenings">ทั้งหมด ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
+            </div>
+            ${referrals.length === 0 ? '<div class="ph-empty">ยังไม่มีเคสรอพิจารณา</div>' : _sortByTriage(referrals).slice(0, 3).map(_mvpReferralRow).join('')}
+          </section>
+          ${unreadChats.length ? `<section class="ph-section">
+            <div class="ph-section__head">
+              <div><h2 class="ph-section__title">แชทยังไม่ตอบ</h2><p class="ph-section__hint">ตอบเร็ว ลูกค้ากลับมาใช้บริการ</p></div>
+              <button type="button" class="ph-link" data-go="chat">เปิดแชท ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
+            </div>
+            ${unreadChats.slice(0, 3).map(c => `
+              <div class="ph-row">
+                <span class="cl-avatar">${escapeText((c.customer_name || '?').trim().charAt(0).toUpperCase())}</span>
+                <div class="ph-row__main"><div class="ph-row__title">${escapeText(c.customer_name || 'ลูกค้า')}</div><div class="ph-row__meta">${escapeText(c.last_preview || '')}</div></div>
+                <span class="ph-tag is-warn">${c.unread}</span>
+              </div>`).join('')}
+          </section>` : ''}
+        </div>
       </div>
     </div>`;
 
   container.querySelector('#refresh-mvp-home')?.addEventListener('click', () => _renderMvpHome(container, storeId));
-  container.querySelector('#open-mvp-appointments')?.addEventListener('click', () => {
-    import('./dashboard.js').then(({ navigate }) => navigate('appointments'));
-  });
-  container.querySelector('#open-screening-inbox')?.addEventListener('click', () => {
-    import('./dashboard.js').then(({ navigate }) => navigate('screenings'));
-  });
+  container.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
+    import('./dashboard.js').then(({ navigate }) => navigate(b.dataset.go));
+  }));
+}
+
+function _greeting() {
+  const h = new Date().getHours();
+  const name = storage.get(STORAGE_KEYS.STORE_NAME) || '';
+  const hello = h < 12 ? 'สวัสดีตอนเช้า' : h < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
+  return `${hello}${name ? ` · ${escapeText(name)}` : ''}`;
+}
+
+function _hmKpi(label, value, detail, iconName, go, tone = '') {
+  return `
+    <button type="button" class="hm-kpi ${tone}" data-go="${go}">
+      <dt>${icon(iconName, 'w-4 h-4')}${label}</dt>
+      <dd>${value}</dd>
+      <small>${detail}</small>
+    </button>`;
+}
+
+const HM_STATUS = { requested: ['รอยืนยัน', 'is-warn'], confirmed: ['ยืนยันแล้ว', 'is-ok'], checked_in: ['มาถึงแล้ว', 'is-live'], completed: ['เสร็จแล้ว', 'is-done'], no_show: ['ไม่มา', 'is-bad'], reschedule_proposed: ['รอลูกค้าตอบ', 'is-info'] };
+
+function _hmTimeline(items, nowTime) {
+  let nowShown = false;
+  return items.map(item => {
+    const time = _apptTime(item);
+    const st = HM_STATUS[String(item.status || '').toLowerCase()] || [item.status, ''];
+    const marker = !nowShown && time >= nowTime ? (nowShown = true, `<li class="hm-now" aria-label="ตอนนี้"><span>ตอนนี้ ${nowTime}</span></li>`) : '';
+    const service = (typeof item.service === 'object' ? item.service?.name : item.service) || item.service_name || '';
+    const owner = item.owner?.name || item.customer_name || item.owner_name || '';
+    return `${marker}
+      <li class="hm-slot ${st[1]}">
+        <time>${escapeText(time)}</time>
+        <div class="hm-slot__card">
+          <b>${escapeText(item.pet_name || 'สัตว์เลี้ยง')}</b>
+          <span>${escapeText([service, owner].filter(Boolean).join(' · '))}</span>
+        </div>
+        <em class="ap-status ${st[1]}">${escapeText(st[0])}</em>
+      </li>`;
+  }).join('') + (nowShown ? '' : `<li class="hm-now" aria-label="ตอนนี้"><span>ตอนนี้ ${nowTime}</span></li>`);
 }
 
 function _mvpMetric(label, value, detail, state = '') {
@@ -386,9 +454,9 @@ function _mvpReferralRow(item) {
 
 function _mvpAppointmentRow(item) {
   const time = _apptTime(item);
-  const customer = item.customer_name || item.owner_name || 'ลูกค้า';
+  const customer = item.owner?.name || item.customer_name || item.owner_name || 'ลูกค้า';
   const pet = item.pet_name || item.notes || 'ไม่ระบุชื่อสัตว์';
-  const service = item.service || item.service_name || '';
+  const service = (typeof item.service === 'object' ? item.service?.name : item.service) || item.service_name || '';
   return `
     <div class="ph-row">
       <div class="ph-row__time"><b>${escapeText(time)}</b><span>${escapeText(_dayLabel(_apptDate(item)))}</span></div>

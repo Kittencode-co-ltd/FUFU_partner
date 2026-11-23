@@ -4,6 +4,7 @@ import { speciesIcon } from '../utils/icons.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { formatHN, escapeHtml } from '../utils/formatters.js';
+import { openCertificateSheet } from './print-tools.js';
 import { openInviteSheet, openSharedSheet, openEmergencySheet, linkedOwnerIds, isClinicStore, linkText } from './clinic-link.js';
 
 const SPECIES = {
@@ -609,7 +610,8 @@ export function renderPetProfile(container, pet) {
           </div>
           ${pet.allergies ? `<div class="text-xs text-red-500 font-body mt-1">แพ้: ${pet.allergies}</div>` : ''}
         </div>
-        <div class="flex-shrink-0">
+        <div class="flex-shrink-0 flex flex-wrap gap-2 justify-end">
+          ${isClinicStore() ? '<button type="button" id="cert-from-profile" class="ph-btn">ออกใบรับรอง</button>' : ''}
           <button id="new-appt-from-profile" class="btn-primary text-sm px-3 py-2">นัดหมาย</button>
         </div>
       </div>
@@ -665,6 +667,7 @@ export function renderPetProfile(container, pet) {
     import('../partner/dashboard.js').then(({ navigate }) => navigate('pets'));
   });
 
+  container.querySelector('#cert-from-profile')?.addEventListener('click', () => openCertificateSheet({ pet, owner: pet.pet_owners || {} }));
   container.querySelector('#new-appt-from-profile')?.addEventListener('click', () => {
     _openApptModal(container, pet);
   });
