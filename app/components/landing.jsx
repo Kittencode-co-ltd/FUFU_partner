@@ -6,7 +6,7 @@ import {
   ArrowRight, ArrowUpRight, BadgeCheck, BellRing, BookHeart, CalendarDays, Check, ChevronDown,
   ArrowLeft, Activity, Bell, Bot, Cloud, Database, Eye, Images, KeyRound, Network, Smartphone, Workflow,
   ClipboardCheck, Copy, Globe, HeartHandshake, Mail, QrCode, LayoutDashboard, MapPin, Menu, MessageCircleHeart,
-  Phone, ScanLine, Stethoscope, Store, Users, Volume2, VolumeX, X,
+  CreditCard, Phone, ScanLine, ShieldCheck, Stethoscope, Store, Users, Volume2, VolumeX, X,
 } from 'lucide-react'
 import { APP_URL, COMPANY, DONATION, LANGS, messages, PRIVACY_URL, REGISTRY, REQUESTS } from '../i18n/messages'
 
@@ -1143,6 +1143,9 @@ function Pricing() {
           </div>
         </header>
 
+        <div className="plan-stage">
+        <Image className="plan-pal plan-pal-dog" src="/img/mascot/dog-wave.webp" alt="" width={393} height={434} aria-hidden="true" />
+        <Image className="plan-pal plan-pal-cat" src="/img/mascot/cat-curious.webp" alt="" width={310} height={450} aria-hidden="true" />
         <div className="plan-rail" ref={railRef}>
           {plans.map((plan, i) => {
             const yearly = cycle === 'yearly'
@@ -1165,16 +1168,23 @@ function Pricing() {
                   <Seats n={plan.max_users} />
                   <span><b>{plan.max_users ? p.seats.replace('{n}', plan.max_users) : p.seatsAll}</b><small>{p.seatsHint}</small></span>
                 </div>
-                <a className={`btn ${plan.is_popular ? 'btn-light' : 'btn-ghost'}`} href="/register.html">{p.cta} <ArrowRight size={16} aria-hidden="true" /></a>
+                {plan.is_popular && <Image className="plan-peek" src="/img/mascot/cat-peek.webp" alt="" width={364} height={258} aria-hidden="true" />}
+                <a className={`btn ${plan.is_popular ? 'btn-coral' : 'btn-ghost'}`} href="/register.html">{p.ctaPlan} <ArrowRight size={16} aria-hidden="true" /></a>
                 <a className="plan-same" href="#pricing-all"><Check size={14} aria-hidden="true" />{p.same}</a>
               </article>
             )
           })}
         </div>
+        </div>
         <div className="plan-dots" aria-hidden="true">
           {plans.map((plan, i) => <button key={plan.code} type="button" tabIndex={-1} className={i === active ? 'is-on' : ''} onClick={() => goTo(i)} />)}
         </div>
-        <p className="pricing-fine" data-reveal="up">{p.fine}</p>
+        <ul className="pricing-assure" data-reveal="up">
+          {p.assure.map((a, i) => {
+            const Icon = [CreditCard, ShieldCheck, Database][i] || Check
+            return <li key={a}><Icon size={18} aria-hidden="true" />{a}</li>
+          })}
+        </ul>
 
         <div className="pricing-all" id="pricing-all" data-reveal="up">
           <h3>{p.groupsTitle}</h3>

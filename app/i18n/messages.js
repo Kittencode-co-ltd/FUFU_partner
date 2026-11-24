@@ -833,3 +833,13 @@ const PRICING_V2 = {
   },
 }
 for (const [code, more] of Object.entries(PRICING_V2)) Object.assign(messages[code].pricing, more)
+
+// ── Pricing: buyer reassurance under the cards and a more specific call to action ──
+const PRICING_SELL = {
+  th: { ctaPlan: 'เริ่มใช้ฟรี 3 เดือน', assure: ['ไม่ต้องผูกบัตร', 'ไม่ต่ออายุหรือตัดเงินอัตโนมัติ', 'หยุดใช้เมื่อไร ข้อมูลคลินิกก็ไม่หาย'] },
+  en: { ctaPlan: 'Start 3 months free', assure: ['No card needed', 'No auto-renewal or automatic charges', 'Stop any time, your clinic data stays'] },
+  zh: { ctaPlan: '免费使用 3 个月', assure: ['无需绑卡', '不自动续费、不自动扣款', '随时停用，诊所数据不会丢失'] },
+  ja: { ctaPlan: '3か月無料で始める', assure: ['カード登録不要', '自動更新・自動引き落としなし', 'いつ止めても病院のデータは残ります'] },
+  ko: { ctaPlan: '3개월 무료로 시작', assure: ['카드 등록 불필요', '자동 갱신·자동 결제 없음', '언제 중단해도 병원 데이터는 그대로'] },
+}
+for (const [code, more] of Object.entries(PRICING_SELL)) Object.assign(messages[code].pricing, more)
