@@ -1073,11 +1073,23 @@ const FALLBACK_PLANS = [
   { code: 'hospital', name: 'Hospital', price_monthly: 3990, price_yearly: 39900, max_users: null, is_popular: false },
 ]
 
+// Seat strip: one mark per user the package allows (open-ended for unlimited)
+function Seats({ n }) {
+  const marks = n || 12
+  return (
+    <span className={`seat-strip${n ? '' : ' is-open'}`} aria-hidden="true">
+      {Array.from({ length: marks }, (_, i) => <i key={i} />)}
+    </span>
+  )
+}
+
 function Pricing() {
   const { t, lang } = useLang()
   const p = t.pricing
   const [plans, setPlans] = useState(FALLBACK_PLANS)
   const [cycle, setCycle] = useState('monthly')
+  const railRef = useRef(null)
+  const [active, setActive] = useState(1)
   useEffect(() => {
     let alive = true
     fetch('/api/public/plans').then(r => (r.ok ? r.json() : null)).then(j => {
@@ -1085,58 +1097,115 @@ function Pricing() {
     }).catch(() => {})
     return () => { alive = false }
   }, [])
+  // Phones: the cards are a swipeable rail that opens on the recommended package
+  useEffect(() => {
+    const rail = railRef.current
+    if (!rail || rail.scrollWidth <= rail.clientWidth) return
+    const i = Math.max(0, plans.findIndex(pl => pl.is_popular))
+    const card = rail.children[i]
+    if (card) rail.scrollLeft = card.offsetLeft - (rail.clientWidth - card.clientWidth) / 2
+    const onScroll = () => {
+      const mid = rail.scrollLeft + rail.clientWidth / 2
+      let best = 0
+      Array.from(rail.children).forEach((c, k) => { if (Math.abs(c.offsetLeft + c.clientWidth / 2 - mid) < Math.abs(rail.children[best].offsetLeft + rail.children[best].clientWidth / 2 - mid)) best = k })
+      setActive(best)
+    }
+    onScroll()
+    rail.addEventListener('scroll', onScroll, { passive: true })
+    return () => rail.removeEventListener('scroll', onScroll)
+  }, [plans])
   const locale = lang === 'th' ? 'th-TH' : lang === 'zh' ? 'zh-CN' : lang === 'ja' ? 'ja-JP' : lang === 'ko' ? 'ko-KR' : 'en-GB'
   const baht = n => '฿' + Math.round(Number(n) || 0).toLocaleString(locale)
   const tel = n => `tel:${n.replace(/[^+\d]/g, '')}`
+  const goTo = i => {
+    const rail = railRef.current
+    const card = rail?.children[i]
+    if (card) rail.scrollTo({ left: card.offsetLeft - (rail.clientWidth - card.clientWidth) / 2, behavior: 'smooth' })
+  }
   return (
     <section className="section pricing" id="pricing" aria-labelledby="pricing-title">
       <div className="wrap pricing-inner">
-        <Heading title={p.title} em={p.titleEm} id="pricing-title" center />
-        <p className="lede pricing-lede" data-reveal="up">{p.lede}</p>
-        <div className="pricing-cycle" role="radiogroup" aria-label={p.title} data-reveal="up">
-          {['monthly', 'yearly'].map(c => (
-            <button key={c} type="button" role="radio" aria-checked={cycle === c} onClick={() => setCycle(c)}>
-              {p[c]}{c === 'yearly' && <em>{p.save}</em>}
-            </button>
-          ))}
-        </div>
-        <div className="pricing-grid">
+        <header className="pricing-head">
+          <div>
+            <p className="pricing-kicker" data-reveal="up">{p.kicker}</p>
+            <Heading title={p.title} em={p.titleEm} id="pricing-title" />
+            <p className="lede" data-reveal="up">{p.lede}</p>
+          </div>
+          <div className="pricing-switch" data-reveal="up">
+            <div className="pricing-cycle" role="radiogroup" aria-label={p.title}>
+              {['monthly', 'yearly'].map(c => (
+                <button key={c} type="button" role="radio" aria-checked={cycle === c} onClick={() => setCycle(c)}>
+                  {p[c]}{c === 'yearly' && <em>{p.save}</em>}
+                </button>
+              ))}
+            </div>
+            <small>{p.yearHint}</small>
+          </div>
+        </header>
+
+        <div className="plan-rail" ref={railRef}>
           {plans.map((plan, i) => {
-            const price = cycle === 'yearly' ? plan.price_yearly : plan.price_monthly
+            const yearly = cycle === 'yearly'
+            const price = yearly ? plan.price_yearly : plan.price_monthly
+            const fit = p.fit[plan.code] || plan.description || ''
             return (
-              <article key={plan.code} className={`price-card${plan.is_popular ? ' is-popular' : ''}`} data-reveal="up" style={{ '--d': `${i * 90}ms` }}>
-                {plan.is_popular && <span className="price-flag">{p.popular}</span>}
-                <h3>{plan.name}</h3>
-                {lang === 'th' && plan.description && <p className="price-desc">{plan.description}</p>}
-                <p className="price-amount"><b>{baht(price)}</b><span>{cycle === 'yearly' ? p.perYear : p.perMonth}</span></p>
-                <p className="price-vat">{p.net}</p>
-                <p className="price-eq">{cycle === 'yearly' ? p.eq.replace('{price}', baht(price / 12)) : ' '}</p>
-                <p className="price-users"><Users size={16} aria-hidden="true" />{plan.max_users ? p.users.replace('{n}', plan.max_users) : p.unlimited}</p>
-                <ul>
-                  {p.features.map(f => <li key={f}><Check size={15} aria-hidden="true" />{f}</li>)}
-                </ul>
-                <a className={`btn ${plan.is_popular ? 'btn-primary' : 'btn-ghost'}`} href="/register.html">{p.cta} <ArrowRight size={16} aria-hidden="true" /></a>
+              <article key={plan.code} className={`plan${plan.is_popular ? ' is-popular' : ''}`} data-reveal="up" style={{ '--d': `${i * 80}ms` }} aria-label={plan.name}>
+                <div className="plan-top">
+                  <h3>{plan.name}</h3>
+                  {plan.is_popular && <span className="plan-flag">{p.popular}</span>}
+                </div>
+                <p className="plan-fit">{fit}</p>
+                <p className="plan-price"><b>{baht(price)}</b><span>{yearly ? p.perYear : p.perMonth}</span></p>
+                <p className="plan-sub">
+                  {yearly
+                    ? <>{p.perMonthAvg.replace('{price}', baht(price / 12))}<em>{p.yearSave.replace('{price}', baht(plan.price_monthly * 12 - plan.price_yearly))}</em></>
+                    : p.perDay.replace('{price}', baht(price / 30))}
+                </p>
+                <div className="plan-seats" title={p.seatsHint}>
+                  <Seats n={plan.max_users} />
+                  <span><b>{plan.max_users ? p.seats.replace('{n}', plan.max_users) : p.seatsAll}</b><small>{p.seatsHint}</small></span>
+                </div>
+                <a className={`btn ${plan.is_popular ? 'btn-light' : 'btn-ghost'}`} href="/register.html">{p.cta} <ArrowRight size={16} aria-hidden="true" /></a>
+                <a className="plan-same" href="#pricing-all"><Check size={14} aria-hidden="true" />{p.same}</a>
               </article>
             )
           })}
         </div>
-        <ul className="pricing-notes" data-reveal="up">
-          {p.notes.map(n => <li key={n}><Check size={14} aria-hidden="true" />{n}</li>)}
-        </ul>
+        <div className="plan-dots" aria-hidden="true">
+          {plans.map((plan, i) => <button key={plan.code} type="button" tabIndex={-1} className={i === active ? 'is-on' : ''} onClick={() => goTo(i)} />)}
+        </div>
+        <p className="pricing-fine" data-reveal="up">{p.fine}</p>
 
-        <div className="pricing-all" data-reveal="up">
-          <h3>{p.allTitle}</h3>
-          <ul>{p.all.map(f => <li key={f}><Check size={15} aria-hidden="true" />{f}</li>)}</ul>
+        <div className="pricing-all" id="pricing-all" data-reveal="up">
+          <h3>{p.groupsTitle}</h3>
+          <div className="pricing-groups">
+            {p.groups.map(g => (
+              <div key={g.t}>
+                <h4>{g.t}</h4>
+                <ul>{g.items.map(x => <li key={x}>{x}</li>)}</ul>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="pricing-more">
-          <div className="pricing-terms" data-reveal="up">
-            <h3>{p.termsTitle}</h3>
-            <ol>{p.terms.map(x => <li key={x}>{x}</li>)}</ol>
-            <a className="pricing-link" href="/terms">{p.termsLink} <ArrowRight size={15} aria-hidden="true" /></a>
-          </div>
-          <div className="pricing-faq" data-reveal="up">
-            <h3>{p.faqTitle}</h3>
+        <div className="pricing-steps" data-reveal="up">
+          <h3>{p.stepsTitle}</h3>
+          <ol>
+            {p.steps.map((s, i) => (
+              <li key={s.t}>
+                <span className="step-no">{i + 1}</span>
+                <small>{s.k}</small>
+                <b>{s.t}</b>
+                <p>{s.d}</p>
+              </li>
+            ))}
+          </ol>
+          <a className="pricing-link" href="/terms">{p.termsLink} <ArrowRight size={15} aria-hidden="true" /></a>
+        </div>
+
+        <div className="pricing-faq" data-reveal="up">
+          <h3>{p.faqTitle}</h3>
+          <div>
             {p.faq.map(f => (
               <details key={f.q}>
                 <summary>{f.q}<ChevronDown size={18} aria-hidden="true" /></summary>
@@ -1152,9 +1221,8 @@ function Pricing() {
             <p>{p.salesBody}</p>
           </div>
           <div className="pricing-sales-actions">
-            <a className="btn btn-primary" href="/register.html">{p.cta} <ArrowRight size={16} aria-hidden="true" /></a>
-            {COMPANY.phones.map(n => <a key={n} className="btn btn-ghost" href={tel(n)}><Phone size={16} aria-hidden="true" />{n}</a>)}
-            <a className="btn btn-ghost" href={`mailto:${COMPANY.email}?subject=${encodeURIComponent(p.mailSubject)}`}><Mail size={16} aria-hidden="true" />{p.salesMail}</a>
+            {COMPANY.phones.map(n => <a key={n} className="btn btn-outline-light" href={tel(n)}><Phone size={16} aria-hidden="true" />{n}</a>)}
+            <a className="btn btn-outline-light" href={`mailto:${COMPANY.email}?subject=${encodeURIComponent(p.mailSubject)}`}><Mail size={16} aria-hidden="true" />{p.salesMail}</a>
           </div>
         </div>
       </div>
