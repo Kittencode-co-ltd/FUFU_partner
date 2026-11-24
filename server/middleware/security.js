@@ -83,7 +83,7 @@ export const authRateLimit = rateLimit({ scope: 'auth', windowMs: 15 * 60_000, m
 export const mutationRateLimit = rateLimit({ scope: 'mutation', windowMs: 60_000, max: 60 });
 
 // Requests rendered by the Next.js App Router (see server/index.js).
-const NEXT_PAGES = new Set(['/', '/login', '/register', '/onboarding', '/dashboard', '/receipt']);
+const NEXT_PAGES = new Set(['/', '/login', '/register', '/onboarding', '/dashboard', '/receipt', '/terms']);
 export function isNextRequest(path) {
   const clean = path.length > 1 ? path.replace(/\/+$/, '') : path;
   return NEXT_PAGES.has(clean) || path === '/_next' || path.startsWith('/_next/');

@@ -881,3 +881,66 @@ button.free-donate:hover { transform: translateY(-2px); box-shadow: var(--shadow
 .pricing-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted); }
 .pricing-notes li { display: inline-flex; align-items: center; gap: 6px; }
 .pricing-notes svg { color: var(--brand); }
+.price-vat { margin: 2px 0 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Pricing extras: everything included, terms, FAQ, sales contact */
+.pricing-all { width: 100%; margin-top: 24px; padding: 28px; border-radius: 24px; background: var(--paper); border: 1px solid var(--line); }
+.pricing-all h3, .pricing-terms h3, .pricing-faq h3, .pricing-sales h3 { margin: 0 0 14px; font: 700 20px/1.3 var(--font); color: var(--ink); }
+.pricing-all ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; margin: 0; padding: 0; list-style: none; font-size: 15px; color: var(--ink); }
+.pricing-all li { display: flex; gap: 8px; }
+.pricing-all li svg { flex-shrink: 0; margin-top: 4px; color: var(--brand); }
+.pricing-more { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.pricing-terms, .pricing-faq { padding: 28px; border-radius: 24px; background: var(--paper); border: 1px solid var(--line); min-width: 0; }
+.pricing-terms ol { display: grid; gap: 10px; margin: 0 0 18px; padding-left: 20px; font-size: 14.5px; line-height: 1.6; color: var(--ink); }
+.pricing-terms li::marker { color: var(--brand); font-weight: 700; }
+.pricing-link { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--brand); }
+.pricing-link:hover { text-decoration: underline; }
+.pricing-faq details { border-top: 1px solid var(--line); }
+.pricing-faq details:last-child { border-bottom: 1px solid var(--line); }
+.pricing-faq summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; font-weight: 600; font-size: 15px; color: var(--ink); cursor: pointer; list-style: none; }
+.pricing-faq summary::-webkit-details-marker { display: none; }
+.pricing-faq summary svg { flex-shrink: 0; color: var(--muted); transition: transform .25s var(--ease); }
+.pricing-faq details[open] summary svg { transform: rotate(180deg); }
+.pricing-faq details p { margin: 0 0 14px; font-size: 14.5px; line-height: 1.65; color: var(--muted); }
+.pricing-sales { width: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 28px; border-radius: 24px; background: var(--brand-900); color: #fff; }
+.pricing-sales h3 { color: #fff; margin-bottom: 6px; }
+.pricing-sales p { margin: 0; color: rgba(255,255,255,.78); font-size: 15px; }
+.pricing-sales-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.pricing-sales .btn-ghost { color: #fff; border-color: rgba(255,255,255,.35); background: transparent; }
+.pricing-sales .btn-ghost:hover { background: rgba(255,255,255,.08); }
+.pricing-sales .btn svg { flex-shrink: 0; }
+@media (max-width: 900px) {
+  .pricing-all ul, .pricing-more { grid-template-columns: 1fr; }
+  .pricing-all, .pricing-terms, .pricing-faq, .pricing-sales { padding: 22px 18px; }
+  .pricing-sales-actions, .pricing-sales-actions .btn { width: 100%; }
+}
+
+/* Footer: seller details (required for an online business) */
+.footer-legal { display: grid; grid-template-columns: 1.1fr 1.3fr 1.2fr auto; gap: 18px 28px; margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--muted); }
+.footer-legal > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.footer-legal small { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--ink); opacity: .7; }
+.footer-legal b { color: var(--ink); font-weight: 700; }
+.footer-legal a { color: var(--muted); overflow-wrap: anywhere; }
+.footer-legal a:hover { color: var(--brand); }
+.footer-legal nav { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 900px) { .footer-legal { grid-template-columns: 1fr; } }
+
+/* Terms & refund page (/terms) */
+.legal { min-height: 100vh; background: var(--cream); padding: 48px var(--edge) 80px; }
+.legal-wrap { max-width: 760px; margin: 0 auto; color: var(--ink); }
+.legal-back { display: inline-block; margin-bottom: 18px; font-weight: 600; color: var(--brand); }
+.legal h1 { margin: 0; font: 700 clamp(26px, 4vw, 36px)/1.25 var(--font); }
+.legal-sub { margin: 8px 0 24px; color: var(--muted); }
+.legal-toc { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+.legal-toc a { padding: 6px 12px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-size: 13px; color: var(--ink); }
+.legal-toc a:hover { border-color: var(--brand); color: var(--brand); }
+.legal section { padding: 22px 24px; margin-bottom: 14px; border-radius: 20px; background: var(--paper); border: 1px solid var(--line); scroll-margin-top: 20px; }
+.legal h2 { margin: 0 0 10px; font: 700 19px/1.35 var(--font); }
+.legal section p { margin: 0 0 10px; line-height: 1.75; color: var(--ink); }
+.legal section p:last-child { margin-bottom: 0; }
+.legal section a { color: var(--brand); text-decoration: underline; }
+.legal-seller dl { display: grid; gap: 10px; margin: 0 0 14px; }
+.legal-seller dl > div { display: grid; grid-template-columns: 170px 1fr; gap: 12px; }
+.legal-seller dt { color: var(--muted); }
+.legal-seller dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .legal-seller dl > div { grid-template-columns: 1fr; gap: 2px; } .legal section { padding: 18px 16px; } }

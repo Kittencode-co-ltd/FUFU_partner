@@ -40,6 +40,8 @@ import clinicLinksRoutes    from './routes/clinic-links.js';
 import chatRoutes           from './routes/chat.js';
 import reminderRoutes       from './routes/reminders.js';
 import certificateRoutes    from './routes/certificates.js';
+import reportRoutes         from './routes/reports.js';
+import importRoutes         from './routes/import.js';
 import { requestContext, sanitizedErrorHandler } from './middleware/request-context.js';
 import { corsOptions, mutationRateLimit, securityHeaders } from './middleware/security.js';
 import { validateEnvironment } from './config/env.js';
@@ -95,6 +97,8 @@ export function createApiApp({ withFallback = true } = {}) {
   app.use('/api/chat',            chatRoutes);
   app.use('/api/reminders',       reminderRoutes);
   app.use('/api/certificates',    certificateRoutes);
+  app.use('/api/reports',         reportRoutes);
+  app.use('/api/import',          importRoutes);
 
   if (withFallback) {
     app.use('/api', (req, res) => res.status(404).json({

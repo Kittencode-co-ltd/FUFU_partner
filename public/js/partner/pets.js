@@ -5,6 +5,8 @@ import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { formatHN, escapeHtml } from '../utils/formatters.js';
 import { openCertificateSheet } from './print-tools.js';
+import { openImportSheet } from './import-data.js';
+import { bizKind } from '../utils/business.js';
 import { openInviteSheet, openSharedSheet, openEmergencySheet, linkedOwnerIds, isClinicStore, linkText } from './clinic-link.js';
 
 const SPECIES = {
@@ -88,7 +90,10 @@ function _shellHTML(activeTab) {
             ${t.ico} ${t.label}
           </button>`).join('')}
       </div>
-      ${isClinicStore() ? `<button type="button" class="ph-btn cl-em-btn" data-emergency>${escapeHtml(linkText('emBtn'))}</button>` : ''}
+      <div class="cl-pets-actions">
+        ${storage.get(STORAGE_KEYS.STAFF_ROLE) === 'owner' ? '<button type="button" class="ph-btn" data-import>นำเข้าจาก Excel</button>' : ''}
+        ${isClinicStore() ? `<button type="button" class="ph-btn cl-em-btn" data-emergency>${escapeHtml(linkText('emBtn'))}</button>` : ''}
+      </div>
       </div>
       <div id="pets-content"></div>
     </div>`;
@@ -96,6 +101,9 @@ function _shellHTML(activeTab) {
 
 function _bindTabEvents(container) {
   container.querySelector('[data-emergency]')?.addEventListener('click', () => openEmergencySheet());
+  container.querySelector('[data-import]')?.addEventListener('click', () => openImportSheet({
+    onDone: () => container.querySelector('.tab-btn.bg-white')?.click(),
+  }));
   container.querySelector('.flex').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-tab]');
     if (!btn) return;
@@ -629,7 +637,7 @@ export function renderPetProfile(container, pet) {
 
       <!-- Tabs: ประวัติ / วัคซีน / นัดหมาย -->
       <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-        ${['history','vaccines','appointments'].map((t, i) => `
+        ${(isClinicStore() ? ['history','vaccines','appointments'] : ['appointments']).map((t, i) => `
           <button data-profile-tab="${t}"
             class="profile-tab px-4 py-2 rounded-lg text-sm font-semibold transition-colors
                    ${i===0 ? 'bg-white text-navy shadow-card' : 'text-slate-500 hover:text-navy'}">
@@ -641,7 +649,9 @@ export function renderPetProfile(container, pet) {
     </div>`;
 
   // Inject initial history tab (DOM node, not HTML string)
-  container.querySelector('#profile-tab-content').appendChild(_renderHistory(pet.medical_records || []));
+  // Treatment history and vaccines are clinic records; other businesses see their bookings only
+  if (isClinicStore()) container.querySelector('#profile-tab-content').appendChild(_renderHistory(pet.medical_records || []));
+  else container.querySelector('#profile-tab-content').innerHTML = _renderPetAppts(pet.appointments || []);
 
   // Tab switching
   container.querySelectorAll('[data-profile-tab]').forEach(btn => {
@@ -1041,7 +1051,7 @@ function _openApptModal(el, pet = null) {
       <div>
         <label class="input-label">บริการ</label>
         <select id="ap-service" class="input-field">
-          ${['ตรวจทั่วไป','วัคซีน','ผ่าตัด','ทำฟัน','ตรวจเลือด','ติดตามผล','อื่นๆ'].map(s =>
+          ${({ clinic: ['ตรวจทั่วไป','วัคซีน','ผ่าตัด','ทำฟัน','ตรวจเลือด','ติดตามผล','อื่นๆ'], grooming: ['อาบน้ำ','ตัดขน','อาบน้ำ + ตัดขน','ตัดเล็บ / เช็ดหู','สปา','อื่นๆ'], hotel: ['ฝากเลี้ยง','ฝากรายวัน','อื่นๆ'] }[bizKind()] || ['นัดรับสินค้า','อื่นๆ']).map(s =>
             `<option value="${s}">${s}</option>`).join('')}
         </select>
       </div>

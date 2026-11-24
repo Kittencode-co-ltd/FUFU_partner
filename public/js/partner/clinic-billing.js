@@ -1,7 +1,7 @@
 // FUFU package for clinics (B2B): the whole Partner Portal is paid after the 3-month trial; packages differ by the
 // number of users. Shows the plan, trial / paid-until date, 14-day grace, read-only state, FUFU's invoices, and lets
 // the owner pick a package (an invoice is issued at once; FUFU confirms the transfer in Admin).
-// Shops, grooming and hotels don't pay. API: /api/clinic-links/billing (server/routes/clinic-links.js). Styles: .cb-*.
+// Shown to clinics only. API: /api/clinic-links/billing (server/routes/clinic-links.js). Styles: .cb-*.
 import { apiFetch } from '../utils/api-client.js';
 import { storage } from '../utils/storage.js';
 import { STORAGE_KEYS } from '../utils/config.js';
@@ -57,7 +57,7 @@ const S = {
   overdue: ['เลยกำหนด', 'Overdue', '已逾期', '期限超過', '연체'],
   period: ['รอบ {from} – {to}', 'Period {from} – {to}', '周期 {from} – {to}', '期間 {from} – {to}', '기간 {from} – {to}'],
   howPay: ['วิธีชำระเงิน', 'How to pay', '付款方式', 'お支払い方法', '결제 방법'],
-  contact: ['ร้านค้า grooming และโรงแรมใช้ฟรี · ราคายังไม่รวม VAT 7% · มีคำถาม ติดต่อทีม FUFU', 'Shops, grooming and hotels are free · Prices exclude 7% VAT · Questions? Contact the FUFU team', '商店、美容、酒店免费 · 价格不含 7% 增值税', 'ショップ・トリミング・ホテルは無料 · 価格は税抜（VAT 7%）', '매장·미용·호텔은 무료 · 가격은 VAT 7% 별도'],
+  contact: ['ราคาสุทธิ ไม่มีค่าใช้จ่ายอื่นเพิ่ม · มีคำถาม ติดต่อทีม FUFU', 'Net prices, nothing added · Questions? Contact the FUFU team', '净价，无其他费用 · 如有疑问请联系 FUFU 团队', '表示価格がお支払い総額です · ご不明点は FUFU チームへ', '표시 가격이 최종 금액 · 문의는 FUFU 팀으로'],
   perMonth: ['/เดือน', '/month', '/月', '/月', '/월'], perYear: ['/ปี', '/year', '/年', '/年', '/년'],
 };
 const T = (k, vars = {}) => {

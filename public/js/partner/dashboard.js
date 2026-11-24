@@ -149,6 +149,7 @@ const BUSINESS_NAV = {
     { id: 'medical', icon: 'folder-open', label: 'ประวัติการรักษา', group: 'records' },
     { id: 'summaries', icon: 'file-alt', label: 'สรุปการเข้ารับบริการ', group: 'records' },
     { id: 'inventory', icon: 'box', label: 'คลังยาและเวชภัณฑ์', group: 'stock' },
+    { id: 'reports', icon: 'chart-line', label: 'รายงานธุรกิจ', group: 'money' },
     { id: 'clinic', icon: 'hospital-alt', label: 'ร้านและการรับจอง' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
   ],
@@ -160,6 +161,7 @@ const BUSINESS_NAV = {
     { id: 'chat', icon: 'chat', label: 'แชทลูกค้า', group: 'sales' },
     { id: 'inventory', icon: 'box', label: 'คลังสินค้า', group: 'stock' },
     { id: 'income', icon: 'coins', label: 'ยอดขายและรายได้', group: 'money' },
+    { id: 'reports', icon: 'chart-line', label: 'รายงานธุรกิจ', group: 'money' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
     { id: 'settings', icon: 'cog', label: 'ตั้งค่า' },
   ],
@@ -173,7 +175,8 @@ const BUSINESS_NAV = {
     { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
     { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS', group: 'payment' },
     { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ', group: 'records' },
-    { id: 'income', icon: 'coins', label: 'รายได้', group: 'records' },
+    { id: 'income', icon: 'coins', label: 'รายได้', group: 'money' },
+    { id: 'reports', icon: 'chart-line', label: 'รายงานธุรกิจ', group: 'money' },
     { id: 'clinic', icon: 'hospital-alt', label: 'ร้านและการรับจอง' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
     { id: 'settings', icon: 'cog', label: 'ตั้งค่า' },
@@ -188,7 +191,8 @@ const BUSINESS_NAV = {
     { id: 'cashier', icon: 'coins', label: 'แคชเชียร์', group: 'payment' },
     { id: 'pos', icon: 'credit-card', label: 'ขายหน้าร้าน · POS', group: 'payment' },
     { id: 'pets', icon: 'paw', label: 'สัตว์เลี้ยงและเจ้าของ', group: 'records' },
-    { id: 'income', icon: 'coins', label: 'รายได้', group: 'records' },
+    { id: 'income', icon: 'coins', label: 'รายได้', group: 'money' },
+    { id: 'reports', icon: 'chart-line', label: 'รายงานธุรกิจ', group: 'money' },
     { id: 'clinic', icon: 'hospital-alt', label: 'ร้านและการรับจอง' },
     { id: 'users', icon: 'users', label: 'ผู้ใช้งาน' },
     { id: 'settings', icon: 'cog', label: 'ตั้งค่า' },
@@ -274,6 +278,7 @@ const PAGE_TITLES = {
   staff:        'จัดการพนักงาน',
   pos:          'ชำระเงิน (POS)',
   income:       'รายได้',
+  reports:      'รายงานธุรกิจ',
   hotel:        'ห้องพัก',
   grooming:     'บริการ Grooming',
   documents:    'ศูนย์เอกสาร',
@@ -287,7 +292,7 @@ const PAGE_TITLES = {
 const _RESTORABLE_PAGES = new Set([
   'home','queue','chat','medical','pets','hotel','grooming',
   'inventory','finance','ipd','documents','kanban','settings','users','staff','opd',
-  'appointments','calendar','patients','summaries','clinic','orders','delivery','cashier','pos','income',
+  'appointments','calendar','patients','summaries','clinic','orders','delivery','cashier','pos','income','reports',
 ]);
 const _PAGE_KEY = 'fufu_current_page';
 let _pageEnterTimer = null;
@@ -1022,6 +1027,11 @@ async function _renderPage(pageId, detail = null) {
   if (pageId === 'staff') {
     const { renderStaff } = await import('./staff.js');
     await renderStaff(document.getElementById('page-staff'));
+    return;
+  }
+  if (pageId === 'reports') {
+    const { renderReports } = await import('./reports.js');
+    await renderReports(document.getElementById('page-reports'), { category: getCurrentRole() });
     return;
   }
   if (pageId === 'income') {

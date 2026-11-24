@@ -151,3 +151,46 @@ test('certificates: vet list needs a store member, licence edits are owner or th
   assert.match(docs, /size: 50mm 30mm/);
   assert.match(docs.slice(docs.indexOf('export function printDrugLabels')), /_esc\(rx\.drug/);
 });
+
+test('business reports and Excel import: signed-in, owner-level roles, user-scoped client only', async () => {
+  const reports = await read('../server/routes/reports.js');
+  assert.match(reports, /router\.use\(requireAuth\)/);
+  assert.match(reports, /router\.get\('\/summary', requireRole\('owner', 'accountant'\)/);
+  assert.match(reports, /MAX_DAYS = 366/);
+  const imp = await read('../server/routes/import.js');
+  assert.match(imp, /router\.use\(requireAuth\)/);
+  assert.match(imp, /router\.post\('\/rows', requireRole\('owner'\)/);
+  assert.match(imp, /req\.body\.dry_run !== false/, 'import checks first unless dry_run is explicitly false');
+  assert.match(imp, /withVaccines && row\.vaccine_name/, 'only clinics import vaccine history');
+  for (const src of [reports, imp]) assert.doesNotMatch(src, /service_role|supabaseAdmin|createAdminClient/i);
+  const app = await read('../server/app.js');
+  assert.match(app, /app\.use\('\/api\/reports',\s+reportRoutes\)/);
+  assert.match(app, /app\.use\('\/api\/import',\s+importRoutes\)/);
+});
+
+test('clinic-only features are closed to shops, grooming and hotels on the server', async () => {
+  const rbac = await read('../server/middleware/rbac.js');
+  assert.match(rbac, /export async function requireClinicStore/);
+  assert.match(rbac, /code: 'CLINIC_ONLY'/);
+  const certs = await read('../server/routes/certificates.js');
+  for (const line of certs.match(/router\.(get|put)\([^\n]+/g)) assert.match(line, /requireClinicStore/, line);
+  const links = await read('../server/routes/clinic-links.js');
+  for (const path of ["'/billing'", "'/billing/order'", "'/shared'", "'/emergency'", "'/emergency/:id'"]) {
+    assert.match(links, new RegExp(`router\\.(get|post)\\(${path.replace(/[/:]/g, m => `\\${m}`)}, requireRole\\([^)]*\\), requireClinicStore`), path);
+  }
+  const billing = await read('../public/js/partner/clinic-billing.js');
+  assert.doesNotMatch(billing, /grooming|โรงแรม/, 'clinic billing never mentions other businesses');
+});
+
+test('website pricing shows seller details, net prices (no VAT: not VAT-registered) and the terms page', async () => {
+  const messages = await read('../app/i18n/messages.js');
+  assert.match(messages, /taxId: '0655569001411'/);
+  assert.doesNotMatch(messages, /grooming และโรงแรมสัตว์เลี้ยงใช้ฟรี|grooming and pet hotels are free/);
+  const landing = await read('../app/components/landing.jsx');
+  assert.doesNotMatch(landing, /bahtVat|vatIncl/);
+  assert.doesNotMatch(messages, /vatIncl|VAT 7%/, 'FUFU is not VAT-registered: its own prices never mention VAT');
+  assert.doesNotMatch(await read('../public/js/partner/clinic-billing.js'), /VAT/);
+  assert.match(landing, /href="\/terms"/);
+  const security = await read('../server/middleware/security.js');
+  assert.match(security, /'\/terms'\]/, '/terms gets the CSP nonce like other Next pages');
+});

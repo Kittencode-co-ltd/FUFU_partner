@@ -56,7 +56,7 @@ export async function renderReminderCard(el, { canEdit = false, isClinic = false
             ${due.length > 6 ? `<button type="button" class="ph-link" data-more>${showAll ? 'แสดงน้อยลง' : `ดูทั้งหมด ${due.length} รายการ`}</button>` : ''}`
             : '<p class="cl-empty">ยังไม่มีวัคซีนที่ใกล้ครบกำหนด ใส่วันนัดครั้งถัดไปตอนบันทึกวัคซีน ระบบจะเตือนลูกค้าให้เอง</p>'}
         </div>` : ''}
-        <p class="cl-note">${icon('shield-alt', 'w-4 h-4')}ลูกค้าที่ยังไม่ได้ใช้แอป FUFU จะไม่ได้รับแจ้งเตือน ส่งรหัสเชื่อมแอปให้ได้จากรายชื่อเจ้าของ</p>
+        <p class="cl-note">${icon('shield-alt', 'w-4 h-4')}ลูกค้าที่ยังไม่ได้ใช้แอป FUFU จะไม่ได้รับแจ้งเตือน${isClinic ? ' ส่งรหัสเชื่อมแอปให้ได้จากรายชื่อเจ้าของ' : ' แนะนำให้ลูกค้าจองผ่านแอป FUFU'}</p>
       </section>`;
     bind();
   };

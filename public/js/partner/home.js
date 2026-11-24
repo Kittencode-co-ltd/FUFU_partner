@@ -1,5 +1,6 @@
 import { apiFetch }  from '../utils/api-client.js';
 import { storage }   from '../utils/storage.js';
+import { bizWord } from '../utils/business.js';
 import { STORAGE_KEYS, FEATURE_FLAGS } from '../utils/config.js';
 import { icon } from '../utils/icons.js';
 
@@ -350,7 +351,7 @@ async function _renderMvpHome(container, storeId) {
         <div class="hm-side">
           <section class="ph-section">
             <div class="ph-section__head">
-              <div><h2 class="ph-section__title">นัดรอยืนยัน</h2><p class="ph-section__hint">ลูกค้ารอคำตอบจากคลินิก</p></div>
+              <div><h2 class="ph-section__title">นัดรอยืนยัน</h2><p class="ph-section__hint">ลูกค้ารอคำตอบจาก${bizWord('store')}</p></div>
               <button type="button" class="ph-link" data-go="appointments">ทั้งหมด ${icon('chevron-right', 'w-3.5 h-3.5')}</button>
             </div>
             ${requested.length === 0 ? '<div class="ph-empty">ไม่มีนัดรอยืนยัน</div>' : requested.slice(0, 4).map(_mvpAppointmentRow).join('')}

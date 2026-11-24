@@ -4,7 +4,7 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, requireClinicStore } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -65,7 +65,7 @@ router.get('/owners', requireRole(...STAFF), async (req, res) => {
 
 // GET /api/clinic-links/shared?store_id&user_id — what this customer chose to share from the App (phase 3).
 // The database function checks consent on every call and records the view (the customer can see it).
-router.get('/shared', requireRole(...STAFF), async (req, res) => {
+router.get('/shared', requireRole(...STAFF), requireClinicStore, async (req, res) => {
   if (!UUID.test(req.query.user_id || '')) return res.status(400).json({ success: false, code: 'invalid', error: 'user_id required' });
   const { data, error } = await req.supabase.rpc('clinic_shared_data', { p_store_id: req.query.store_id, p_user_id: req.query.user_id });
   if (error) return fail(res, error);
@@ -75,7 +75,7 @@ router.get('/shared', requireRole(...STAFF), async (req, res) => {
 
 // ── Emergency codes (phase 4): a customer at a clinic they never linked shows a 72-hour code from the App ──
 // POST /api/clinic-links/emergency { store_id, code } — open (and claim) a code; the first clinic to open it keeps it
-router.post('/emergency', requireRole(...STAFF), async (req, res) => {
+router.post('/emergency', requireRole(...STAFF), requireClinicStore, async (req, res) => {
   const code = String(req.body.code || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
   if (code.length !== 6) return res.status(400).json({ success: false, code: 'invalid_code', error: 'code required' });
   const { data, error } = await req.supabase.rpc('open_emergency_share', { p_store_id: req.body.store_id, p_code: code });
@@ -85,7 +85,7 @@ router.post('/emergency', requireRole(...STAFF), async (req, res) => {
 });
 
 // GET /api/clinic-links/emergency?store_id — emergency codes this clinic opened that are still valid
-router.get('/emergency', requireRole(...STAFF), async (req, res) => {
+router.get('/emergency', requireRole(...STAFF), requireClinicStore, async (req, res) => {
   const { data, error } = await req.supabase.from('emergency_shares')
     .select('id, pet_ids, claimed_at, expires_at').eq('store_id', req.query.store_id)
     .is('revoked_at', null).gt('expires_at', new Date().toISOString()).order('claimed_at', { ascending: false }).limit(20);
@@ -94,7 +94,7 @@ router.get('/emergency', requireRole(...STAFF), async (req, res) => {
 });
 
 // GET /api/clinic-links/emergency/:id?store_id — re-open one of those (still checked and logged in the database)
-router.get('/emergency/:id', requireRole(...STAFF), async (req, res) => {
+router.get('/emergency/:id', requireRole(...STAFF), requireClinicStore, async (req, res) => {
   if (!UUID.test(req.params.id)) return res.status(400).json({ success: false, code: 'invalid', error: 'invalid id' });
   const { data, error } = await req.supabase.rpc('open_emergency_share', { p_store_id: req.query.store_id, p_share_id: req.params.id });
   if (error) return fail(res, error);
@@ -103,7 +103,7 @@ router.get('/emergency/:id', requireRole(...STAFF), async (req, res) => {
 });
 
 // GET /api/clinic-links/billing?store_id — the clinic's FUFU package (phase 5). Invoices are for the owner only.
-router.get('/billing', requireRole(...STAFF), async (req, res) => {
+router.get('/billing', requireRole(...STAFF), requireClinicStore, async (req, res) => {
   const { data, error } = await req.supabase.rpc('clinic_billing_status', { p_store_id: req.query.store_id });
   if (error) return fail(res, error);
   res.set('Cache-Control', 'private, no-store');
@@ -112,7 +112,7 @@ router.get('/billing', requireRole(...STAFF), async (req, res) => {
 
 // POST /api/clinic-links/billing/order { store_id, plan_id, cycle } — the owner picks a package; an invoice is issued
 // at once with FUFU's payment details. FUFU confirms the transfer in Admin, which activates the package.
-router.post('/billing/order', requireRole('owner'), async (req, res) => {
+router.post('/billing/order', requireRole('owner'), requireClinicStore, async (req, res) => {
   const cycle = req.body.cycle === 'yearly' ? 'yearly' : 'monthly';
   if (!UUID.test(req.body.plan_id || '')) return res.status(400).json({ success: false, code: 'invalid', error: 'plan_id required' });
   const { data, error } = await req.supabase.rpc('clinic_order_plan', { p_store_id: req.body.store_id, p_plan_id: req.body.plan_id, p_cycle: cycle });

@@ -2,7 +2,7 @@
 // for next time. The certificate itself is printed in the browser (public/js/utils/print-docs.js printCertificate).
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { requireRole, requireClinicStore } from '../middleware/rbac.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -12,7 +12,7 @@ const VET_ROLES = ['owner', 'manager', 'veterinarian', 'vet'];
 const clean = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 // GET /api/certificates/vets?store_id
-router.get('/vets', requireRole('owner', 'vet', 'reception', 'staff'), async (req, res) => {
+router.get('/vets', requireRole('owner', 'vet', 'reception', 'staff'), requireClinicStore, async (req, res) => {
   const storeId = req.query.store_id;
   const [{ data: store }, { data: staff, error }] = await Promise.all([
     req.supabase.from('stores').select('owner_id, owner_vet_name, owner_license_no, name').eq('id', storeId).maybeSingle(),
@@ -27,7 +27,7 @@ router.get('/vets', requireRole('owner', 'vet', 'reception', 'staff'), async (re
 });
 
 // PUT /api/certificates/vets { store_id, id: 'owner' | staff id, name, license_no } — remember for next time
-router.put('/vets', requireRole('owner', 'vet'), async (req, res) => {
+router.put('/vets', requireRole('owner', 'vet'), requireClinicStore, async (req, res) => {
   const name = clean(req.body.name, 120);
   const license = clean(req.body.license_no, 40);
   if (req.body.id === 'owner') {

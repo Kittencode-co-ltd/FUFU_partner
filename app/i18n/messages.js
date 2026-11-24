@@ -330,7 +330,7 @@ export const REQUESTS = ['469572', '471127', '485009', '485016']
 // ── Additional copy (v3 landing: free launch, partner pitch, interactive mascots) ──
 const extra = {
   th: {
-    free: { badge: 'ฟรี', title: 'ใช้ฟรีทุกฟีเจอร์', titleEm: 'ในช่วงเปิดตัว', body: 'ไม่มีค่าสมัคร ไม่มีแพ็กเกจรายเดือน ถ้าอยากให้ FUFU เติบโตต่อไป ร่วมสนับสนุนได้ทันทีที่นี่ หรือผ่านเมนูบริจาคในแอป', donate: 'ร่วมบริจาคได้ในแอป' },
+    free: { badge: 'ฟรี', title: 'เจ้าของสัตว์เลี้ยงใช้ฟรี', titleEm: 'ทุกฟีเจอร์', body: 'แอป FUFU สำหรับเจ้าของสัตว์เลี้ยงไม่มีค่าสมัครและไม่มีค่ารายเดือน ถ้าอยากให้ FUFU เติบโตต่อไป ร่วมสนับสนุนได้ทันทีที่นี่ หรือผ่านเมนูบริจาคในแอป', donate: 'ร่วมบริจาคได้ในแอป' },
     partners: {
       title: 'เพิ่มลูกค้า ลดงานหน้าร้าน', titleEm: 'ด้วย FUFU Partner',
       lede: 'ระบบหลังบ้านสำหรับคลินิก ร้านค้า ร้านตัดแต่งขน และโรงแรมสัตว์เลี้ยง เชื่อมตรงกับเจ้าของสัตว์ที่ใช้ FUFU App',
@@ -347,7 +347,7 @@ const extra = {
     trust: { title: 'นวัตกรรมของเราเอง', titleEm: 'แจ้งลิขสิทธิ์แล้ว 4 ผลงาน', lede: 'ทุกชิ้นพัฒนาโดยทีม KITTEN CODE และแจ้งข้อมูลลิขสิทธิ์ต่อกรมทรัพย์สินทางปัญญา ประเภทวรรณกรรม (โปรแกรมคอมพิวเตอร์)', badge: 'แจ้งข้อมูลแล้ว', request: 'คำขอเลขที่', kinds: ['แอปพลิเคชันดูแลสุขภาพสัตว์เลี้ยง', 'AI คัดกรองโรคผิวหนังจากภาพถ่าย', 'ผู้ช่วยสัตวแพทย์ AI แบบสนทนา', 'ระบบบริหารคลินิกและธุรกิจสัตว์เลี้ยง'] },
   },
   en: {
-    free: { badge: 'Free', title: 'Every feature is free', titleEm: 'during launch', body: 'No sign-up fee and no monthly plan. If you’d like to help FUFU grow, you can support us right here or through the donation menu in the app.', donate: 'Donate in the app' },
+    free: { badge: 'Free', title: 'Free for pet owners', titleEm: 'every feature', body: 'The FUFU app for pet owners has no sign-up fee and no monthly fee. If you’d like to help FUFU grow, you can support us right here or through the donation menu in the app.', donate: 'Donate in the app' },
     partners: {
       title: 'More clients, less front-desk work', titleEm: 'with FUFU Partner',
       lede: 'A back office for clinics, shops, groomers and pet hotels — connected directly to pet owners on FUFU App.',
@@ -364,7 +364,7 @@ const extra = {
     trust: { title: 'Our own innovation,', titleEm: '4 registered works', lede: 'Built by the KITTEN CODE team and recorded with Thailand’s Department of Intellectual Property as literary works (computer programs).', badge: 'Registered', request: 'Request no.', kinds: ['Pet health app', 'AI skin-disease screening from photos', 'Conversational AI vet assistant', 'Clinic & pet business management'] },
   },
   zh: {
-    free: { badge: '免费', title: '上线期间', titleEm: '全部功能免费', body: '无注册费，无月费。如果您希望 FUFU 持续成长，可以直接在这里或通过应用内的捐助菜单支持我们。', donate: '在应用内捐助' },
+    free: { badge: '免费', title: '宠物主人', titleEm: '全部功能免费', body: '面向宠物主人的 FUFU 应用无注册费、无月费。如果您希望 FUFU 持续成长，可以直接在这里或通过应用内的捐助菜单支持我们。', donate: '在应用内捐助' },
     partners: {
       title: '获客更多，前台更轻松', titleEm: '用 FUFU Partner',
       lede: '为诊所、宠物店、美容店和宠物酒店打造的后台系统，直接连接 FUFU App 上的宠物主人。',
@@ -381,7 +381,7 @@ const extra = {
     trust: { title: '自主创新，', titleEm: '4 项著作权登记', lede: '全部由 KITTEN CODE 团队开发，并向泰国知识产权厅登记为文字作品（计算机程序）。', badge: '已登记', request: '申请号', kinds: ['宠物健康应用', '基于照片的皮肤病 AI 筛查', '对话式 AI 兽医助手', '诊所与宠物企业管理系统'] },
   },
   ja: {
-    free: { badge: '無料', title: 'リリース期間中は', titleEm: '全機能が無料', body: '登録料も月額プランもありません。FUFU を応援したい方は、ここから、またはアプリ内の寄付メニューからご支援いただけます。', donate: 'アプリ内で寄付' },
+    free: { badge: '無料', title: '飼い主さんは', titleEm: '全機能が無料', body: '飼い主さん向けの FUFU アプリは登録料も月額料金もありません。FUFU を応援したい方は、ここから、またはアプリ内の寄付メニューからご支援いただけます。', donate: 'アプリ内で寄付' },
     partners: {
       title: '集客を増やし、受付業務を減らす', titleEm: 'FUFU Partner で',
       lede: '動物病院、ショップ、トリミング、ペットホテル向けの管理システム。FUFU App の飼い主と直接つながります。',
@@ -398,7 +398,7 @@ const extra = {
     trust: { title: '自社開発のイノベーション、', titleEm: '著作権届出 4 件', lede: 'すべて KITTEN CODE チームが開発し、タイ知的財産局に言語の著作物（コンピュータプログラム）として届出済みです。', badge: '届出済み', request: '申請番号', kinds: ['ペット健康アプリ', '写真による皮膚疾患 AI スクリーニング', '対話型 AI 獣医アシスタント', 'クリニック・ペット事業管理'] },
   },
   ko: {
-    free: { badge: '무료', title: '출시 기간 동안', titleEm: '모든 기능 무료', body: '가입비도 월 요금제도 없습니다. FUFU의 성장을 응원하고 싶다면 여기에서 바로 또는 앱의 후원 메뉴로 후원해 주세요.', donate: '앱에서 후원하기' },
+    free: { badge: '무료', title: '보호자는', titleEm: '모든 기능 무료', body: '보호자용 FUFU 앱은 가입비도 월 요금도 없습니다. FUFU의 성장을 응원하고 싶다면 여기에서 바로 또는 앱의 후원 메뉴로 후원해 주세요.', donate: '앱에서 후원하기' },
     partners: {
       title: '고객은 늘리고 접수 업무는 줄이고', titleEm: 'FUFU Partner로',
       lede: '동물병원, 펫숍, 미용실, 펫호텔을 위한 관리 시스템으로 FUFU App 보호자와 바로 연결됩니다.',
@@ -435,7 +435,6 @@ const PRICING = {
     monthly: 'รายเดือน', yearly: 'รายปี', save: 'ฟรี 2 เดือน', perMonth: '/เดือน', perYear: '/ปี', eq: 'เฉลี่ย {price}/เดือน',
     users: 'ผู้ใช้ {n} คน', unlimited: 'ผู้ใช้ไม่จำกัด', popular: 'แนะนำ', cta: 'เริ่มทดลองฟรี',
     features: ['ระบบคลินิกครบทุกเมนู: นัดหมาย คิว OPD IPD POS สต็อก', 'ลูกค้าใช้แอป FUFU ฟรี เชื่อมกับคลินิกได้ไม่จำกัด', 'แชทและโทรหาลูกค้า', 'รับเคสสแกน AI และการแชร์ฉุกเฉิน'],
-    notes: ['ทดลองฟรี 3 เดือน ไม่ต้องใช้บัตร', 'ร้านค้า grooming และโรงแรมสัตว์เลี้ยงใช้ฟรี', 'ราคายังไม่รวม VAT 7%', 'หมดอายุแล้วข้อมูลไม่หาย ดูย้อนหลังได้เสมอ'],
   },
   en: {
     nav: 'Pricing', title: 'Packages for clinics', titleEm: '3 months free',
@@ -443,7 +442,6 @@ const PRICING = {
     monthly: 'Monthly', yearly: 'Yearly', save: '2 months free', perMonth: '/month', perYear: '/year', eq: '{price}/month',
     users: '{n} users', unlimited: 'Unlimited users', popular: 'Popular', cta: 'Start free trial',
     features: ['Full clinic system: bookings, queue, OPD, IPD, POS, stock', 'Customers use the FUFU app free, unlimited links', 'Chat and call customers', 'AI scan referrals and emergency sharing'],
-    notes: ['3-month free trial, no card needed', 'Shops, grooming and pet hotels are free', 'Prices exclude 7% VAT', 'Your data stays readable after expiry'],
   },
   zh: {
     nav: '价格', title: '诊所套餐', titleEm: '免费试用 3 个月',
@@ -451,7 +449,6 @@ const PRICING = {
     monthly: '按月', yearly: '按年', save: '免 2 个月', perMonth: '/月', perYear: '/年', eq: '折合 {price}/月',
     users: '{n} 位用户', unlimited: '不限用户', popular: '推荐', cta: '开始免费试用',
     features: ['完整诊所系统：预约、排队、门诊、住院、收银、库存', '顾客免费使用 FUFU 应用，连接不限', '与顾客聊天和通话', 'AI 扫描转诊与紧急分享'],
-    notes: ['免费试用 3 个月，无需信用卡', '宠物店、美容和宠物酒店免费', '价格不含 7% 增值税', '到期后数据仍可查看'],
   },
   ja: {
     nav: '料金', title: '動物病院向けプラン', titleEm: '3か月無料',
@@ -459,7 +456,6 @@ const PRICING = {
     monthly: '月払い', yearly: '年払い', save: '2か月無料', perMonth: '/月', perYear: '/年', eq: '月あたり {price}',
     users: 'ユーザー {n} 人', unlimited: 'ユーザー無制限', popular: 'おすすめ', cta: '無料で試す',
     features: ['病院システム全機能：予約・受付・外来・入院・POS・在庫', 'お客様はアプリ無料、連携数無制限', 'お客様とチャット・電話', 'AIスキャンの紹介と緊急共有'],
-    notes: ['3か月無料、カード不要', 'ショップ・トリミング・ペットホテルは無料', '価格は税抜（VAT 7%）', '期限後もデータは閲覧できます'],
   },
   ko: {
     nav: '요금', title: '동물병원 패키지', titleEm: '3개월 무료',
@@ -467,7 +463,6 @@ const PRICING = {
     monthly: '월간', yearly: '연간', save: '2개월 무료', perMonth: '/월', perYear: '/년', eq: '월 {price}',
     users: '사용자 {n}명', unlimited: '사용자 무제한', popular: '추천', cta: '무료 체험 시작',
     features: ['병원 시스템 전체: 예약, 대기, 외래, 입원, POS, 재고', '고객은 FUFU 앱 무료, 연결 무제한', '고객과 채팅·전화', 'AI 스캔 의뢰와 긴급 공유'],
-    notes: ['3개월 무료 체험, 카드 불필요', '펫숍·미용·호텔은 무료', '가격은 VAT 7% 별도', '만료 후에도 데이터는 열람 가능'],
   },
 }
 for (const [code, copy] of Object.entries(PRICING)) { messages[code].pricing = copy; messages[code].nav.pricing = copy.nav }
@@ -600,3 +595,120 @@ const DONATE = {
   ko: { ppTitle: 'PayPal로 후원', ppNote: 'PayPal 앱으로 QR을 스캔하고 확인 전에 받는 분을 확인하세요.', ppSave: 'QR 저장', open: '지금 후원하기', close: '내용 접기', title: '계좌 이체', bank: '카시콘 은행', name: '예금주', number: '계좌번호', copy: '계좌번호 복사', copied: '복사했어요', note: '확인 전에 은행 앱에서 예금주와 금액을 꼭 확인하세요. 후원은 자율이며 앱 이용 권한은 바뀌지 않아요.', paypal: 'PayPal QR은 앱에서 이용할 수 있어요', ask: '후원 문의', uses: ['AI와 서버 비용', 'FUFU 무료 운영', '새 기능 개발'] },
 }
 for (const [code, d] of Object.entries(DONATE)) messages[code].donate = d
+
+// ── Seller details (required on the website by law and by payment providers) ──
+// From the company registration certificate (DBD) and the contact details the company gave.
+export const COMPANY = {
+  nameTh: 'บริษัท คิทเทน โคด จำกัด',
+  nameEn: 'KITTEN CODE CO., LTD.',
+  taxId: '0655569001411',
+  addressTh: '347/11 หมู่ 3 ตำบลท่าโพธิ์ อำเภอเมืองพิษณุโลก จังหวัดพิษณุโลก 65000',
+  addressEn: '347/11 Moo 3, Tha Pho, Mueang Phitsanulok, Phitsanulok 65000, Thailand',
+  phones: ['+66 8 0885 0555', '+66 8 3330 3393'],
+  email: 'kittencode.co.ltd@gmail.com',
+  website: 'https://kitten-code.com/',
+}
+export const PRIVACY_URL = `${APP_ORIGIN}/privacy`
+const LEGAL = {
+  th: { seller: 'ผู้ให้บริการ', taxId: 'เลขประจำตัวผู้เสียภาษี', address: 'ที่อยู่', phone: 'โทร', email: 'อีเมล', website: 'เว็บไซต์บริษัท', terms: 'ข้อกำหนดการใช้บริการและการคืนเงิน', privacy: 'นโยบายความเป็นส่วนตัว' },
+  en: { seller: 'Service provider', taxId: 'Tax ID', address: 'Address', phone: 'Phone', email: 'Email', website: 'Company website', terms: 'Terms of service & refunds', privacy: 'Privacy policy' },
+  zh: { seller: '服务提供方', taxId: '纳税人识别号', address: '地址', phone: '电话', email: '邮箱', website: '公司网站', terms: '服务条款与退款', privacy: '隐私政策' },
+  ja: { seller: '提供事業者', taxId: '納税者番号', address: '所在地', phone: '電話', email: 'メール', website: '会社サイト', terms: '利用規約・返金', privacy: 'プライバシーポリシー' },
+  ko: { seller: '서비스 제공자', taxId: '납세자 번호', address: '주소', phone: '전화', email: '이메일', website: '회사 웹사이트', terms: '이용약관 및 환불', privacy: '개인정보 처리방침' },
+}
+for (const [code, copy] of Object.entries(LEGAL)) messages[code].legal = copy
+
+// ── Pricing section extras: net prices (FUFU is not VAT-registered), what every package includes, terms, FAQ, sales contact ──
+const PRICING_MORE = {
+  th: {
+    notes: ['ทดลองฟรี 3 เดือน ไม่ต้องใช้บัตร', 'ไม่ต่ออายุหรือตัดเงินอัตโนมัติ', 'ราคาสุทธิ ไม่มีค่าใช้จ่ายอื่นเพิ่ม', 'ออกใบแจ้งหนี้และใบเสร็จทุกครั้ง'],
+    net: 'ราคาสุทธิ',
+    allTitle: 'ทุกแพ็กเกจได้ครบทุกฟีเจอร์',
+    all: ['นัดหมาย ปฏิทิน และรับจองจากแอป FUFU', 'คิว OPD ห้องตรวจ และ IPD ผู้ป่วยใน', 'แคชเชียร์ POS ใบเสร็จ และใบกำกับภาษี', 'คลังยาและเวชภัณฑ์', 'เตือนวัคซีนและนัดอัตโนมัติในแอปลูกค้า', 'ฉลากยาและใบรับรองแพทย์ PDF', 'รายงานธุรกิจ ยอดขาย และลูกค้ากลับมาซ้ำ', 'นำเข้าข้อมูลเดิมจาก Excel', 'แชทและโทรหาลูกค้า', 'รับเคสสแกน AI และการแชร์ข้อมูลฉุกเฉิน'],
+    termsTitle: 'เงื่อนไขการใช้บริการโดยสรุป',
+    terms: ['ทดลองใช้ฟรี 3 เดือนนับจากวันที่ FUFU อนุมัติคลินิก ใช้ได้ทุกฟีเจอร์และไม่จำกัดผู้ใช้', 'เลือกแพ็กเกจในระบบหลังบ้าน ระบบออกใบแจ้งหนี้ให้ ชำระโดยโอนเข้าบัญชีบริษัท ไม่มีการตัดบัตรอัตโนมัติ', 'แพ็กเกจนับต่อจากวันหมดอายุเดิม รายเดือน 1 เดือน รายปี 12 เดือน', 'หากยังไม่ชำระ ใช้งานได้ตามปกติต่ออีก 14 วัน จากนั้นเป็นโหมดดูอย่างเดียว ข้อมูลไม่ถูกลบ ชำระแล้วใช้ต่อได้ทันที', 'เปลี่ยนแพ็กเกจหรือหยุดใช้เมื่อไรก็ได้ เพียงไม่ชำระรอบถัดไป', 'ได้รับใบแจ้งหนี้และใบเสร็จรับเงินในนามบริษัททุกครั้งที่ชำระ'],
+    termsLink: 'อ่านข้อกำหนดการใช้บริการและนโยบายการคืนเงิน',
+    faqTitle: 'คำถามที่พบบ่อย',
+    faq: [
+      { q: 'ช่วงทดลองต้องใส่บัตรหรือจ่ายอะไรไหม', a: 'ไม่ต้อง สมัครแล้วใช้ได้ทุกฟีเจอร์ 3 เดือน ใกล้หมดช่วงทดลองระบบจะแจ้งให้เลือกแพ็กเกจ' },
+      { q: 'แพ็กเกจต่างกันอย่างไร', a: 'ฟีเจอร์เหมือนกันทุกแพ็กเกจ ต่างกันที่จำนวนผู้ใช้ (บัญชีพนักงาน) เลือกตามขนาดทีม และเปลี่ยนแพ็กเกจได้ภายหลัง' },
+      { q: 'ถ้าหยุดจ่าย ข้อมูลคนไข้จะหายไหม', a: 'ไม่หาย ระบบเป็นโหมดดูอย่างเดียว ยังเปิดประวัติและพิมพ์เอกสารย้อนหลังได้ และขอส่งออกข้อมูลได้' },
+      { q: 'ย้ายข้อมูลจากระบบเดิมได้ไหม', a: 'ได้ นำเข้ารายชื่อลูกค้า สัตว์เลี้ยง และประวัติวัคซีนจากไฟล์ Excel หรือ CSV ได้เอง หรือส่งไฟล์ให้ทีม FUFU ช่วยนำเข้า' },
+      { q: 'ลูกค้าของคลินิกต้องจ่ายค่าแอปไหม', a: 'ไม่ต้อง เจ้าของสัตว์เลี้ยงใช้แอป FUFU ฟรี ทั้งจองนัด รับเตือนวัคซีน และแชทกับคลินิก' },
+    ],
+    salesTitle: 'อยากเห็นระบบจริงก่อนตัดสินใจ', salesBody: 'นัดเดโมออนไลน์ 30 นาที หรือโทรคุยกับทีมขายได้โดยตรง', salesMail: 'อีเมลนัดเดโม', mailSubject: 'ขอนัดเดโม FUFU Partner สำหรับคลินิก',
+  },
+  en: {
+    notes: ['3-month free trial, no card needed', 'No auto-renewal or automatic charges', 'Net prices, nothing added', 'An invoice and receipt every time'],
+    net: 'Net price',
+    allTitle: 'Every package includes every feature',
+    all: ['Appointments, calendar and bookings from the FUFU app', 'Queue, OPD exam room and IPD', 'Cashier, POS, receipts and tax invoices', 'Pharmacy and supplies stock', 'Automatic vaccine and appointment reminders', 'Drug labels and certificate PDFs', 'Business reports, sales and returning customers', 'Import your old data from Excel', 'Chat and call customers', 'AI scan referrals and emergency sharing'],
+    termsTitle: 'Terms at a glance',
+    terms: ['3-month free trial from the day FUFU approves your clinic: every feature, unlimited users', 'Choose a package in the back office and we issue an invoice; pay by bank transfer, no automatic card charges', 'A package continues from your current expiry date: 1 month or 12 months', 'If unpaid, everything keeps working for 14 more days, then the system becomes read-only; nothing is deleted and paying unlocks it straight away', 'Change package or stop any time by not paying the next invoice', 'You receive an invoice and a company receipt for every payment'],
+    termsLink: 'Read the terms of service and refund policy',
+    faqTitle: 'Frequently asked questions',
+    faq: [
+      { q: 'Do I need a card or pay anything during the trial?', a: 'No. Sign up and use every feature for 3 months. We remind you to choose a package before it ends.' },
+      { q: 'How do the packages differ?', a: 'Features are the same in every package; only the number of users (staff accounts) differs. You can change later.' },
+      { q: 'If we stop paying, do we lose patient data?', a: 'No. The system becomes read-only: you can still open records and print past documents, and ask for an export.' },
+      { q: 'Can we move data from our old system?', a: 'Yes. Import customers, pets and vaccine history from Excel or CSV yourself, or send the file to the FUFU team.' },
+      { q: 'Do our customers pay for the app?', a: 'No. Pet owners use the FUFU app free to book, get vaccine reminders and chat with your clinic.' },
+    ],
+    salesTitle: 'See it working before you decide', salesBody: 'Book a 30-minute online demo or call our sales team directly.', salesMail: 'Email for a demo', mailSubject: 'FUFU Partner demo request for our clinic',
+  },
+  zh: {
+    notes: ['免费试用 3 个月，无需信用卡', '不自动续费、不自动扣款', '净价，无其他费用', '每次付款均提供账单与收据'],
+    net: '净价',
+    allTitle: '每个套餐都包含全部功能',
+    all: ['预约、日历及来自 FUFU 应用的预订', '排队、门诊诊室与住院', '收银、POS、收据与税务发票', '药品与耗材库存', '自动疫苗与预约提醒', '药品标签与证明书 PDF', '经营报表、销售与回头客', '从 Excel 导入旧数据', '与顾客聊天和通话', 'AI 扫描转诊与紧急分享'],
+    termsTitle: '服务条款摘要',
+    terms: ['自 FUFU 审核通过之日起免费试用 3 个月：全部功能、不限用户', '在后台选择套餐后系统开具账单，银行转账付款，不自动扣卡', '套餐从当前到期日起续：1 个月或 12 个月', '未付款时可继续正常使用 14 天，之后变为只读；数据不会删除，付款后立即恢复', '可随时更换套餐或停止使用，只需不支付下一期账单', '每次付款均提供公司账单与收据'],
+    termsLink: '阅读服务条款与退款政策',
+    faqTitle: '常见问题',
+    faq: [
+      { q: '试用期需要绑卡或付费吗？', a: '不需要。注册后可使用全部功能 3 个月，到期前系统会提醒您选择套餐。' },
+      { q: '套餐有什么区别？', a: '功能完全相同，只按用户（员工账号）数量区分，之后可以更换。' },
+      { q: '停止付费后病历会丢失吗？', a: '不会。系统变为只读，仍可查看记录、打印历史文件，并可申请导出数据。' },
+      { q: '能从旧系统迁移数据吗？', a: '可以。可自行从 Excel 或 CSV 导入顾客、宠物和疫苗记录，也可把文件交给 FUFU 团队导入。' },
+      { q: '诊所的顾客需要为应用付费吗？', a: '不需要。宠物主人免费使用 FUFU 应用预约、接收疫苗提醒并与诊所聊天。' },
+    ],
+    salesTitle: '先看看实际系统', salesBody: '预约 30 分钟在线演示，或直接致电销售团队。', salesMail: '邮件预约演示', mailSubject: 'FUFU Partner clinic demo request',
+  },
+  ja: {
+    notes: ['3か月無料、カード不要', '自動更新・自動引き落としなし', '表示価格がお支払い総額', '毎回、請求書と領収書を発行'],
+    net: 'お支払い総額',
+    allTitle: 'すべてのプランで全機能が使えます',
+    all: ['予約・カレンダー・FUFU アプリからの予約受付', '受付順番・外来診察室・入院', '会計・POS・領収書・税務インボイス', '薬品・資材の在庫', 'ワクチン・予約の自動リマインド', '薬袋ラベルと証明書 PDF', '経営レポート・売上・リピーター', '旧システムのデータを Excel から取り込み', 'お客様とチャット・電話', 'AIスキャンの紹介と緊急共有'],
+    termsTitle: '利用条件の概要',
+    terms: ['FUFU の承認日から 3 か月無料：全機能・ユーザー無制限', '管理画面でプランを選ぶと請求書を発行、銀行振込でお支払い。カードの自動引き落としはありません', 'プランは現在の期限日から 1 か月または 12 か月延長', '未払いでも 14 日間は通常どおり利用でき、その後は閲覧のみ。データは削除されず、お支払い後すぐに再開', 'プラン変更・利用停止はいつでも可能。次回の請求をお支払いいただかないだけです', 'お支払いごとに会社名義の請求書と領収書をお渡しします'],
+    termsLink: '利用規約と返金ポリシーを読む',
+    faqTitle: 'よくある質問',
+    faq: [
+      { q: 'トライアル中にカード登録や支払いは必要ですか？', a: '不要です。登録後 3 か月間すべての機能を使え、終了前にプラン選択をご案内します。' },
+      { q: 'プランの違いは？', a: '機能はすべて同じで、ユーザー（スタッフアカウント）数だけが異なります。後から変更できます。' },
+      { q: '支払いを止めたら診療データは消えますか？', a: '消えません。閲覧のみになり、記録の閲覧や過去書類の印刷ができ、データの書き出しも依頼できます。' },
+      { q: '旧システムからデータを移せますか？', a: 'はい。お客様・ペット・ワクチン記録を Excel や CSV から取り込めます。FUFU チームへのファイル送付も可能です。' },
+      { q: 'お客様はアプリ代を払いますか？', a: 'いいえ。飼い主さんは FUFU アプリを無料で使い、予約・ワクチン通知・病院とのチャットができます。' },
+    ],
+    salesTitle: '実際の画面を見てから決めたい方へ', salesBody: '30 分のオンラインデモ、または営業チームへ直接お電話ください。', salesMail: 'メールでデモ予約', mailSubject: 'FUFU Partner clinic demo request',
+  },
+  ko: {
+    notes: ['3개월 무료 체험, 카드 불필요', '자동 갱신·자동 결제 없음', '표시 가격이 최종 금액', '매번 청구서와 영수증 발행'],
+    net: '최종 금액',
+    allTitle: '모든 패키지에 모든 기능 포함',
+    all: ['예약, 캘린더, FUFU 앱 예약 접수', '대기, 외래 진료실, 입원', '수납, POS, 영수증, 세금계산서', '약품·소모품 재고', '백신·예약 자동 알림', '약 라벨과 증명서 PDF', '경영 리포트, 매출, 재방문 고객', '기존 데이터 Excel 가져오기', '고객과 채팅·전화', 'AI 스캔 의뢰와 긴급 공유'],
+    termsTitle: '이용 조건 요약',
+    terms: ['FUFU 승인일부터 3개월 무료: 모든 기능·사용자 무제한', '관리 화면에서 패키지를 선택하면 청구서를 발행하며 계좌이체로 결제, 카드 자동 결제 없음', '패키지는 현재 만료일부터 1개월 또는 12개월 연장', '미납 시에도 14일간 정상 사용 후 열람 전용으로 전환, 데이터는 삭제되지 않으며 결제 즉시 복구', '언제든 패키지 변경·이용 중단 가능, 다음 청구서를 결제하지 않으면 됩니다', '결제할 때마다 회사 명의 청구서와 영수증 제공'],
+    termsLink: '이용약관과 환불 정책 보기',
+    faqTitle: '자주 묻는 질문',
+    faq: [
+      { q: '체험 기간에 카드 등록이나 결제가 필요한가요?', a: '아니요. 가입 후 3개월 동안 모든 기능을 사용할 수 있고, 종료 전에 패키지 선택을 안내해 드려요.' },
+      { q: '패키지는 어떻게 다른가요?', a: '기능은 모두 같고 사용자(직원 계정) 수만 달라요. 나중에 변경할 수 있어요.' },
+      { q: '결제를 멈추면 진료 데이터가 사라지나요?', a: '아니요. 열람 전용이 되어 기록 열람과 지난 문서 인쇄가 가능하고, 데이터 내보내기를 요청할 수 있어요.' },
+      { q: '기존 시스템 데이터를 옮길 수 있나요?', a: '네. 고객·반려동물·백신 기록을 Excel이나 CSV로 직접 가져오거나 FUFU 팀에 파일을 보내 주세요.' },
+      { q: '병원 고객은 앱 비용을 내나요?', a: '아니요. 보호자는 FUFU 앱을 무료로 사용해 예약, 백신 알림, 병원 채팅을 이용해요.' },
+    ],
+    salesTitle: '결정 전에 실제 화면을 보세요', salesBody: '30분 온라인 데모를 예약하거나 영업팀에 바로 전화하세요.', salesMail: '이메일로 데모 예약', mailSubject: 'FUFU Partner clinic demo request',
+  },
+}
+for (const [code, more] of Object.entries(PRICING_MORE)) Object.assign(messages[code].pricing, more)

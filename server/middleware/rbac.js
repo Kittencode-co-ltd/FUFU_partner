@@ -81,6 +81,21 @@ export async function attachStoreRole(req, res, next) {
 
 /** Prevent write requests for a deactivated store while preserving read access. */
 const CLINIC_CATEGORIES = new Set(['vet_clinic', 'vet_hospital']);
+
+/**
+ * Clinic-only features (FUFU package & billing, certificates, drug labels, medical sharing). Other businesses
+ * (shops, grooming, hotels) get 403 CLINIC_ONLY so each business type only ever sees its own tools.
+ * Use after requireRole (which has already checked membership); reads store_id from query or body.
+ */
+export async function requireClinicStore(req, res, next) {
+  const storeId = req.query.store_id || req.body?.store_id;
+  if (!storeId) return res.status(400).json({ success: false, error: 'store_id required' });
+  const store = await loadStoreForRequest(req, storeId).catch(() => null);
+  if (!store || !CLINIC_CATEGORIES.has(String(store.category || '').toLowerCase())) {
+    return res.status(403).json({ success: false, code: 'CLINIC_ONLY', error: 'ฟีเจอร์นี้สำหรับคลินิกและโรงพยาบาลสัตว์' });
+  }
+  next();
+}
 const PLAN_EXEMPT = ['/api/clinic-links/billing', '/api/clinic-links/emergency', '/api/auth', '/api/push'];
 
 export async function guardInactiveStoreMutations(req, res, next) {

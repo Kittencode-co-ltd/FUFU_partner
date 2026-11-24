@@ -5,6 +5,7 @@
 import { apiFetch } from '../utils/api-client.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { storage } from '../utils/storage.js';
+import { bizWord } from '../utils/business.js';
 import { showToast } from '../utils/toast.js';
 import { icon, speciesIcon } from '../utils/icons.js';
 import { openSheet } from './sheet.js';
@@ -30,8 +31,9 @@ const NEXT = {
 };
 const CATEGORY = { Vet: 'ตรวจรักษา', Hotel: 'ฝากเลี้ยง', Grooming: 'อาบน้ำตัดขน' };
 const TABS = [['requested', 'คำขอ'], ['upcoming', 'กำลังจะมาถึง'], ['history', 'ประวัติ']];
-const REJECT_PRESETS = ['คิวเต็มในวันและเวลาที่เลือก', 'คลินิกปิดทำการวันนั้น', 'บริการนี้ยังไม่พร้อมให้บริการ', 'ข้อมูลไม่ครบ กรุณาติดต่อคลินิก'];
-const CANCEL_PRESETS = ['ลูกค้าแจ้งยกเลิก', 'สัตวแพทย์ไม่ว่าง', 'คลินิกปิดฉุกเฉิน'];
+// Reason presets in the store's own words (คลินิก / โรงแรม / ร้าน)
+const REJECT_PRESETS = () => ['คิวเต็มในวันและเวลาที่เลือก', `${bizWord('store')}ปิดทำการวันนั้น`, 'บริการนี้ยังไม่พร้อมให้บริการ', `ข้อมูลไม่ครบ กรุณาติดต่อ${bizWord('store')}`];
+const CANCEL_PRESETS = () => ['ลูกค้าแจ้งยกเลิก', `${bizWord('staff')}ไม่ว่าง`, `${bizWord('store')}ปิดฉุกเฉิน`];
 
 let bucket = 'requested';
 let search = '';
@@ -153,8 +155,8 @@ function bindRows(container, rows) {
       const a = rows.find(r => r.id === btn.dataset.id);
       const to = btn.dataset.action;
       let extra = {};
-      if (to === 'rejected') { const reason = await askReason('ปฏิเสธคำขอจอง', 'ลูกค้าจะเห็นเหตุผลนี้ในแอป', REJECT_PRESETS, true, 'ยืนยันการปฏิเสธ'); if (!reason) return; extra = { reason }; }
-      else if (to === 'cancelled') { const reason = await askReason('ยกเลิกนัด', 'ลูกค้าจะได้รับแจ้งการยกเลิก', CANCEL_PRESETS, false, 'ยกเลิกนัด'); if (reason === null) return; extra = { reason }; }
+      if (to === 'rejected') { const reason = await askReason('ปฏิเสธคำขอจอง', 'ลูกค้าจะเห็นเหตุผลนี้ในแอป', REJECT_PRESETS(), true, 'ยืนยันการปฏิเสธ'); if (!reason) return; extra = { reason }; }
+      else if (to === 'cancelled') { const reason = await askReason('ยกเลิกนัด', 'ลูกค้าจะได้รับแจ้งการยกเลิก', CANCEL_PRESETS(), false, 'ยกเลิกนัด'); if (reason === null) return; extra = { reason }; }
       else if (to === 'reschedule_proposed') { const r = await askNewTime(a); if (!r) return; extra = r; }
       btn.disabled = true;
       const res = await apiFetch(`/api/appointments/${btn.dataset.id}/transition`, {

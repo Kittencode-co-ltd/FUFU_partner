@@ -6,9 +6,9 @@ import {
   ArrowRight, ArrowUpRight, BadgeCheck, BellRing, BookHeart, CalendarDays, Check, ChevronDown,
   ArrowLeft, Activity, Bell, Bot, Cloud, Database, Eye, Images, KeyRound, Network, Smartphone, Workflow,
   ClipboardCheck, Copy, Globe, HeartHandshake, Mail, QrCode, LayoutDashboard, MapPin, Menu, MessageCircleHeart,
-  ScanLine, Stethoscope, Store, Users, Volume2, VolumeX, X,
+  Phone, ScanLine, Stethoscope, Store, Users, Volume2, VolumeX, X,
 } from 'lucide-react'
-import { APP_URL, DONATION, LANGS, messages, REGISTRY, REQUESTS } from '../i18n/messages'
+import { APP_URL, COMPANY, DONATION, LANGS, messages, PRIVACY_URL, REGISTRY, REQUESTS } from '../i18n/messages'
 
 const LANG_KEY = 'fufu_lang'
 const MUSIC_KEY = 'fufu_music'
@@ -1087,6 +1087,7 @@ function Pricing() {
   }, [])
   const locale = lang === 'th' ? 'th-TH' : lang === 'zh' ? 'zh-CN' : lang === 'ja' ? 'ja-JP' : lang === 'ko' ? 'ko-KR' : 'en-GB'
   const baht = n => '฿' + Math.round(Number(n) || 0).toLocaleString(locale)
+  const tel = n => `tel:${n.replace(/[^+\d]/g, '')}`
   return (
     <section className="section pricing" id="pricing" aria-labelledby="pricing-title">
       <div className="wrap pricing-inner">
@@ -1108,6 +1109,7 @@ function Pricing() {
                 <h3>{plan.name}</h3>
                 {lang === 'th' && plan.description && <p className="price-desc">{plan.description}</p>}
                 <p className="price-amount"><b>{baht(price)}</b><span>{cycle === 'yearly' ? p.perYear : p.perMonth}</span></p>
+                <p className="price-vat">{p.net}</p>
                 <p className="price-eq">{cycle === 'yearly' ? p.eq.replace('{price}', baht(price / 12)) : ' '}</p>
                 <p className="price-users"><Users size={16} aria-hidden="true" />{plan.max_users ? p.users.replace('{n}', plan.max_users) : p.unlimited}</p>
                 <ul>
@@ -1121,6 +1123,40 @@ function Pricing() {
         <ul className="pricing-notes" data-reveal="up">
           {p.notes.map(n => <li key={n}><Check size={14} aria-hidden="true" />{n}</li>)}
         </ul>
+
+        <div className="pricing-all" data-reveal="up">
+          <h3>{p.allTitle}</h3>
+          <ul>{p.all.map(f => <li key={f}><Check size={15} aria-hidden="true" />{f}</li>)}</ul>
+        </div>
+
+        <div className="pricing-more">
+          <div className="pricing-terms" data-reveal="up">
+            <h3>{p.termsTitle}</h3>
+            <ol>{p.terms.map(x => <li key={x}>{x}</li>)}</ol>
+            <a className="pricing-link" href="/terms">{p.termsLink} <ArrowRight size={15} aria-hidden="true" /></a>
+          </div>
+          <div className="pricing-faq" data-reveal="up">
+            <h3>{p.faqTitle}</h3>
+            {p.faq.map(f => (
+              <details key={f.q}>
+                <summary>{f.q}<ChevronDown size={18} aria-hidden="true" /></summary>
+                <p>{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+
+        <div className="pricing-sales" data-reveal="up">
+          <div className="pricing-sales-copy">
+            <h3>{p.salesTitle}</h3>
+            <p>{p.salesBody}</p>
+          </div>
+          <div className="pricing-sales-actions">
+            <a className="btn btn-primary" href="/register.html">{p.cta} <ArrowRight size={16} aria-hidden="true" /></a>
+            {COMPANY.phones.map(n => <a key={n} className="btn btn-ghost" href={tel(n)}><Phone size={16} aria-hidden="true" />{n}</a>)}
+            <a className="btn btn-ghost" href={`mailto:${COMPANY.email}?subject=${encodeURIComponent(p.mailSubject)}`}><Mail size={16} aria-hidden="true" />{p.salesMail}</a>
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -1168,7 +1204,7 @@ function Trust() {
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 
 function Footer() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   return (
     <footer className="footer">
       <div className="wrap footer-inner">
@@ -1186,7 +1222,30 @@ function Footer() {
           <a href="/login.html">{t.nav.login} ↗</a>
         </nav>
       </div>
-      <div className="wrap footer-bottom">© 2026 FUFU Pet Care · KITTEN CODE Co., Ltd. · {t.footer.rights}</div>
+      <div className="wrap footer-legal">
+        <div>
+          <small>{t.legal.seller}</small>
+          <b>{lang === 'th' ? COMPANY.nameTh : COMPANY.nameEn}</b>
+          {lang === 'th' && <span>{COMPANY.nameEn}</span>}
+          <span>{t.legal.taxId} {COMPANY.taxId}</span>
+        </div>
+        <div>
+          <small>{t.legal.address}</small>
+          <span>{lang === 'th' ? COMPANY.addressTh : COMPANY.addressEn}</span>
+        </div>
+        <div>
+          <small>{t.legal.phone} · {t.legal.email}</small>
+          <span>{COMPANY.phones.map((n, i) => <a key={n} href={`tel:${n.replace(/[^+\d]/g, '')}`}>{n}{i < COMPANY.phones.length - 1 ? ', ' : ''}</a>)}</span>
+          <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>
+          <a href={COMPANY.website} target="_blank" rel="noopener noreferrer">{t.legal.website} ↗</a>
+        </div>
+        <nav aria-label={t.legal.terms}>
+          <a href="/terms">{t.legal.terms}</a>
+          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">{t.legal.privacy} ↗</a>
+          <a href="#pricing">{t.nav.pricing}</a>
+        </nav>
+      </div>
+      <div className="wrap footer-bottom">© 2026 FUFU Pet Care · {COMPANY.nameEn} · {t.footer.rights}</div>
     </footer>
   )
 }

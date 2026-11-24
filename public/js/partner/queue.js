@@ -3,11 +3,19 @@ import { storage } from '../utils/storage.js';
 import { showToast } from '../utils/toast.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { escapeHtml } from '../utils/formatters.js';
+import { bizKind, bizWord } from '../utils/business.js';
 import { icon } from '../utils/icons.js';
 import { can } from '../utils/permissions.js';
 import { openSendToCashier } from './send-to-cashier.js';
 
-const SERVICE_TYPES = ['ตรวจทั่วไป', 'วัคซีน', 'ผ่าตัด', 'ทำฟัน', 'ตรวจเลือด', 'อาบน้ำ-ตัดขน', 'อื่นๆ'];
+// Walk-in service choices for each kind of business
+const SERVICE_TYPES_BY = {
+  clinic: ['ตรวจทั่วไป', 'วัคซีน', 'ผ่าตัด', 'ทำฟัน', 'ตรวจเลือด', 'อื่นๆ'],
+  grooming: ['อาบน้ำ', 'ตัดขน', 'อาบน้ำ + ตัดขน', 'ตัดเล็บ / เช็ดหู', 'สปา', 'อื่นๆ'],
+  hotel: ['เช็กอิน', 'เช็กเอาต์', 'ฝากเลี้ยงรายวัน', 'อื่นๆ'],
+  shop: ['รับสินค้า', 'อื่นๆ'],
+};
+const serviceTypes = () => SERVICE_TYPES_BY[bizKind()] || SERVICE_TYPES_BY.clinic;
 
 // SVG icon helpers (Heroicons-style, stroke-width 2)
 const IC = {
@@ -39,7 +47,7 @@ const STATUS_CFG = {
 const KANBAN_COLS = [
   { key: 'waiting',     label: 'รอคิว',    icon: IC.clock,     statuses: ['waiting'],              hdrCls: 'text-amber-600', countCls: 'bg-amber-100 text-amber-700' },
   { key: 'called',      label: 'เรียกอยู่', icon: IC.megaphone, statuses: ['called'],               hdrCls: 'text-brand',  countCls: 'bg-brand-subtle text-brand'   },
-  { key: 'in_progress', label: 'ตรวจอยู่',  icon: IC.pulse,     statuses: ['in_progress'],          hdrCls: 'text-blue-600',  countCls: 'bg-blue-100 text-blue-700'   },
+  { key: 'in_progress', get label() { return bizKind() === 'clinic' ? 'ตรวจอยู่' : 'กำลังให้บริการ'; },  icon: IC.pulse,     statuses: ['in_progress'],          hdrCls: 'text-blue-600',  countCls: 'bg-blue-100 text-blue-700'   },
   { key: 'cashier',     label: 'รอชำระ',   icon: IC.card,      statuses: ['cashier_waiting'],      hdrCls: 'text-orange-600', countCls: 'bg-orange-100 text-orange-700' },
   { key: 'done',        label: 'เสร็จสิ้น', icon: IC.check,     statuses: ['completed', 'no_show', 'cancelled'], hdrCls: 'text-slate-500', countCls: 'bg-slate-100 text-slate-600'  },
 ];
@@ -56,6 +64,13 @@ export async function renderQueue(container) {
   _storeId = storage.get(STORAGE_KEYS.STORE_ID);
 
   container.innerHTML = `
+    <div class="qh-head">
+      <div class="min-w-0">
+        <h2 class="qh-title">${bizKind() === 'hotel' ? 'เช็กอิน / เช็กเอาต์วันนี้' : 'คิววันนี้'}</h2>
+        <div id="queue-stats" class="qh-stats" aria-live="polite"></div>
+      </div>
+      <button type="button" id="tv-mode-btn" class="ph-btn">${icon('bullhorn', 'w-4 h-4')}<span>จอเรียกคิว</span></button>
+    </div>
     <!-- Appointment inbox (from app) -->
     <div id="appt-inbox" class="mb-3 sm:mb-4"></div>
 
@@ -73,7 +88,7 @@ export async function renderQueue(container) {
         <div class="flex-1 min-w-28">
           <label class="input-label">บริการ</label>
           <select id="wk-service" class="input-field">
-            ${SERVICE_TYPES.map(s => `<option value="${s}">${s}</option>`).join('')}
+            ${serviceTypes().map(s => `<option value="${s}">${s}</option>`).join('')}
           </select>
         </div>
         <div class="flex items-end gap-2">
@@ -84,13 +99,11 @@ export async function renderQueue(container) {
           <button id="wk-submit" class="btn-primary whitespace-nowrap">+ Walk-in</button>
         </div>
       </div>
-      <div class="flex items-center justify-between mt-2 min-h-7">
-        <div id="wk-selected" class="hidden items-center gap-2">
-          <span id="wk-chip"
-                class="text-xs bg-primary-subtle text-primary-dark rounded-lg px-3 py-1.5 font-semibold"></span>
-          <button id="wk-deselect"
-                  class="text-xs text-slate-400 hover:text-red-500 transition-colors">× เปลี่ยน</button>
-        </div>
+      <div id="wk-selected" class="hidden items-center gap-2 mt-2">
+        <span id="wk-chip"
+              class="text-xs bg-primary-subtle text-primary-dark rounded-lg px-3 py-1.5 font-semibold"></span>
+        <button id="wk-deselect"
+                class="text-xs text-slate-400 hover:text-red-500 transition-colors">× เปลี่ยน</button>
       </div>
     </div>
 
@@ -137,7 +150,7 @@ function _renderInbox(appointments) {
   const todayApt = appointments.filter(a => a.appt_date === today);
 
   el.innerHTML = `
-    <div class="card border border-amber-200 bg-amber-50/50 overflow-hidden">
+    <div class="card qh-inbox border border-amber-200 bg-amber-50/50 overflow-hidden">
       <!-- Banner (always visible) -->
       <div class="flex items-center justify-between px-4 py-2.5 cursor-pointer select-none"
            id="inbox-toggle">
@@ -289,18 +302,17 @@ function _thaiDate(dateStr) {
 function _renderStats(queue) {
   const el = _container?.querySelector('#queue-stats');
   if (!el) return;
-  const count = (s) => queue.filter(q => q.status === s).length;
+  const count = (...st) => queue.filter(q => st.includes(q.status)).length;
+  const waiting = queue.filter(q => ['waiting', 'called'].includes(q.status) && q.created_at);
+  const avg = waiting.length ? Math.round(waiting.reduce((n, q) => n + Math.max(0, (Date.now() - new Date(q.created_at)) / 60000), 0) / waiting.length) : 0;
   const stats = [
-    { label: 'รอ', value: count('waiting'), cls: 'text-amber-500' },
-    { label: 'กำลังรักษา', value: count('in_progress'), cls: 'text-blue-500' },
-    { label: 'เสร็จแล้ว', value: count('completed'), cls: 'text-primary' },
-    { label: 'ทั้งหมด', value: queue.length, cls: 'text-navy' },
+    ['is-wait', 'รอ', count('waiting', 'called')],
+    ['is-exam', bizKind() === 'clinic' ? 'กำลังตรวจ' : 'กำลังให้บริการ', count('in_progress')],
+    ['is-pay', 'รอชำระ', count('cashier_waiting')],
+    ['is-done', 'เสร็จ', count('completed')],
   ];
-  el.innerHTML = stats.map(s => `
-    <div class="card p-2 sm:p-3 text-center">
-      <div class="text-lg sm:text-2xl font-bold ${s.cls} leading-tight">${s.value}</div>
-      <div class="text-xs text-slate-400 font-body mt-0.5 leading-tight truncate">${s.label}</div>
-    </div>`).join('');
+  el.innerHTML = stats.map(([cls, label, n]) => `<span class="qh-stat ${cls}"><b>${n}</b>${label}</span>`).join('')
+    + (waiting.length ? `<span class="qh-stat ${avg >= 30 ? 'is-late' : ''}">${icon('clock', 'w-3.5 h-3.5')}รอเฉลี่ย <b>${avg}</b> นาที</span>` : '');
 }
 
 function _renderCards(queue) {
@@ -369,8 +381,19 @@ function _kanbanCard(q) {
       </div>
       <div class="font-semibold text-navy text-sm truncate">${escapeHtml(petName) || '—'}</div>
       ${ownerName ? `<div class="text-xs text-slate-400 font-body truncate">${escapeHtml(ownerName)}</div>` : ''}
+      ${_cardMeta(q)}
       ${primaryBtn ? `<div class="mt-2.5">${primaryBtn}</div>` : ''}
     </div>`;
+}
+
+// Service + how long they have waited (or been in the exam room); long waits turn amber
+function _cardMeta(q) {
+  const since = q.status === 'in_progress' ? q.called_at : ['waiting', 'called'].includes(q.status) ? q.created_at : null;
+  const mins = since ? Math.max(0, Math.floor((Date.now() - new Date(since)) / 60000)) : null;
+  const wait = mins == null ? '' : mins < 1 ? 'เพิ่งเข้ามา' : `${q.status === 'in_progress' ? (bizKind() === 'clinic' ? 'ตรวจมา' : 'เริ่มมา') : 'รอ'} ${mins < 60 ? `${mins} นาที` : `${Math.floor(mins / 60)} ชม. ${mins % 60} นาที`}`;
+  if (!q.service_type && !wait) return '';
+  const late = q.status !== 'in_progress' && mins >= 30;
+  return `<div class="qk-meta">${q.service_type ? `<span class="truncate">${escapeHtml(q.service_type)}</span>` : ''}${wait ? `<span class="qk-wait ${late ? 'is-late' : ''}">${icon('clock', 'w-3 h-3')}${wait}</span>` : ''}</div>`;
 }
 
 function _primaryAction(q) {
@@ -379,7 +402,7 @@ function _primaryAction(q) {
              class="${cls} w-full text-xs py-1.5 rounded-lg transition-all font-semibold text-center">${label}</button>`;
 
   if (q.status === 'waiting')     return btn('call',     `<span class="flex items-center justify-center gap-1">${IC.megaphone} เรียก</span>`,     'bg-primary text-white hover:bg-primary-dark');
-  if (q.status === 'called')      return btn('start',    `<span class="flex items-center justify-center gap-1">${IC.play} เริ่มรักษา</span>`,  'bg-blue-500 text-white hover:bg-blue-600');
+  if (q.status === 'called')      return btn('start',    `<span class="flex items-center justify-center gap-1">${IC.play} ${bizKind() === 'clinic' ? 'เริ่มรักษา' : 'เริ่มบริการ'}</span>`,  'bg-blue-500 text-white hover:bg-blue-600');
   if (q.status === 'in_progress') return btn('send-cashier', `<span class="flex items-center justify-center gap-1">${IC.card} ส่งชำระเงิน</span>`, 'bg-primary text-white hover:bg-primary-dark');
   if (q.status === 'cashier_waiting') return btn('go-cashier', `<span class="flex items-center justify-center gap-1">${IC.receipt} ไปแคชเชียร์</span>`, 'border border-orange-300 text-orange-700 hover:bg-orange-50');
   return '';
@@ -681,7 +704,7 @@ function _updateChip(container) {
 
 async function _handleWalkin() {
   const search = _container?.querySelector('#wk-search');
-  const service = _container?.querySelector('#wk-service')?.value || 'ตรวจทั่วไป';
+  const service = _container?.querySelector('#wk-service')?.value || serviceTypes()[0];
   const isEmerg = _container?.querySelector('#wk-emergency')?.checked || false;
   const freeText = search?.value.trim() || '';
 
@@ -860,7 +883,7 @@ function _elapsed(since) {
 function _statusMsg(status) {
   const MAP = {
     called: 'เรียกคิวแล้ว',
-    in_progress: 'เริ่มรักษาแล้ว',
+    in_progress: bizKind() === 'clinic' ? 'เริ่มรักษาแล้ว' : 'เริ่มบริการแล้ว',
     completed: 'บันทึกเสร็จสิ้น',
     no_show: 'บันทึก: ไม่มา',
     waiting: 'พักคิวแล้ว · กลับไปรอเรียก',
@@ -872,7 +895,7 @@ function _statusMsg(status) {
 // ─── TV Queue Display ─────────────────────────────────────────────────────────
 
 function _openTVMode() {
-  const storeName = storage.get(STORAGE_KEYS.STORE_NAME) || 'คลินิก';
+  const storeName = storage.get(STORAGE_KEYS.STORE_NAME) || bizWord('store');
 
   const win = window.open('', '_blank');
   if (!win) { showToast('กรุณาอนุญาต Pop-up', 'error'); return; }
